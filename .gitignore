@@ -1,0 +1,26 @@
+.Rhistory
+.Rapp.history
+.RData
+.Ruserdata
+*.Rproj
+*.Rproj.user
+.DS_Store
+/doc/
+/Meta/
+*.tar.gz
+renv/library/
+renv/staging/
+
+# 根目錄本地測試資料（不進 repo）
+/data36.csv
+/data48.csv
+/data48sav.sav
+/data60.sav
+/data60.csv
+/IRT36.csv
+/*.csv
+/*.sav
+
+# 保留 package 內範例
+!inst/extdata/examples/*.csv
+!inst/extdata/examples/*.sav

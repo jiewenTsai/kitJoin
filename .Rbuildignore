@@ -1,0 +1,11 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.git$
+^\.gitignore$
+^\.cursor$
+^app\.R$
+^scripts$
+^data36\.csv$
+^data48\.csv$
+^data60\.csv$
+^IRT36\.csv$

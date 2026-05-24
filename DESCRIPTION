@@ -1,0 +1,20 @@
+Package: joinkit
+Title: KIT Multi-Wave Data Join Tool
+Version: 0.1.0
+Authors@R: person("KIT", "Join Tool", email = "joinkit@example.com", role = c("aut", "cre"))
+Description: Shiny application for joining multi-wave survey data (CSV and
+    SPSS SAV). Launch with \code{run_joinkit()}. Supports join keys,
+    suffixes, join methods,
+    post-join validation, and export to CSV or SAV.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports:
+    bslib,
+    dplyr,
+    haven,
+    purrr,
+    readr,
+    shiny
+LazyData: true
+Config/roxygen2/version: 8.0.0
