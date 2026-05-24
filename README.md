@@ -9,11 +9,6 @@ install.packages("remotes")
 remotes::install_github("jiewenTsai/joinkit")
 ```
 
-本地開發：
-
-```r
-devtools::install("/path/to/joinkit")
-```
 
 ## 使用
 
@@ -38,7 +33,8 @@ clone 本 repo 後，套件根目錄附四個 KIT M36 範例檔，可於 App 中
 ## 功能
 
 - 多檔 CSV / SAV 上傳（單檔上限 500MB）
-- 自訂 by 變項、join 方法、各波後綴與順序
+- **寬格式串接**：自訂 by 變項、join 方法（left / inner / full）、各波後綴與順序
+- **長格式疊加**：於上傳分頁設定各檔「後綴或波次名稱」（疊加時作為 wave），垂直疊加（同名欄對齊；型別不一致時自動轉字元）
 - 串接後列欄數核對
 - 匯出 CSV / SAV
 

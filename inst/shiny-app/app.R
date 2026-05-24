@@ -35,7 +35,178 @@ df_for_display <- function(df, n = NULL) {
   out
 }
 
-# 讀取 CSV（自動嘗試常見編碼）
+# 預覽用：欄位過多時只取前 max_cols 欄（優先保留指定欄）
+preview_df_cols <- function(df, max_cols = 20L, priority_cols = NULL) {
+  cols <- names(df)
+  if (length(cols) <= max_cols) return(df)
+  if (is.null(priority_cols)) priority_cols <- character(0)
+  priority_cols <- intersect(priority_cols, cols)
+  keep <- unique(c(priority_cols, setdiff(cols, priority_cols)))
+  keep <- keep[seq_len(max_cols)]
+  df[, keep, drop = FALSE]
+}
+
+# 維度描述：列在前、欄在後
+format_dims <- function(nrow, ncol, preview_cols = NULL) {
+  base <- sprintf("%d 列 × %d 欄", nrow, ncol)
+  if (!is.null(preview_cols)) {
+    paste0(base, "，以下僅預覽前 ", preview_cols, " 欄")
+  } else {
+    base
+  }
+}
+
+# 長格式疊加前：同名欄位若型別不一致，統一轉成字元以便 bind_rows
+col_bind_signature <- function(x) {
+  if (inherits(x, "labelled")) {
+    return(if (is.numeric(x)) "numeric" else "character")
+  }
+  if (is.factor(x) || is.character(x)) return("character")
+  if (is.logical(x)) return("logical")
+  if (is.integer(x) || is.double(x) || is.numeric(x)) return("numeric")
+  "character"
+}
+
+coerce_for_bind <- function(x) {
+  fix_utf8_chr(as.character(x))
+}
+
+harmonize_for_bind_rows <- function(dfs) {
+  harmonized_cols <- character()
+  all_cols <- unique(unlist(map(dfs, names)))
+  for (col in all_cols) {
+    present <- which(map_lgl(dfs, ~ col %in% names(.x)))
+    if (length(present) < 2) next
+    sigs <- unique(map_chr(dfs[present], ~ col_bind_signature(.x[[col]])))
+    if (length(sigs) <= 1) next
+    harmonized_cols <- c(harmonized_cols, col)
+    dfs <- map(dfs, function(df) {
+      if (!col %in% names(df)) return(df)
+      df[[col]] <- coerce_for_bind(df[[col]])
+      df
+    })
+  }
+  list(dfs = dfs, harmonized_cols = unique(harmonized_cols))
+}
+
+# 長格式疊加：同名欄對齊，不同欄新增，並標記 wave
+stack_files_long <- function(dfs, wave_labels) {
+  h <- harmonize_for_bind_rows(dfs)
+  result <- map2(h$dfs, wave_labels, function(df, w) {
+    mutate(df, wave = w, .before = 1)
+  }) %>% bind_rows()
+  list(result = result, harmonized_cols = h$harmonized_cols)
+}
+
+# 長格式疊加後核對
+build_stack_audit <- function(ordered_dfs, file_names, wave_labels, result,
+                              harmonized_cols = character()) {
+  file_stats <- tibble(
+    順序 = seq_along(ordered_dfs),
+    檔案 = file_names,
+    wave = wave_labels,
+    列數 = map_int(ordered_dfs, nrow),
+    欄位數 = map_int(ordered_dfs, ncol)
+  )
+
+  exp_nrow <- sum(file_stats$列數)
+  act_nrow <- nrow(result)
+  nrow_ok <- exp_nrow == act_nrow
+
+  union_cols <- unique(unlist(map(ordered_dfs, names)))
+  exp_ncol <- length(union_cols) + 1L
+  act_ncol <- ncol(result)
+  ncol_ok <- act_ncol == exp_ncol
+
+  wave_ok <- all(map_lgl(seq_along(wave_labels), function(i) {
+    sum(result$wave == wave_labels[i], na.rm = TRUE) == nrow(ordered_dfs[[i]])
+  }))
+
+  rule_note <- paste0(
+    "垂直疊加後列數應等於各檔列數之和（", exp_nrow, "）；",
+    "欄位數應等 union(各檔欄位) + wave（", exp_ncol, "）。",
+    if (length(harmonized_cols) > 0) {
+      paste0(" 已將 ", length(harmonized_cols), " 個同名欄位統一轉為字元。")
+    } else {
+      ""
+    }
+  )
+
+  list(
+    file_stats = file_stats,
+    harmonized_cols = harmonized_cols,
+    summary = tibble(
+      檢查項目 = c(
+        "結果列數",
+        "預期列數（各檔列數之和）",
+        "列數是否符合",
+        "結果欄位數",
+        "預期欄位數（欄位聯集 + wave）",
+        "欄位數是否符合",
+        "各 wave 列數是否符合",
+        "型別調整欄位數"
+      ),
+      數值或狀態 = c(
+        as.character(act_nrow),
+        as.character(exp_nrow),
+        if (nrow_ok) "符合" else "不符合",
+        as.character(act_ncol),
+        as.character(exp_ncol),
+        if (ncol_ok) "符合" else "不符合",
+        if (wave_ok) "符合" else "不符合",
+        as.character(length(harmonized_cols))
+      )
+    ),
+    rule_note = rule_note,
+    nrow_ok = nrow_ok,
+    ncol_ok = ncol_ok,
+    wave_ok = wave_ok
+  )
+}
+
+# 狀態訊息 UI（串接 / 疊加共用）
+make_status_ui <- function(st) {
+  if (is.null(st) || st$state == "idle") return(NULL)
+  prefix <- switch(
+    st$state,
+    running = "【進行中】",
+    success = "【成功】",
+    error = "【失敗】",
+    ""
+  )
+  cls <- switch(
+    st$state,
+    running = "alert alert-info",
+    success = "alert alert-success",
+    error = "alert alert-danger",
+    "alert alert-secondary"
+  )
+  tags$div(
+    class = cls,
+    role = "alert",
+    style = "margin-top: 8px;",
+    tags$strong(prefix), " ", st$message
+  )
+}
+
+# 匯出用：將 key 欄位移到最前
+reorder_key_first <- function(df, key_cols) {
+  key_cols <- intersect(key_cols, names(df))
+  if (length(key_cols) == 0) return(df)
+  df[, c(key_cols, setdiff(names(df), key_cols)), drop = FALSE]
+}
+
+prepare_export <- function(df, mode, by_vars) {
+  df <- fix_utf8_df(df)
+  if (is.null(by_vars)) by_vars <- character(0)
+  key_cols <- if (identical(mode, "long")) {
+    unique(c(intersect(by_vars, names(df)), intersect("wave", names(df))))
+  } else {
+    intersect(by_vars, names(df))
+  }
+  reorder_key_first(df, key_cols)
+}
+
 read_csv_auto <- function(path) {
   try_enc <- function(enc) {
     read_csv(
@@ -60,6 +231,13 @@ read_data_file <- function(path, name) {
   } else {
     stop("不支援的檔案格式：", name)
   }
+}
+
+# 寬串接後綴：使用者輸入 t1，實際欄位後綴為 _t1
+join_suffix <- function(label) {
+  label <- trimws(if (is.null(label)) "" else label)
+  if (!nzchar(label)) return("")
+  if (startsWith(label, "_")) label else paste0("_", label)
 }
 
 # 對非 by 欄位加後綴
@@ -146,7 +324,6 @@ build_join_audit <- function(ordered_dfs, file_names, by_vars, join_method, resu
   exp_nrow <- switch(
     join_method,
     left_join = nrow(ordered_dfs[[1]]),
-    right_join = nrow(ordered_dfs[[length(ordered_dfs)]]),
     inner_join = keys_all,
     full_join = keys_any
   )
@@ -154,7 +331,6 @@ build_join_audit <- function(ordered_dfs, file_names, by_vars, join_method, resu
   exp_nrow_note <- switch(
     join_method,
     left_join = "以順序第 1 個檔案為主體；by 鍵在後續檔案皆唯一且無額外配對列時，列數應等於第 1 檔列數",
-    right_join = "以順序最後一個檔案為主體；by 鍵在前序檔案皆唯一且無額外配對列時，列數應等於最後 1 檔列數",
     inner_join = "僅保留所有檔案皆有的 by 鍵；by 鍵各檔皆唯一時，列數應等於各檔鍵的交集筆數",
     full_join = "保留任一方出現過的 by 鍵；by 鍵各檔皆唯一時，列數應等於各檔鍵的聯集筆數"
   )
@@ -274,6 +450,15 @@ ui <- page_fluid(
         background-color: #fff;
         border: 1px solid #e0e0e0;
       }
+      .kit-table-scroll {
+        overflow-x: auto;
+        max-width: 100%;
+        margin-bottom: 0.5rem;
+      }
+      .kit-table-scroll table {
+        font-size: 0.85rem;
+        white-space: nowrap;
+      }
     "))
   ),
   kit_header,
@@ -285,30 +470,34 @@ ui <- page_fluid(
       br(),
       fileInput(
         "files",
-        "選擇 CSV 或 SAV 檔案（可多選，單檔上限 500MB）",
+        "選擇 CSV 或 SAV 檔案上傳。可同時選取多個檔案上傳，單檔上限 500MB。",
         multiple = TRUE,
         accept = c(".csv", ".sav", ".zsav")
       ),
       uiOutput("file_config_ui"),
       hr(),
       h4("第一個檔案預覽"),
-      tableOutput("preview_table")
+      textOutput("preview_meta"),
+      tags$div(
+        class = "kit-table-scroll",
+        tableOutput("preview_table")
+      )
     ),
 
-    # Tab 2：串接設定
+    # Tab 2：寬格式串接
     tabPanel(
-      "串接設定",
+      "寬格式串接",
       br(),
       selectizeInput(
         "by_vars",
-        "選擇 by 變項（ID 欄，可多選；可從清單選或手動輸入欄位名）",
+        "選擇串接 key（by 變項，可多選）",
         choices = NULL,
         multiple = TRUE,
-        options = list(create = TRUE)
+        options = list(create = FALSE)
       ),
       tags$small(
         class = "text-muted",
-        "灰色為各檔共有欄位；若欄位名相同但未出現在清單，可直接輸入後按 Enter 新增。"
+        "僅顯示所有已上傳檔案皆有的欄位。"
       ),
       br(), br(),
       selectInput(
@@ -316,12 +505,18 @@ ui <- page_fluid(
         "串接方法",
         choices = c(
           "left_join" = "left_join",
-          "right_join" = "right_join",
           "inner_join" = "inner_join",
           "full_join" = "full_join"
         ),
         selected = "left_join"
       ),
+      tags$small(
+        class = "text-muted",
+        tags$div("inner join：取得每一波次都有記錄的「全勤樣本」"),
+        tags$div("full join：取得任一波次曾經有記錄的「全樣本」"),
+        tags$div("left join：取得以第一波次為準的「向後追蹤樣本」")
+      ),
+      br(),
       actionButton("run_join", "執行串接", class = "btn-primary"),
       br(), br(),
       uiOutput("join_status_ui"),
@@ -338,14 +533,53 @@ ui <- page_fluid(
       tableOutput("audit_summary"),
       hr(),
       h4("串接結果預覽"),
-      tableOutput("join_preview")
+      textOutput("join_preview_meta"),
+      tags$div(
+        class = "kit-table-scroll",
+        tableOutput("join_preview")
+      )
     ),
 
-    # Tab 3：匯出
+    # Tab 3：長格式疊加
+    tabPanel(
+      "長格式疊加",
+      br(),
+      p(
+        class = "text-muted",
+        "依「上傳與預覽」分頁設定的後綴或波次名稱（作為 wave），將各檔垂直疊加；",
+        "相同欄名對齊，不同欄名新增（缺值為 NA）。",
+        "若同名欄位型別不一致，會自動轉為字元後疊加。"
+      ),
+      actionButton("run_stack", "執行疊加", class = "btn-primary"),
+      br(), br(),
+      uiOutput("stack_status_ui"),
+      verbatimTextOutput("stack_summary"),
+      hr(),
+      h4("疊加核對"),
+      uiOutput("stack_audit_verdict_ui"),
+      tags$div(
+        class = "text-muted",
+        style = "margin-bottom: 12px;",
+        textOutput("stack_audit_rule_note")
+      ),
+      h5("各檔案列欄"),
+      tableOutput("stack_audit_files"),
+      h5("最終核對摘要"),
+      tableOutput("stack_audit_summary"),
+      hr(),
+      h4("疊加結果預覽"),
+      textOutput("stack_preview_meta"),
+      tags$div(
+        class = "kit-table-scroll",
+        tableOutput("stack_preview")
+      )
+    ),
+
+    # Tab 4：匯出
     tabPanel(
       "匯出",
       br(),
-      p("請先在「串接設定」分頁執行串接，再下載結果。"),
+      p("請先在「寬格式串接」或「長格式疊加」分頁產生結果，再下載。"),
       downloadButton("download_csv", "下載 CSV", class = "btn-primary me-2"),
       downloadButton("download_sav", "下載 SAV", class = "btn-outline-primary")
     )
@@ -355,8 +589,20 @@ ui <- page_fluid(
 server <- function(input, output, session) {
   file_order <- reactiveVal(NULL)
   join_status <- reactiveVal(list(state = "idle", message = ""))
+  stack_status <- reactiveVal(list(state = "idle", message = ""))
   join_audit <- reactiveVal(NULL)
-  joined_data <- reactiveVal(NULL)
+  stack_audit <- reactiveVal(NULL)
+  result_data <- reactiveVal(NULL)
+  result_mode <- reactiveVal(NULL)
+
+  reset_results <- function() {
+    join_status(list(state = "idle", message = ""))
+    stack_status(list(state = "idle", message = ""))
+    join_audit(NULL)
+    stack_audit(NULL)
+    result_data(NULL)
+    result_mode(NULL)
+  }
 
   # 讀取所有上傳檔案
   loaded_data <- reactive({
@@ -376,6 +622,11 @@ server <- function(input, output, session) {
 
     tagList(
       h4("檔案設定（由上到下為串接順序）"),
+      tags$small(
+        class = "text-muted",
+        "後綴或波次名稱：寬串接時自動加底線（輸入 t1 → 欄位後綴 _t1）；長格式疊加時直接使用 t1 作為 wave。"
+      ),
+      br(),
       lapply(seq_along(order), function(pos) {
         idx <- order[pos]
         fluidRow(
@@ -388,9 +639,9 @@ server <- function(input, output, session) {
           column(
             4,
             textInput(
-              paste0("suffix_", idx),
-              "後綴名稱",
-              value = paste0("_t", idx),
+              paste0("label_", idx),
+              "後綴或波次名稱",
+              value = paste0("t", idx),
               width = "100%"
             )
           ),
@@ -410,9 +661,7 @@ server <- function(input, output, session) {
     req(input$files)
     n <- nrow(input$files)
     file_order(seq_len(n))
-    join_status(list(state = "idle", message = ""))
-    join_audit(NULL)
-    joined_data(NULL)
+    reset_results()
 
     for (pos in seq_len(n)) {
       local({
@@ -439,44 +688,49 @@ server <- function(input, output, session) {
     }
   })
 
-  # 依排序取得各檔後綴
-  get_suffixes <- reactive({
+  # 各檔後綴或波次名稱（寬串接當後綴、長格式當 wave）
+  get_file_labels <- reactive({
     req(input$files)
     order <- file_order()
     setNames(
       map_chr(order, function(idx) {
-        val <- input[[paste0("suffix_", idx)]]
-        if (is.null(val)) "" else val
+        val <- input[[paste0("label_", idx)]]
+        trimws(if (is.null(val)) "" else val)
       }),
       as.character(order)
     )
   })
 
-  # 各檔共有欄位（建議選項）
+  # 各檔共有欄位
   common_cols <- reactive({
     dfs <- loaded_data()
     req(length(dfs) >= 1)
     reduce(map(dfs, names), intersect)
   })
 
-  # 所有檔案欄位聯集（供選擇或手動新增）
-  all_cols <- reactive({
-    dfs <- loaded_data()
-    req(length(dfs) >= 1)
-    sort(unique(unlist(map(dfs, names))))
-  })
-
-  observeEvent(all_cols(), {
-    cols <- all_cols()
+  observeEvent(common_cols(), {
     common <- common_cols()
     selected <- input$by_vars
     if (is.null(selected)) selected <- character(0)
+    selected <- intersect(selected, common)
+    if (length(selected) == 0 && "release_id" %in% common) {
+      selected <- "release_id"
+    }
     updateSelectizeInput(
       session,
       "by_vars",
-      choices = setNames(cols, ifelse(cols %in% common, cols, paste0(cols, " （非共有）"))),
+      choices = common,
       selected = selected
     )
+  }, ignoreNULL = FALSE)
+
+  output$preview_meta <- renderText({
+    req(input$files)
+    order <- file_order()
+    req(length(order) >= 1)
+    df <- loaded_data()[[order[1]]]
+    n_show <- min(ncol(df), 20L)
+    format_dims(nrow(df), ncol(df), n_show)
   })
 
   # 第一個檔案預覽
@@ -484,13 +738,17 @@ server <- function(input, output, session) {
     req(input$files)
     order <- file_order()
     req(length(order) >= 1)
-    df_for_display(loaded_data()[[order[1]]], 5)
-  })
+    df <- loaded_data()[[order[1]]]
+    df <- preview_df_cols(df, priority_cols = input$by_vars)
+    df_for_display(df, 5)
+  }, striped = TRUE, spacing = "s")
 
   # 執行串接（進度條持續至檢核與預覽渲染完成）
   observeEvent(input$run_join, {
+    stack_audit(NULL)
+    result_data(NULL)
+    result_mode(NULL)
     join_audit(NULL)
-    joined_data(NULL)
     join_status(list(state = "running", message = "串接進行中，請稍候…"))
 
     prog <- Progress$new(session, min = 0, max = 1)
@@ -506,8 +764,15 @@ server <- function(input, output, session) {
       prog$close()
       return()
     }
+    if (length(common_cols()) == 0) {
+      msg <- "串接失敗：各檔沒有共同欄位，無法串接。"
+      join_status(list(state = "error", message = msg))
+      showNotification(msg, type = "error", duration = 8)
+      prog$close()
+      return()
+    }
     if (is.null(by_vars) || length(by_vars) == 0) {
-      msg <- "串接失敗：請至少選擇或輸入一個 by 變項。"
+      msg <- "串接失敗：請至少選擇一個串接 key。"
       join_status(list(state = "error", message = msg))
       showNotification(msg, type = "error", duration = 8)
       prog$close()
@@ -518,13 +783,13 @@ server <- function(input, output, session) {
       prog$set(value = 0.05, detail = "讀取與套用後綴…")
       dfs <- loaded_data()
       order <- file_order()
-      suffixes <- get_suffixes()
+      suffixes <- get_file_labels()
       join_fn <- get(input$join_method, envir = asNamespace("dplyr"))
       file_names <- files$name[order]
 
       ordered_dfs <- map(order, function(idx) {
         df <- dfs[[idx]]
-        suffix <- suffixes[[as.character(idx)]]
+        suffix <- join_suffix(suffixes[[as.character(idx)]])
         apply_suffix(df, suffix, by_vars)
       })
 
@@ -555,7 +820,8 @@ server <- function(input, output, session) {
 
       prog$set(value = 0.85, detail = "更新檢核結果…")
       join_audit(audit)
-      joined_data(result)
+      result_data(result)
+      result_mode("wide")
 
       check_bits <- c(
         if (audit$ncol_ok) "欄位數符合" else "欄位數不符",
@@ -565,7 +831,7 @@ server <- function(input, output, session) {
       )
       success_msg <- paste0(
         "串接成功！共 ", n_files, " 個檔案；",
-        "列數：", nrow(result), "；欄位數：", ncol(result),
+        format_dims(nrow(result), ncol(result)),
         "（", paste(check_bits, collapse = "；"), "）"
       )
 
@@ -586,36 +852,11 @@ server <- function(input, output, session) {
     })
   })
 
-  output$join_status_ui <- renderUI({
-    st <- join_status()
-    if (is.null(st) || st$state == "idle") return(NULL)
-
-    prefix <- switch(
-      st$state,
-      running = "【進行中】",
-      success = "【成功】",
-      error = "【失敗】",
-      ""
-    )
-    cls <- switch(
-      st$state,
-      running = "alert alert-info",
-      success = "alert alert-success",
-      error = "alert alert-danger",
-      "alert alert-secondary"
-    )
-    tags$div(
-      class = cls,
-      role = "alert",
-      style = "margin-top: 8px;",
-      tags$strong(prefix), " ", st$message
-    )
-  })
+  output$join_status_ui <- renderUI(make_status_ui(join_status()))
 
   output$join_summary <- renderText({
-    req(joined_data())
-    df <- joined_data()
-    paste0("列數：", nrow(df), "　欄位數：", ncol(df))
+    req(result_data(), result_mode() == "wide")
+    format_dims(nrow(result_data()), ncol(result_data()))
   })
 
   output$audit_verdict_ui <- renderUI({
@@ -678,30 +919,196 @@ server <- function(input, output, session) {
     join_audit()$summary
   })
 
-  output$join_preview <- renderTable({
-    req(joined_data())
-    df_for_display(joined_data(), 10)
+  output$join_preview_meta <- renderText({
+    req(result_data(), result_mode() == "wide")
+    df <- result_data()
+    n_show <- min(ncol(df), 20L)
+    format_dims(nrow(df), ncol(df), n_show)
   })
+
+  output$join_preview <- renderTable({
+    req(result_data(), result_mode() == "wide")
+    df <- preview_df_cols(result_data(), priority_cols = input$by_vars)
+    df_for_display(df, 10)
+  }, striped = TRUE, spacing = "s")
+
+  observeEvent(input$run_stack, {
+    join_audit(NULL)
+    stack_audit(NULL)
+    result_data(NULL)
+    result_mode(NULL)
+    stack_status(list(state = "running", message = "疊加進行中，請稍候…"))
+
+    prog <- Progress$new(session, min = 0, max = 1)
+    prog$set(message = "正在疊加資料", value = 0)
+
+    files <- input$files
+    if (is.null(files) || nrow(files) < 1) {
+      msg <- "疊加失敗：請至少上傳 1 個檔案。"
+      stack_status(list(state = "error", message = msg))
+      showNotification(msg, type = "error", duration = 8)
+      prog$close()
+      return()
+    }
+
+    wave_labels <- get_file_labels()
+    if (any(!nzchar(wave_labels))) {
+      msg <- "疊加失敗：請為每個檔案填寫後綴或波次名稱。"
+      stack_status(list(state = "error", message = msg))
+      showNotification(msg, type = "error", duration = 8)
+      prog$close()
+      return()
+    }
+    if (any(duplicated(wave_labels))) {
+      msg <- "疊加失敗：後綴或波次名稱不可重複。"
+      stack_status(list(state = "error", message = msg))
+      showNotification(msg, type = "error", duration = 8)
+      prog$close()
+      return()
+    }
+
+    tryCatch({
+      prog$set(value = 0.1, detail = "讀取檔案…")
+      dfs <- loaded_data()
+      order <- file_order()
+      file_names <- files$name[order]
+      ordered_dfs <- dfs[order]
+      n_files <- length(ordered_dfs)
+
+      prog$set(value = 0.25, detail = "檢查欄位型別…")
+      stacked <- stack_files_long(ordered_dfs, wave_labels)
+      result <- stacked$result
+
+      prog$set(value = 0.65, detail = "核對列欄數…")
+      audit <- build_stack_audit(
+        ordered_dfs,
+        file_names,
+        wave_labels,
+        result,
+        stacked$harmonized_cols
+      )
+
+      prog$set(value = 0.85, detail = "更新檢核結果…")
+      stack_audit(audit)
+      result_data(result)
+      result_mode("long")
+
+      check_bits <- c(
+        if (audit$nrow_ok) "列數符合" else "列數不符",
+        if (audit$ncol_ok) "欄位數符合" else "欄位數不符",
+        if (audit$wave_ok) "wave 列數符合" else "wave 列數不符"
+      )
+      success_msg <- paste0(
+        "疊加成功！共 ", n_files, " 個檔案；",
+        format_dims(nrow(result), ncol(result)),
+        "（", paste(check_bits, collapse = "；"), "）"
+      )
+
+      prog$set(value = 0.92, detail = "產生預覽…")
+      session$onFlushed(function() {
+        stack_status(list(state = "success", message = success_msg))
+        showNotification("疊加成功", type = "message", duration = 5)
+        prog$set(value = 1, detail = "完成")
+        prog$close()
+      }, once = TRUE)
+    }, error = function(e) {
+      msg <- paste0("疊加失敗：", conditionMessage(e))
+      stack_status(list(state = "error", message = msg))
+      showNotification(msg, type = "error", duration = 10)
+      prog$close()
+    })
+  })
+
+  output$stack_status_ui <- renderUI(make_status_ui(stack_status()))
+
+  output$stack_summary <- renderText({
+    req(result_data(), result_mode() == "long")
+    format_dims(nrow(result_data()), ncol(result_data()))
+  })
+
+  output$stack_audit_verdict_ui <- renderUI({
+    audit <- stack_audit()
+    req(audit)
+    all_ok <- isTRUE(audit$nrow_ok) && isTRUE(audit$ncol_ok) && isTRUE(audit$wave_ok)
+
+    if (all_ok) {
+      cls <- "alert alert-success"
+      msg <- "核對通過：列數、欄位數與各 wave 列數皆符合疊加規則。"
+    } else if (isTRUE(audit$nrow_ok) && isTRUE(audit$ncol_ok)) {
+      cls <- "alert alert-warning"
+      msg <- "列數與欄位數符合，但部分 wave 列數與來源檔案不一致，請檢查。"
+    } else {
+      cls <- "alert alert-danger"
+      msg <- "核對未通過：列數或欄位數與預期不符，請檢查上傳檔案與波次名稱。"
+    }
+
+    tags$div(
+      class = cls,
+      role = "alert",
+      tags$strong("【核對】"), " ", msg,
+      if (length(audit$harmonized_cols) > 0) {
+        tagList(
+          tags$br(),
+          tags$small(
+            "已統一型別欄位：",
+            paste(audit$harmonized_cols, collapse = ", ")
+          )
+        )
+      }
+    )
+  })
+
+  output$stack_audit_rule_note <- renderText({
+    audit <- stack_audit()
+    req(audit)
+    audit$rule_note
+  })
+
+  output$stack_audit_files <- renderTable({
+    req(stack_audit())
+    stack_audit()$file_stats
+  })
+
+  output$stack_audit_summary <- renderTable({
+    req(stack_audit())
+    stack_audit()$summary
+  })
+
+  output$stack_preview_meta <- renderText({
+    req(result_data(), result_mode() == "long")
+    df <- result_data()
+    n_show <- min(ncol(df), 20L)
+    format_dims(nrow(df), ncol(df), n_show)
+  })
+
+  output$stack_preview <- renderTable({
+    req(result_data(), result_mode() == "long")
+    df <- preview_df_cols(result_data(), priority_cols = "wave")
+    df_for_display(df, 10)
+  }, striped = TRUE, spacing = "s")
+
+  export_filename <- function(ext) {
+    prefix <- if (identical(result_mode(), "long")) "stacked_" else "joined_"
+    paste0(prefix, format(Sys.time(), "%Y%m%d_%H%M%S"), ".", ext)
+  }
 
   # 匯出 CSV
   output$download_csv <- downloadHandler(
-    filename = function() {
-      paste0("joined_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv")
-    },
+    filename = function() export_filename("csv"),
     content = function(file) {
-      req(joined_data())
-      write_csv(fix_utf8_df(joined_data()), file)
+      req(result_data())
+      df <- prepare_export(result_data(), result_mode(), input$by_vars)
+      write_csv(df, file)
     }
   )
 
   # 匯出 SAV
   output$download_sav <- downloadHandler(
-    filename = function() {
-      paste0("joined_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".sav")
-    },
+    filename = function() export_filename("sav"),
     content = function(file) {
-      req(joined_data())
-      write_sav(fix_utf8_df(joined_data()), file)
+      req(result_data())
+      df <- prepare_export(result_data(), result_mode(), input$by_vars)
+      write_sav(df, file)
     }
   )
 }
