@@ -11,16 +11,10 @@
 renv/library/
 renv/staging/
 
-# 根目錄本地測試資料（不進 repo）
-/data36.csv
-/data48.csv
-/data48sav.sav
-/data60.sav
-/data60.csv
-/IRT36.csv
+# 根目錄其他 csv/sav（範例四檔見下方白名單）
 /*.csv
 /*.sav
-
-# 保留 package 內範例
-!inst/extdata/examples/*.csv
-!inst/extdata/examples/*.sav
+!/data36.csv
+!/data48.sav
+!/data60.sav
+!/irt36.csv

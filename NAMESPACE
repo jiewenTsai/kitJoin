@@ -1,6 +1,5 @@
 # Generated for joinkit
 
 export(run_joinkit)
-export(example_paths)
 
 importFrom(shiny,runApp)

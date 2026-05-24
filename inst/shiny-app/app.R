@@ -84,11 +84,6 @@ has_dup_keys <- function(df, by_vars) {
   key_dup_stats(df, by_vars)$n_dup_key_groups > 0
 }
 
-# 各檔 by 鍵集合筆數
-count_distinct_keys <- function(df, by_vars) {
-  df %>% select(all_of(by_vars)) %>% distinct() %>% nrow()
-}
-
 keys_in_all_files <- function(dfs, by_vars) {
   key_sets <- map(dfs, ~ .x %>% select(all_of(by_vars)) %>% distinct())
   reduce(key_sets, inner_join, by = by_vars) %>% nrow()

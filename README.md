@@ -1,6 +1,6 @@
 # joinkit
 
-KIT 多波次資料串接工具（R Shiny）。安裝後在本機執行 `run_joinkit()` 即可使用。
+KIT 多波次資料串接工具（R Shiny）。執行 `run_joinkit()` 開啟本機介面，上傳 CSV / SAV 後依 by 變項串接並匯出。
 
 ## 安裝
 
@@ -24,21 +24,18 @@ library(joinkit)
 run_joinkit()
 ```
 
-## 範例資料（CSV + SAV 混合匯入）
+在 App 中選取要上傳的檔案即可（無需其他套件函式）。
 
-套件內建四個範例檔，示範 **同時上傳 CSV 與 SAV**：
+## 範例資料
 
-```r
-example_paths()
-# wave1_csv  → example_wave1.csv
-# wave2_sav  → example_wave2.sav
-# wave3_csv  → example_wave3.csv
-# wave4_sav  → example_wave4.sav
-```
+clone 本 repo 後，套件根目錄附四個 KIT M36 範例檔，可於 App 中一次選取測試 **CSV + SAV 混合匯入**：
 
-在 Shiny 中一次選取上述四個檔案，**by 變項** 設為 `release_id`，後綴可設 `_t1`～`_t4`，再執行串接。
-
-說明見 [`inst/extdata/examples/README.md`](inst/extdata/examples/README.md)。
+| 檔案 | 說明 |
+|------|------|
+| `data36.csv` | M36W36 |
+| `data48.sav` | M36W48 |
+| `data60.sav` | M36W60 |
+| `irt36.csv` | M36W36 IRT |
 
 ## 功能
 
@@ -46,20 +43,6 @@ example_paths()
 - 自訂 by 變項、join 方法、各波後綴與順序
 - 串接後列欄數核對
 - 匯出 CSV / SAV
-
-## 開發
-
-```r
-devtools::load_all()
-run_joinkit()
-```
-
-發布前可重新產生 SAV 範例：
-
-```bash
-cd joinkit
-Rscript scripts/csv_to_sav.R
-```
 
 ## 授權
 
