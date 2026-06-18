@@ -15,5 +15,6 @@ Imports:
     haven,
     purrr,
     readr,
-    shiny
+    shiny,
+    tibble
 Config/roxygen2/version: 8.0.0

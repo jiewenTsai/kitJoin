@@ -1,5 +1,7 @@
-# Generated for joinkit
-
 export(run_joinkit)
+export(kit_theme)
+export(kit_colors)
+export(kit_css)
+export(kit_header)
 
-importFrom(shiny,runApp)
+importFrom(shiny, runApp)
