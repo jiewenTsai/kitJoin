@@ -1,0 +1,3 @@
+2026-06-18 19:21:36  Root:  C:/Users/User/Documents/GitHub/kitJoin 
+2026-06-18 19:21:36  Starting kitJoin... 
+2026-06-18 19:21:36  (Close this window or press Ctrl+C to stop) 

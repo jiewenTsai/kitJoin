@@ -1,59 +1,72 @@
-# Windows run.bat 啟動腳本：檢查相依套件並啟動 Shiny App
 options(repos = c(CRAN = "https://cloud.r-project.org"))
 options(shiny.maxRequestSize = 500 * 1024^2)
 options(shiny.autoload.r = FALSE)
 
-# 取得專案根目錄（優先用 run.bat 傳入的引數，避免 %~dp0 的引號 bug）
-get_root <- function() {
+log_path <- NULL
+
+log_msg <- function(...) {
+  line <- paste0(format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "  ", paste(..., collapse = " "))
+  message(line)
+  if (!is.null(log_path)) cat(line, "\n", file = log_path, append = TRUE)
+}
+
+get_project_root <- function() {
   args <- commandArgs(trailingOnly = TRUE)
   if (length(args) >= 1 && nzchar(args[1])) {
     p <- args[1]
-    p <- gsub('^"+|"+$', "", p)       # 去除首尾引號
-    p <- gsub('[/\\\\]+$', "", p)     # 去除尾端斜線
+    p <- gsub('^"+|"+$', "", p)
+    p <- gsub('[/\\\\]+$', "", p)
     return(normalizePath(p, winslash = "/", mustWork = TRUE))
   }
   file_arg <- sub(
     "^--file=", "",
-    commandArgs(trailingOnly = FALSE)[
-      grep("^--file=", commandArgs(trailingOnly = FALSE))
-    ]
+    commandArgs(trailingOnly = FALSE)[grep("^--file=", commandArgs(trailingOnly = FALSE))]
   )
   if (length(file_arg) >= 1 && nzchar(file_arg[1])) {
-    return(normalizePath(dirname(file_arg[1]), winslash = "/"))
+    return(dirname(normalizePath(file_arg[1], winslash = "/")))
   }
   normalizePath(getwd(), winslash = "/")
 }
 
-root <- get_root()
-setwd(root)
-
-# 自動安裝缺少套件
-pkgs <- c("shiny", "bslib", "dplyr", "readr", "haven", "purrr", "tibble")
-missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]
-if (length(missing) > 0) {
-  message("正在安裝缺少的套件：", paste(missing, collapse = ", "))
-  install.packages(missing, dependencies = TRUE)
+install_if_missing <- function(pkgs) {
+  missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]
+  if (length(missing) == 0) return(invisible(NULL))
+  log_msg("Installing missing packages: ", paste(missing, collapse = ", "))
+  tryCatch(
+    install.packages(missing, dependencies = TRUE),
+    error = function(e) stop("Package install failed: ", conditionMessage(e), call. = FALSE)
+  )
   still <- missing[!vapply(missing, requireNamespace, logical(1), quietly = TRUE)]
-  if (length(still) > 0) {
-    stop("無法安裝以下套件：", paste(still, collapse = ", "), call. = FALSE)
+  if (length(still) > 0) stop("Could not load: ", paste(still, collapse = ", "), call. = FALSE)
+  invisible(NULL)
+}
+
+run_app <- function() {
+  root <- get_project_root()
+  log_path <<- file.path(root, "kitjoin_log.txt")
+  cat("", file = log_path)
+
+  log_msg("Root: ", root)
+  setwd(root)
+
+  install_if_missing(c("shiny", "bslib", "dplyr", "readr", "haven", "purrr", "tibble"))
+
+  app_dir <- file.path(root, "inst", "shiny-app")
+  if (!dir.exists(app_dir)) stop("App dir not found: ", app_dir, call. = FALSE)
+
+  log_msg("Starting kitJoin...")
+  log_msg("(Close this window or press Ctrl+C to stop)")
+
+  shiny::runApp(appDir = app_dir, launch.browser = TRUE)
+}
+
+status <- tryCatch(
+  { run_app(); 0L },
+  error = function(e) {
+    if (is.null(log_path)) log_path <<- file.path(getwd(), "kitjoin_log.txt")
+    log_msg("Error: ", conditionMessage(e))
+    1L
   }
-}
-
-app_dir <- file.path(root, "inst", "shiny-app")
-if (!dir.exists(app_dir)) {
-  stop("找不到 inst/shiny-app，請確認已完整解壓縮 kitJoin。", call. = FALSE)
-}
-
-port <- suppressWarnings(as.integer(Sys.getenv("KITJOIN_PORT", "7600")))
-if (is.na(port) || port <= 0L) port <- 7600L
-
-message(format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-        "  啟動 kitJoin（http://127.0.0.1:", port, "）…")
-message("  （關閉此視窗或按 Ctrl+C 可停止 App）")
-
-# launch.browser = FALSE：由 run.bat 的 curl 輪詢負責開瀏覽器
-shiny::runApp(
-  appDir         = app_dir,
-  port           = port,
-  launch.browser = FALSE
 )
+
+quit(save = "no", status = status)
