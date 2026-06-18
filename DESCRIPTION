@@ -1,4 +1,4 @@
-Package: joinkit
+Package: kitJoin
 Title: KIT Multi-Wave Data Join Tool
 Version: 0.1.0
 Authors@R: person("KIT", "Join Tool", email = "joinkit@example.com", role = c("aut", "cre"))
