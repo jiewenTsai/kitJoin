@@ -17,6 +17,7 @@ KIT 風格 Shiny App，副標題「臺灣幼兒發展調查資料庫 · **跨波
 1. 從右邊 `Releases` 位置下載 zip，到本機上解壓縮。 
 2. 進去後直接點擊 `run.bat` 執行即可。
 
+<img width="1860" height="984" alt="image" src="https://github.com/user-attachments/assets/4899c7f4-945d-4db2-9f03-f37c8428e671" />
 
 
 ## 用 `runGitHub()` 啟動（無需 clone）
