@@ -5,7 +5,11 @@
 #' @return 不可見 NULL，side effect 啟動 app
 #' @export
 run_kitjoin <- function(
-    launch.browser = getOption("shiny.launch.browser", interactive()),
+    launch.browser = if (interactive()) {
+      getOption("shiny.launch.browser", TRUE)
+    } else {
+      function(url) utils::browseURL(url)
+    },
     ...) {
   options(shiny.maxRequestSize = 500 * 1024^2)
   options(shiny.autoload.r = FALSE)
