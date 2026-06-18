@@ -33,9 +33,9 @@ harmonize_for_bind_rows <- function(dfs) {
 #' 長格式疊加：同名欄對齊，不同欄新增，並標記 wave
 stack_files_long <- function(dfs, wave_labels) {
   h <- harmonize_for_bind_rows(dfs)
-  result <- purrr::map2(h$dfs, wave_labels, function(df, w) {
+  result <- dplyr::bind_rows(purrr::map2(h$dfs, wave_labels, function(df, w) {
     dplyr::mutate(df, wave = w, .before = 1)
-  }) %>% dplyr::bind_rows()
+  }))
   list(result = result, harmonized_cols = h$harmonized_cols)
 }
 

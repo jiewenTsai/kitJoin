@@ -12,8 +12,8 @@ apply_suffix <- function(df, suffix, by_vars) {
 }
 
 key_dup_stats <- function(df, by_vars) {
-  key_df <- df %>% dplyr::select(dplyr::all_of(by_vars))
-  key_count <- key_df %>% dplyr::count(dplyr::across(dplyr::all_of(by_vars)))
+  key_df    <- dplyr::select(df, dplyr::all_of(by_vars))
+  key_count <- dplyr::count(key_df, dplyr::across(dplyr::all_of(by_vars)))
   list(
     n_rows = nrow(df),
     n_unique_keys = nrow(dplyr::distinct(key_df)),
@@ -27,15 +27,13 @@ has_dup_keys <- function(df, by_vars) {
 }
 
 keys_in_all_files <- function(dfs, by_vars) {
-  key_sets <- purrr::map(dfs, ~ .x %>% dplyr::select(dplyr::all_of(by_vars)) %>% dplyr::distinct())
-  purrr::reduce(key_sets, dplyr::inner_join, by = by_vars) %>% nrow()
+  key_sets <- purrr::map(dfs, function(x) dplyr::distinct(dplyr::select(x, dplyr::all_of(by_vars))))
+  nrow(purrr::reduce(key_sets, dplyr::inner_join, by = by_vars))
 }
 
 keys_in_any_file <- function(dfs, by_vars) {
-  purrr::map(dfs, ~ .x %>% dplyr::select(dplyr::all_of(by_vars)) %>% dplyr::distinct()) %>%
-    dplyr::bind_rows() %>%
-    dplyr::distinct() %>%
-    nrow()
+  key_sets <- purrr::map(dfs, function(x) dplyr::distinct(dplyr::select(x, dplyr::all_of(by_vars))))
+  nrow(dplyr::distinct(dplyr::bind_rows(key_sets)))
 }
 
 #' 串接後核對：各檔統計、逐步合併、最終列欄數是否符合規則

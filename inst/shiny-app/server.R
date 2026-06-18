@@ -582,7 +582,7 @@ server <- function(input, output, session) {
   # 執行 Attrition
   shiny::observeEvent(input$run_attrition, {
     attrition_result(NULL)
-    attrition_status(list(state = "running", message = "Attrition 計算中，請稍候…"))
+    attrition_status(list(state = "running", message = "建立流失樣本中，請稍候…"))
 
     id_vars     <- input$attrition_id_vars
     base_slot   <- suppressWarnings(as.integer(input$attrition_baseline))
@@ -632,7 +632,7 @@ server <- function(input, output, session) {
         if (res$followup_has_dup) "（後期 ID 有重複列，已 distinct 處理）" else ""
       )
       attrition_status(list(state = "success", message = msg))
-      showNotification("Attrition 完成", type = "message", duration = 5)
+      showNotification("流失樣本建立完成", type = "message", duration = 5)
     }, error = function(e) {
       msg <- paste0("失敗：", conditionMessage(e))
       attrition_status(list(state = "error", message = msg))
@@ -667,26 +667,40 @@ server <- function(input, output, session) {
   )
 
 
-  # ── 匯出（寬格式串接 / 長格式疊加）────────────────────────────────────────
-  export_filename <- function(ext) {
-    prefix <- if (identical(result_mode(), "long")) "stacked_" else "joined_"
-    paste0(prefix, format(Sys.time(), "%Y%m%d_%H%M%S"), ".", ext)
-  }
-
-  output$download_csv <- downloadHandler(
-    filename = function() export_filename("csv"),
+  # ── 匯出：寬格式串接 ───────────────────────────────────────────────────────
+  output$download_join_csv <- downloadHandler(
+    filename = function() paste0("joined_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv"),
     content = function(file) {
-      req(result_data())
-      df <- prepare_export(result_data(), result_mode(), input$by_vars)
+      req(result_data(), result_mode() == "wide")
+      df <- prepare_export(result_data(), "wide", input$by_vars)
       readr::write_csv(df, file)
     }
   )
 
-  output$download_sav <- downloadHandler(
-    filename = function() export_filename("sav"),
+  output$download_join_sav <- downloadHandler(
+    filename = function() paste0("joined_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".sav"),
     content = function(file) {
-      req(result_data())
-      df <- prepare_export(result_data(), result_mode(), input$by_vars)
+      req(result_data(), result_mode() == "wide")
+      df <- prepare_export(result_data(), "wide", input$by_vars)
+      haven::write_sav(df, file)
+    }
+  )
+
+  # ── 匯出：長格式疊加 ───────────────────────────────────────────────────────
+  output$download_stack_csv <- downloadHandler(
+    filename = function() paste0("stacked_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".csv"),
+    content = function(file) {
+      req(result_data(), result_mode() == "long")
+      df <- prepare_export(result_data(), "long", input$by_vars)
+      readr::write_csv(df, file)
+    }
+  )
+
+  output$download_stack_sav <- downloadHandler(
+    filename = function() paste0("stacked_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".sav"),
+    content = function(file) {
+      req(result_data(), result_mode() == "long")
+      df <- prepare_export(result_data(), "long", input$by_vars)
       haven::write_sav(df, file)
     }
   )

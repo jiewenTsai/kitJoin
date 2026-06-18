@@ -100,7 +100,7 @@ kit_css <- function() {
 kit_header <- function(
     title = "KIT 資料串接工具",
     subtitle = "臺灣幼兒發展調查資料庫",
-    tagline = "資料跨波次串連") {
+    tagline = "跨波次資料處理") {
   shiny::div(
     class = "kit-header mb-4",
     shiny::h1(title),
