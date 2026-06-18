@@ -3,7 +3,7 @@ Title: KIT Multi-Wave Data Join Tool
 Version: 0.1.0
 Authors@R: person("KIT", "Join Tool", email = "joinkit@example.com", role = c("aut", "cre"))
 Description: Shiny application for joining multi-wave survey data (CSV and
-    SPSS SAV). Launch with \code{run_joinkit()}. Supports join keys,
+    SPSS SAV). Launch with \code{run_kitjoin()}. Supports join keys,
     suffixes, join methods,
     post-join validation, and export to CSV or SAV.
 License: MIT + file LICENSE

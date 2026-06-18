@@ -1,4 +1,4 @@
-export(run_joinkit)
+export(run_kitjoin)
 export(kit_theme)
 export(kit_colors)
 export(kit_css)

@@ -71,7 +71,7 @@ shiny::runGitHub("jiewenTsai/kitJoin")
 ```r
 install.packages("remotes")
 remotes::install_github("jiewenTsai/kitJoin")
-kitJoin::run_joinkit()
+kitJoin::run_kitjoin()
 ```
 
 ### 本機開發（clone 後）
@@ -85,7 +85,7 @@ shiny::runApp("app.R")
 
 ```r
 devtools::load_all(".")
-run_joinkit()
+run_kitjoin()
 ```
 
 ---
