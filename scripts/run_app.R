@@ -27,7 +27,6 @@ script_dir <- if (any(grepl("^--file=", args <- commandArgs(trailingOnly = FALSE
 } else {
   file.path(getwd(), "scripts")
 }
-source(file.path(script_dir, "open_browser.R"), local = FALSE)
 
 root <- normalizePath(file.path(script_dir, ".."), mustWork = FALSE)
 app_dir <- file.path(root, "inst", "shiny-app")
@@ -41,5 +40,5 @@ if (is.na(port) || port <= 0L) port <- 7600L
 shiny::runApp(
   appDir = app_dir,
   port = port,
-  launch.browser = open_kitjoin_browser
+  launch.browser = FALSE
 )

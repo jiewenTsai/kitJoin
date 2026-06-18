@@ -26,11 +26,11 @@ if not defined RSCRIPT (
 if not defined KITJOIN_PORT set "KITJOIN_PORT=7600"
 
 echo 正在檢查相依套件並啟動 kitJoin...
-echo 瀏覽器將於數秒後開啟 http://127.0.0.1:%KITJOIN_PORT%
+echo 伺服器就緒後將自動開啟 http://127.0.0.1:%KITJOIN_PORT%
 echo.
 
-rem R 端 launch.browser 失敗時的備援：延遲後用 Windows start 開啟
-start "" cmd /c "timeout /t 4 /nobreak >nul && start http://127.0.0.1:%KITJOIN_PORT%"
+rem 背景等待伺服器啟動後用 Windows start 開瀏覽器（不依賴 R 的 browseURL）
+start "" cmd /c "for /l %%i in (1,1,180) do (curl -fs -o nul http://127.0.0.1:%KITJOIN_PORT% 2>nul && (start http://127.0.0.1:%KITJOIN_PORT% & exit /b 0)) & timeout /t 1 /nobreak >nul"
 
 "%RSCRIPT%" --vanilla "%~dp0scripts\run_app.R"
 
