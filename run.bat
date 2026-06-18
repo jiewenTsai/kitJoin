@@ -23,8 +23,14 @@ if not defined RSCRIPT (
   exit /b 1
 )
 
+if not defined KITJOIN_PORT set "KITJOIN_PORT=7600"
+
 echo 正在檢查相依套件並啟動 kitJoin...
+echo 瀏覽器將於數秒後開啟 http://127.0.0.1:%KITJOIN_PORT%
 echo.
+
+rem R 端 launch.browser 失敗時的備援：延遲後用 Windows start 開啟
+start "" cmd /c "timeout /t 4 /nobreak >nul && start http://127.0.0.1:%KITJOIN_PORT%"
 
 "%RSCRIPT%" --vanilla "%~dp0scripts\run_app.R"
 

@@ -8,7 +8,16 @@ run_kitjoin <- function(
     launch.browser = if (interactive()) {
       getOption("shiny.launch.browser", TRUE)
     } else {
-      function(url) utils::browseURL(url)
+      function(url) {
+        if (.Platform$OS.type == "windows") {
+          tryCatch(utils::shell.exec(url), error = function(e) {
+            shell(paste0("start \"\" ", shQuote(url, type = "cmd")), wait = FALSE)
+          })
+        } else {
+          utils::browseURL(url)
+        }
+        invisible(NULL)
+      }
     },
     ...) {
   options(shiny.maxRequestSize = 500 * 1024^2)
