@@ -10,8 +10,16 @@ KIT 風格 Shiny App，副標題「臺灣幼兒發展調查資料庫 · **跨波
 - **Tab 4 建立流失樣本**：以前期為基準比對後期 ID，標記流失（0 = 留存，1 = 流失），下載 CSV
 
 ---
+## 使用
 
-## 推薦：用 `runGitHub()` 啟動（無需 clone）
+最簡單的方法 (only for windows)
+
+1. 從右邊 `Releases` 位置下載 zip，到本機上解壓縮。 
+2. 進去後直接點擊 `run.bat` 執行即可。
+
+
+
+## 用 `runGitHub()` 啟動（無需 clone）
 
 從 GitHub 直接下載並執行 Shiny App，適合一般使用者。
 
