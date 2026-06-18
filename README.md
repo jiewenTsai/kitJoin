@@ -10,12 +10,31 @@ KIT 風格 Shiny App，副標題「臺灣幼兒發展調查資料庫 · **跨波
 - **Tab 4 建立流失樣本**：以前期為基準比對後期 ID，標記流失（0 = 留存，1 = 流失），下載 CSV
 
 ---
-## 使用
+## 使用：快速開始
+
+### For Windows
 
 最簡單的方法 (only for windows)
 
 1. 從右邊 `Releases` 位置下載 zip，到本機上解壓縮。 
 2. 進去後直接點擊 `run.bat` 執行即可。
+
+### For Mac/Linux/Win
+
+在 R 上面操作。(R, RStudio, Positron, Colab 都可以)
+
+1. 使用 Pak 下載套件（最穩定,自動安裝依賴套件）
+
+```r
+install.packages('pak') # 如果還沒裝 pak
+pkg_install('jiewenTsai/kitJoin')
+```
+
+2. 裝好後在R中直接執行
+
+```r
+kitJoin::run_kitjoin()
+```
 
 <img width="1860" height="984" alt="image" src="https://github.com/user-attachments/assets/4899c7f4-945d-4db2-9f03-f37c8428e671" />
 
