@@ -12,56 +12,38 @@ KIT 風格 Shiny App，副標題「臺灣幼兒發展調查資料庫 · **跨波
 ---
 ## 使用：快速開始
 
-### For Windows
+### 方法1. For Windows
 
 最簡單的方法 (only for windows)
 
 1. 從右邊 `Releases` 位置下載 zip，到本機上解壓縮。 
-2. 進去後直接點擊 `run.bat` 執行即可。
+2. 進去後直接點擊 `run.bat` 執行即可。(或名為 `run` 的檔案)
 
-### For Mac/Linux/Win
+### 方法2. For Mac/Linux/Windows
 
-在 R 上面操作。(R, RStudio, Positron, Colab 都可以)
+在 R 上面操作。(R, RStudio, Positron, Terminal,  ~~Colab~~ 都可以)
 
 1. 使用 Pak 下載套件（最穩定,自動安裝依賴套件）
 
 ```r
 install.packages('pak') # 如果還沒裝 pak
-pkg_install('jiewenTsai/kitJoin')
+pak::pkg_install('jiewenTsai/kitJoin')
 ```
 
-2. 裝好後在R中直接執行
+2. 裝好後在R中直接執行 (建議安裝 R 4.2 以上)
+R 安裝連結：https://cran.csie.ntu.edu.tw/
 
 ```r
 kitJoin::run_kitjoin()
 ```
 
+瀏覽器會自動開啟本機介面。
+
 <img width="1860" height="984" alt="image" src="https://github.com/user-attachments/assets/4899c7f4-945d-4db2-9f03-f37c8428e671" />
 
 
-## 用 `runGitHub()` 啟動（無需 clone）
 
-從 GitHub 直接下載並執行 Shiny App，適合一般使用者。
 
-### 步驟
-
-**1. 安裝相依套件**（首次使用時執行一次即可）
-
-```r
-install.packages(c(
-  "shiny", "bslib", "dplyr", "readr", "haven", "purrr", "tibble"
-))
-```
-
-**2. 從 GitHub 啟動 App**
-
-```r
-shiny::runGitHub("jiewenTsai/kitJoin")
-```
-
-根目錄的 `app.R` 會自動啟動 `inst/shiny-app`，**不必**加 `subdir`。
-
-瀏覽器會自動開啟本機介面。
 
 **3. 使用流程摘要**
 
@@ -90,45 +72,4 @@ shiny::runGitHub("jiewenTsai/kitJoin")
 - 後期樣本僅用於 ID 比對，不併入其他變項
 - 若後期同一 ID 有多列，會自動 distinct 後再比對
 
----
 
-## 其他啟動方式
-
-### 安裝套件後執行
-
-```r
-install.packages("remotes")
-remotes::install_github("jiewenTsai/kitJoin")
-kitJoin::run_kitjoin()
-```
-
-### 本機開發（clone 後）
-
-```r
-setwd("path/to/kitJoin")   # 專案根目錄
-shiny::runApp("app.R")
-```
-
-或：
-
-```r
-devtools::load_all(".")
-run_kitjoin()
-```
-
----
-
-## 範例資料
-
-clone 本 repo 後，套件根目錄附四個 KIT M36 範例檔，可於 App 中分框上傳測試：
-
-| 檔案 | 說明 |
-|------|------|
-| `data36.csv` | M36W36 |
-| `data48.sav` | M36W48 |
-| `data60.sav` | M36W60 |
-| `irt36.csv` | M36W36 IRT |
-
-## 授權
-
-MIT
