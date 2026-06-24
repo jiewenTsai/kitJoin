@@ -23,6 +23,9 @@
 ### 方法2. For Mac/Linux/Windows
 
 在 R 上面操作。(R, RStudio, Positron, Terminal,  ~~Colab~~ 都可以)
+(建議安裝 R 4.2 以上)
+
+R 安裝連結：https://cran.csie.ntu.edu.tw/
 
 1. 使用 Pak 下載套件（最穩定,自動安裝依賴套件）
 
@@ -31,8 +34,7 @@ install.packages('pak') # 如果還沒裝 pak
 pak::pkg_install('jiewenTsai/kitJoin')
 ```
 
-2. 裝好後在R中直接執行 (建議安裝 R 4.2 以上)
-R 安裝連結：https://cran.csie.ntu.edu.tw/
+2. 裝好後在R中直接執行 
 
 ```r
 kitJoin::run_kitjoin()
