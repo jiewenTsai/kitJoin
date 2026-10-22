@@ -99,6 +99,34 @@ kit_css <- function() {
       font-size: 0.85rem;
       white-space: nowrap;
     }
+    .kit-cloud-banner {
+      margin-bottom: 1rem;
+      padding: 0.5rem 0.9rem;
+      font-size: 0.85rem;
+    }
+    .kit-cloud-footer {
+      margin: 2.5rem 0 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid %6$s;
+      font-size: 0.78rem;
+      line-height: 1.65;
+      color: #757575;
+    }
+    .kit-cloud-footer p {
+      margin: 0 0 0.45rem;
+    }
+    .kit-cloud-footer strong,
+    .kit-cloud-footer-title {
+      font-weight: 500;
+      color: %5$s;
+    }
+    .kit-cloud-footer-title {
+      margin-bottom: 0.4rem;
+    }
+    .kit-cloud-footer a {
+      color: inherit;
+      text-decoration: underline;
+    }
     .kit-app-meta {
       margin-top: 0.35rem;
       font-size: 0.72rem;

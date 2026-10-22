@@ -7,7 +7,7 @@ ui <- bslib::page_fluid(
     subtitle = "臺灣幼兒發展調查資料庫",
     tagline = "跨波次資料處理"
   ),
-  if (kit_is_cloud()) kit_cloud_notice(),
+  if (kit_is_cloud()) kit_cloud_banner(),
 
   shiny::tabsetPanel(
 
@@ -242,5 +242,7 @@ ui <- bslib::page_fluid(
         "若下載無反應，請改用 Chrome 或檢查瀏覽器是否封鎖下載。"
       )
     )
-  )
+  ),
+
+  if (kit_is_cloud()) kit_cloud_footer()
 )
