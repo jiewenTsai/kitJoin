@@ -1,5 +1,6 @@
-# 開發用入口：從套件根目錄執行
-# shiny::runApp("app.R")
+# 入口：本機開發與 Posit Connect Cloud 部署共用
+# 本機：shiny::runApp("app.R")（或 shiny::runApp(".")）
+# Connect Cloud：以此檔為 primary file，回傳 Shiny app 物件（不可呼叫 runApp）
 options(shiny.maxRequestSize = 500 * 1024^2)
 options(shiny.autoload.r = FALSE)
 
@@ -14,7 +15,9 @@ open_kitjoin_browser <- function(url) {
   invisible(NULL)
 }
 
-shiny::runApp(
-  appDir = "inst/shiny-app",
-  launch.browser = open_kitjoin_browser
-)
+# 僅本機 Windows 使用自訂開啟瀏覽器方式；伺服器（Linux）不受影響
+if (.Platform$OS.type == "windows") {
+  options(shiny.launch.browser = open_kitjoin_browser)
+}
+
+shiny::shinyAppDir("inst/shiny-app")

@@ -4,6 +4,10 @@
 ^\.gitignore$
 ^\.cursor$
 ^scripts$
+^manifest\.json$
+^\.rscignore$
+^run\.bat$
+^kitjoin_log\.txt$
 ^data36\.csv$
 ^data48\.sav$
 ^data60\.sav$

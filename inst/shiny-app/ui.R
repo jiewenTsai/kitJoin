@@ -7,6 +7,7 @@ ui <- bslib::page_fluid(
     subtitle = "臺灣幼兒發展調查資料庫",
     tagline = "跨波次資料處理"
   ),
+  if (kit_is_cloud()) kit_cloud_notice(),
 
   shiny::tabsetPanel(
 
@@ -33,6 +34,11 @@ ui <- bslib::page_fluid(
         "add_file_slot", "+ 新增上傳框",
         class = "btn-outline-secondary btn-sm",
         style = "margin-bottom: 1rem;"
+      ),
+      shiny::tags$small(
+        class = "text-muted d-block",
+        style = "margin-bottom: 1rem;",
+        sprintf("單檔上傳上限：%d MB", kit_max_upload_mb())
       ),
 
       shiny::hr(),

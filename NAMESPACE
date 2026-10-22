@@ -3,5 +3,6 @@ export(kit_theme)
 export(kit_colors)
 export(kit_css)
 export(kit_header)
+export(kit_app_meta)
 
 importFrom(shiny, runApp)

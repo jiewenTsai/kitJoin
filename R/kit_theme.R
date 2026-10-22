@@ -21,6 +21,18 @@ kit_theme <- function() {
   )
 }
 
+#' App 版本（每次功能更新請手動遞增，例如 0.1.0 → 0.1.1 或 0.2.0；
+#' 並同步更新 DESCRIPTION 的 Version 欄位）
+KIT_APP_VERSION <- "0.1.0"
+
+#' 讀取 Shiny app 檔案最後修改日期（yyyy-mm-dd）
+kit_app_last_modified <- function() {
+  app_files <- c("app.R", "ui.R", "server.R", "global.R")
+  app_files <- app_files[file.exists(app_files)]
+  if (length(app_files) == 0) return("unknown")
+  format(max(file.info(app_files)$mtime), "%Y-%m-%d")
+}
+
 #' KIT 品牌色常數（供自訂 CSS 或圖表使用）
 #' @export
 kit_colors <- function() {
@@ -87,8 +99,25 @@ kit_css <- function() {
       font-size: 0.85rem;
       white-space: nowrap;
     }
+    .kit-app-meta {
+      margin-top: 0.35rem;
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.65);
+      line-height: 1.2;
+      font-weight: 400;
+      letter-spacing: 0.02em;
+    }
   ", cols$primary, cols$primary_light, cols$accent,
      cols$subtitle, cols$text_muted, cols$border))
+}
+
+#' 頁首版本與最後修改日期
+#' @export
+kit_app_meta <- function() {
+  shiny::div(
+    class = "kit-app-meta",
+    sprintf("v%s · %s", KIT_APP_VERSION, kit_app_last_modified())
+  )
 }
 
 #' KIT 頁首區塊
@@ -96,17 +125,20 @@ kit_css <- function() {
 #' @param title 主標題
 #' @param subtitle 副標題（顯示為淺黃綠色）
 #' @param tagline 標語（接在副標題後）
+#' @param meta 版本資訊（預設為 [kit_app_meta()]；傳 NULL 不顯示）
 #' @export
 kit_header <- function(
     title = "KIT 資料串接工具",
     subtitle = "臺灣幼兒發展調查資料庫",
-    tagline = "跨波次資料處理") {
+    tagline = "跨波次資料處理",
+    meta = kit_app_meta()) {
   shiny::div(
     class = "kit-header mb-4",
     shiny::h1(title),
     shiny::p(
       shiny::tags$span(class = "kit-subtitle", subtitle),
       " · ", tagline
-    )
+    ),
+    meta
   )
 }
