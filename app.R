@@ -15,6 +15,12 @@ open_kitjoin_browser <- function(url) {
   invisible(NULL)
 }
 
+# Connect Cloud 以本檔為入口且為非互動執行：未設定 KIT_DEPLOY 時視為雲端版
+# （本機 run.bat / run_kitjoin() 不經過本檔；在 R console 執行 runApp 為互動模式）
+if (!nzchar(Sys.getenv("KIT_DEPLOY")) && !interactive()) {
+  Sys.setenv(KIT_DEPLOY = "cloud")
+}
+
 # 僅本機 Windows 使用自訂開啟瀏覽器方式；伺服器（Linux）不受影響
 if (.Platform$OS.type == "windows") {
   options(shiny.launch.browser = open_kitjoin_browser)
