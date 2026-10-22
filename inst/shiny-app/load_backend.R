@@ -17,7 +17,8 @@ load_kitjoin_backend <- function() {
 
   r_dir <- find_r_dir()
   for (f in c("kit_theme.R", "io_data.R", "join_pipeline.R",
-              "stack_pipeline.R", "attrition_pipeline.R", "ui_helpers.R")) {
+              "stack_pipeline.R", "attrition_pipeline.R", "missing_pipeline.R",
+              "code_snippets.R", "ui_helpers.R")) {
     source(file.path(r_dir, f), local = FALSE)
   }
   invisible(NULL)

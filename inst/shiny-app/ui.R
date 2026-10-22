@@ -49,10 +49,92 @@ ui <- bslib::page_fluid(
       shiny::tags$div(
         class = "kit-table-scroll",
         shiny::tableOutput("preview_table")
-      )
+      ),
+      kit_code_panel("code_read")
     ),
 
-    # ── Tab 2：寬格式串接 ──────────────────────────────────────────────────────
+    # ── Tab 2：遺漏值處理 ──────────────────────────────────────────────────────
+    shiny::tabPanel(
+      "遺漏值處理",
+      shiny::br(),
+      kit_tab_guide(
+        goal = "將遺漏值代碼（如 7777、9999）改為 NA，可單檔下載，並供後續分頁使用。",
+        steps = "輸入遺漏值代碼 → 確認不處理的欄位（如 ID）→ 執行轉換 → 檢視核對結果 → 選擇檔案下載",
+        principle = paste0(
+          "數值欄（含 SAV 標籤欄）中等於任一代碼的值改為 NA；",
+          "SAV 標籤欄同時移除這些代碼的數值標籤。文字欄僅在勾選時比對。"
+        ),
+        output = "所有已上傳檔案各自轉換；欄位與列數不變，僅遺漏值代碼變為 NA。",
+        note = paste0(
+          "轉換後無法再區分遺漏原因（如 7777 不適用、9999 拒答）；分析需區分時請保留原檔。",
+          "SAV 檔中 SPSS 已宣告為遺漏的值在讀入時即為 NA，不會計入替換筆數。"
+        )
+      ),
+      shiny::textInput(
+        "na_codes",
+        "遺漏值代碼（以逗號分隔）",
+        value = kit_na_codes_default(),
+        width = "60%"
+      ),
+      shiny::uiOutput("na_codes_parsed_ui"),
+      shiny::selectizeInput(
+        "na_exclude_cols",
+        "不處理的欄位（如 ID，可多選）",
+        choices = NULL,
+        multiple = TRUE,
+        options = list(create = FALSE),
+        width = "60%"
+      ),
+      shiny::tags$small(
+        class = "text-muted",
+        "預設排除名稱像 ID 的欄位（如 id、release_id）；ID 值可能剛好等於 7777 或 9999。"
+      ),
+      shiny::br(), shiny::br(),
+      shiny::checkboxInput(
+        "na_match_text",
+        "文字欄也比對（例如 CSV 中被讀成文字的 \"9999\"）",
+        value = FALSE,
+        width = "100%"
+      ),
+      shiny::checkboxInput(
+        "na_use_downstream",
+        "後續分頁（寬格式串接、長格式疊加、建立流失樣本）使用遺漏值處理後的資料",
+        value = TRUE,
+        width = "100%"
+      ),
+      shiny::actionButton("run_na", "執行轉換", class = "btn-primary"),
+      shiny::br(), shiny::br(),
+      shiny::uiOutput("na_status_ui"),
+      shiny::hr(),
+      shiny::h4("轉換核對"),
+      shiny::h5("各檔案替換摘要"),
+      shiny::tableOutput("na_file_summary"),
+      shiny::selectInput("na_view_file", "檢視與下載的檔案", choices = NULL),
+      shiny::h5("各欄位替換筆數"),
+      shiny::tags$div(
+        class = "kit-table-scroll",
+        shiny::tableOutput("na_detail_table")
+      ),
+      shiny::h5("轉換後預覽"),
+      shiny::textOutput("na_preview_meta"),
+      shiny::tags$div(
+        class = "kit-table-scroll",
+        shiny::tableOutput("na_preview")
+      ),
+      shiny::hr(),
+      shiny::h4("匯出（單檔）"),
+      shiny::downloadButton("download_na_csv", "下載 CSV", class = "btn-primary me-2"),
+      shiny::downloadButton("download_na_sav", "下載 SAV", class = "btn-outline-primary"),
+      shiny::tags$p(
+        class = "text-muted",
+        style = "font-size: 0.85rem; margin-top: 0.5rem;",
+        "下載上方選擇的檔案；檔名為原檔名加 _na。CSV 的遺漏值輸出為空白儲存格。",
+        "若下載無反應，請改用 Chrome 或檢查瀏覽器是否封鎖下載。"
+      ),
+      kit_code_panel("code_missing")
+    ),
+
+    # ── Tab 3：寬格式串接 ──────────────────────────────────────────────────────
     shiny::tabPanel(
       "寬格式串接",
       shiny::br(),
@@ -124,10 +206,11 @@ ui <- bslib::page_fluid(
         class = "text-muted",
         style = "font-size: 0.85rem; margin-top: 0.5rem;",
         "請先執行串接產生結果。若下載無反應，請改用 Chrome 或檢查瀏覽器是否封鎖下載。"
-      )
+      ),
+      kit_code_panel("code_join")
     ),
 
-    # ── Tab 3：長格式疊加 ──────────────────────────────────────────────────────
+    # ── Tab 4：長格式疊加 ──────────────────────────────────────────────────────
     shiny::tabPanel(
       "長格式疊加",
       shiny::br(),
@@ -171,10 +254,11 @@ ui <- bslib::page_fluid(
         class = "text-muted",
         style = "font-size: 0.85rem; margin-top: 0.5rem;",
         "請先執行疊加產生結果。若下載無反應，請改用 Chrome 或檢查瀏覽器是否封鎖下載。"
-      )
+      ),
+      kit_code_panel("code_stack")
     ),
 
-    # ── Tab 4：建立流失樣本 ────────────────────────────────────────────────────
+    # ── Tab 5：建立流失樣本 ────────────────────────────────────────────────────
     shiny::tabPanel(
       "建立流失樣本",
       shiny::br(),
@@ -240,7 +324,8 @@ ui <- bslib::page_fluid(
         class = "text-muted",
         style = "font-size: 0.85rem; margin-top: 0.5rem;",
         "若下載無反應，請改用 Chrome 或檢查瀏覽器是否封鎖下載。"
-      )
+      ),
+      kit_code_panel("code_attrition")
     )
   ),
 

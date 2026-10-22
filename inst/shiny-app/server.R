@@ -112,14 +112,26 @@ server <- function(input, output, session) {
   result_mode      <- reactiveVal(NULL)
   attrition_result <- reactiveVal(NULL)
   attrition_status <- reactiveVal(list(state = "idle", message = ""))
+  na_result        <- reactiveVal(NULL)
+  na_status        <- reactiveVal(list(state = "idle", message = ""))
 
-  reset_results <- function() {
+  # 串接 / 疊加 / 流失樣本結果（遺漏值處理變動時需重做）
+  reset_downstream <- function() {
     join_status(list(state = "idle", message = ""))
     stack_status(list(state = "idle", message = ""))
     join_audit(NULL)
     stack_audit(NULL)
     result_data(NULL)
     result_mode(NULL)
+    attrition_result(NULL)
+    attrition_status(list(state = "idle", message = ""))
+  }
+
+  # 上傳或移除檔案時：所有結果（含遺漏值處理）皆失效
+  reset_results <- function() {
+    reset_downstream()
+    na_result(NULL)
+    na_status(list(state = "idle", message = ""))
   }
 
 
@@ -151,6 +163,20 @@ server <- function(input, output, session) {
       trimws(if (is.null(v)) "" else v)
     })
   })
+
+  # 後續分頁使用的資料：已執行遺漏值處理且勾選時用處理後資料，否則用原始資料
+  working_data <- reactive({
+    dfs <- loaded_data()
+    res <- na_result()
+    if (!isTRUE(input$na_use_downstream) || is.null(res)) return(dfs)
+    keys <- as.character(slot_order())
+    if (!all(keys %in% names(res$data))) return(dfs)
+    unname(res$data[keys])
+  })
+
+  shiny::observeEvent(input$na_use_downstream, {
+    if (!is.null(na_result())) reset_downstream()
+  }, ignoreInit = TRUE)
 
 
   # ── 已上傳檔案的排序 UI ────────────────────────────────────────────────────
@@ -234,6 +260,170 @@ server <- function(input, output, session) {
   }, striped = TRUE, spacing = "s")
 
 
+  # ── 遺漏值處理 ─────────────────────────────────────────────────────────────
+  na_codes_parsed <- reactive(parse_na_codes(input$na_codes))
+
+  output$na_codes_parsed_ui <- renderUI({
+    p <- na_codes_parsed()
+    shiny::tags$div(
+      style = "margin: -0.5rem 0 1rem;",
+      if (length(p$codes) > 0) {
+        shiny::tags$small(
+          class = "text-muted d-block",
+          "將替換的代碼：",
+          paste(format(p$codes, scientific = FALSE, trim = TRUE, drop0trailing = TRUE),
+                collapse = "、")
+        )
+      },
+      if (length(p$invalid) > 0) {
+        shiny::tags$small(
+          class = "text-danger d-block",
+          "無法辨識（將略過）：", paste(p$invalid, collapse = "、")
+        )
+      }
+    )
+  })
+
+  # 不處理的欄位：選項為各檔欄位聯集；新出現的欄位若像 ID 則預設選取
+  na_all_cols   <- reactive(unique(unlist(purrr::map(loaded_data(), names))))
+  na_known_cols <- reactiveVal(character(0))
+
+  shiny::observeEvent(na_all_cols(), {
+    cols     <- na_all_cols()
+    prev     <- input$na_exclude_cols
+    if (is.null(prev)) prev <- character(0)
+    new_cols <- setdiff(cols, na_known_cols())
+    selected <- union(intersect(prev, cols), guess_id_cols(new_cols))
+    na_known_cols(cols)
+    shiny::updateSelectizeInput(session, "na_exclude_cols",
+      choices = cols, selected = selected)
+  })
+
+  shiny::observeEvent(input$run_na, {
+    na_result(NULL)
+    reset_downstream()
+
+    ord   <- slot_order()
+    codes <- na_codes_parsed()$codes
+    if (length(ord) < 1) {
+      msg <- "轉換失敗：請先上傳檔案。"
+      na_status(list(state = "error", message = msg))
+      showNotification(msg, type = "error", duration = 8)
+      return()
+    }
+    if (length(codes) == 0) {
+      msg <- "轉換失敗：請至少輸入一個遺漏值代碼。"
+      na_status(list(state = "error", message = msg))
+      showNotification(msg, type = "error", duration = 8)
+      return()
+    }
+
+    tryCatch({
+      dfs        <- loaded_data()
+      file_names <- loaded_names()
+      exclude    <- input$na_exclude_cols
+      if (is.null(exclude)) exclude <- character(0)
+
+      converted <- purrr::map(dfs, replace_na_codes,
+        codes = codes, exclude = exclude, match_text = isTRUE(input$na_match_text))
+      keys <- as.character(ord)
+
+      summary_tbl <- tibble::tibble(
+        檔案 = file_names,
+        列數 = purrr::map_int(dfs, nrow),
+        欄位數 = purrr::map_int(dfs, ncol),
+        有替換的欄位數 = purrr::map_int(converted, function(x) {
+          if (is.null(x$detail)) 0L else nrow(x$detail)
+        }),
+        替換為NA格數 = purrr::map_int(converted, function(x) {
+          if (is.null(x$detail)) 0L else as.integer(sum(x$detail$合計))
+        })
+      )
+
+      na_result(list(
+        data    = stats::setNames(purrr::map(converted, "data"), keys),
+        detail  = stats::setNames(purrr::map(converted, "detail"), keys),
+        names   = stats::setNames(file_names, keys),
+        summary = summary_tbl
+      ))
+
+      msg <- paste0(
+        "轉換完成！共 ", length(dfs), " 個檔案，替換 ",
+        sum(summary_tbl$替換為NA格數), " 格為 NA。",
+        if (isTRUE(input$na_use_downstream)) "後續分頁將使用處理後的資料。"
+        else "後續分頁仍使用原始資料。"
+      )
+      na_status(list(state = "success", message = msg))
+      showNotification("遺漏值轉換完成", type = "message", duration = 5)
+    }, error = function(e) {
+      msg <- paste0("轉換失敗：", conditionMessage(e))
+      na_status(list(state = "error", message = msg))
+      showNotification(msg, type = "error", duration = 10)
+    })
+  })
+
+  output$na_status_ui <- renderUI(make_status_ui(na_status()))
+
+  output$na_file_summary <- renderTable({
+    res <- na_result()
+    req(res)
+    res$summary
+  })
+
+  shiny::observeEvent(na_result(), {
+    res <- na_result()
+    ch  <- if (is.null(res)) character(0) else stats::setNames(names(res$names), res$names)
+    prev <- input$na_view_file
+    shiny::updateSelectInput(session, "na_view_file",
+      choices  = ch,
+      selected = if (!is.null(prev) && prev %in% ch) prev else ch[1]
+    )
+  }, ignoreNULL = FALSE)
+
+  na_view <- reactive({
+    res <- na_result()
+    key <- input$na_view_file
+    req(res, key, key %in% names(res$data))
+    list(
+      data   = res$data[[key]],
+      detail = res$detail[[key]],
+      name   = res$names[[key]]
+    )
+  })
+
+  output$na_detail_table <- renderTable({
+    v <- na_view()
+    if (is.null(v$detail)) return(data.frame(說明 = "此檔案沒有符合遺漏值代碼的值"))
+    v$detail
+  }, striped = TRUE, spacing = "s", digits = 0)
+
+  output$na_preview_meta <- renderText({
+    v <- na_view()
+    format_dims(nrow(v$data), ncol(v$data), min(ncol(v$data), 20L))
+  })
+
+  output$na_preview <- renderTable({
+    v <- na_view()
+    replaced <- if (is.null(v$detail)) character(0) else v$detail$欄位
+    df <- preview_df_cols(v$data, priority_cols = c(input$na_exclude_cols, replaced))
+    df_for_display(df, 10)
+  }, striped = TRUE, spacing = "s", na = "NA")
+
+  output$download_na_csv <- downloadHandler(
+    filename = function() na_export_name(na_view()$name, "csv"),
+    content = function(file) {
+      readr::write_csv(fix_utf8_df(na_view()$data), file, na = "")
+    }
+  )
+
+  output$download_na_sav <- downloadHandler(
+    filename = function() na_export_name(na_view()$name, "sav"),
+    content = function(file) {
+      haven::write_sav(fix_utf8_df(na_view()$data), file)
+    }
+  )
+
+
   # ── 寬格式串接 ─────────────────────────────────────────────────────────────
   shiny::observeEvent(input$run_join, {
     stack_audit(NULL)
@@ -272,7 +462,7 @@ server <- function(input, output, session) {
 
     tryCatch({
       prog$set(value = 0.05, detail = "讀取與套用後綴…")
-      dfs        <- loaded_data()
+      dfs        <- working_data()
       file_names <- loaded_names()
       labels     <- get_file_labels()
       join_fn    <- get(input$join_method, envir = asNamespace("dplyr"))
@@ -437,7 +627,7 @@ server <- function(input, output, session) {
 
     tryCatch({
       prog$set(value = 0.1, detail = "讀取檔案…")
-      dfs        <- loaded_data()
+      dfs        <- working_data()
       file_names <- loaded_names()
       n_files    <- length(dfs)
 
@@ -618,7 +808,7 @@ server <- function(input, output, session) {
     }
 
     tryCatch({
-      dfs         <- loaded_data()
+      dfs         <- working_data()
       baseline_df <- dfs[[base_pos]]
       followup_df <- dfs[[follow_pos]]
 
@@ -704,4 +894,43 @@ server <- function(input, output, session) {
       haven::write_sav(df, file)
     }
   )
+
+
+  # ── 教學：用 R 怎麼做？（依目前設定產生程式碼）───────────────────────────
+  # 尚未上傳檔案時 req() 會中斷，改以範例值代入
+  or_empty <- function(expr) {
+    tryCatch(expr, error = function(e) character(0))
+  }
+  slot_wave <- function(slot) {
+    slot <- suppressWarnings(as.integer(slot))
+    if (length(slot) == 0 || is.na(slot)) character(0) else slot_label(slot)
+  }
+
+  output$code_read <- renderUI({
+    kit_code_blocks(code_read(or_empty(loaded_names()), or_empty(get_file_labels())))
+  })
+
+  output$code_missing <- renderUI({
+    kit_code_blocks(code_missing(
+      na_codes_parsed()$codes,
+      if (is.null(input$na_exclude_cols)) character(0) else input$na_exclude_cols,
+      isTRUE(input$na_match_text)
+    ))
+  })
+
+  output$code_join <- renderUI({
+    kit_code_blocks(code_join(input$by_vars, input$join_method))
+  })
+
+  output$code_stack <- renderUI({
+    kit_code_blocks(code_stack())
+  })
+
+  output$code_attrition <- renderUI({
+    kit_code_blocks(code_attrition(
+      slot_wave(input$attrition_baseline),
+      slot_wave(input$attrition_followup),
+      input$attrition_id_vars
+    ))
+  })
 }

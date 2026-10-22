@@ -120,6 +120,62 @@ kit_cloud_footer <- function() {
   )
 }
 
+#' 教學區塊（預設收起）：用 R 怎麼做？
+#'
+#' @param output_id 由 server 以 [kit_code_blocks()] 填入內容的 uiOutput id
+kit_code_panel <- function(output_id) {
+  shiny::tags$div(
+    class = "kit-code-panel",
+    bslib::accordion(
+      open = FALSE,
+      bslib::accordion_panel(
+        title = "用 R 怎麼做？（tidyverse 版與 base R 版）",
+        value = output_id,
+        icon = shiny::icon("code"),
+        shiny::uiOutput(output_id)
+      )
+    )
+  )
+}
+
+#' 教學區塊內容：說明 + tidyverse 版 + base R 版（附複製按鈕）
+#'
+#' @param snips list(tidy = 字串, base = 字串)
+kit_code_blocks <- function(snips) {
+  block <- function(label, code) {
+    shiny::tags$div(
+      class = "kit-code-block",
+      shiny::tags$div(
+        class = "kit-code-head",
+        shiny::tags$strong(label),
+        shiny::tags$button(
+          type = "button",
+          class = "btn btn-sm btn-outline-secondary",
+          onclick = paste0(
+            "var b=this;navigator.clipboard.writeText(",
+            "b.parentElement.nextElementSibling.innerText).then(function(){",
+            "b.textContent='已複製';setTimeout(function(){b.textContent='複製';},1500);});"
+          ),
+          "複製"
+        )
+      ),
+      # 直接組 HTML：避免 tags$pre() 排版時在程式碼前插入縮排空白
+      shiny::HTML(paste0(
+        "<pre><code>", htmltools::htmlEscape(sub("\\s+$", "", code)), "</code></pre>"
+      ))
+    )
+  }
+  shiny::tagList(
+    shiny::tags$p(
+      class = "text-muted small",
+      "以下程式碼依您目前在本分頁的設定產生，為簡化示範；",
+      "app 實際處理另含編碼修正、型別檢查與核對等步驟。"
+    ),
+    block("tidyverse 版", snips$tidy),
+    block("base R 版", snips$base)
+  )
+}
+
 #' 維度描述：列在前、欄在後
 format_dims <- function(nrow, ncol, preview_cols = NULL) {
   base <- sprintf("%d 列 × %d 欄", nrow, ncol)

@@ -23,7 +23,7 @@ kit_theme <- function() {
 
 #' App 版本（每次功能更新請手動遞增，例如 0.1.0 → 0.1.1 或 0.2.0；
 #' 並同步更新 DESCRIPTION 的 Version 欄位）
-KIT_APP_VERSION <- "0.1.0"
+KIT_APP_VERSION <- "0.2.0"
 
 #' 讀取 Shiny app 檔案最後修改日期（yyyy-mm-dd）
 kit_app_last_modified <- function() {
@@ -98,6 +98,30 @@ kit_css <- function() {
     .kit-table-scroll table {
       font-size: 0.85rem;
       white-space: nowrap;
+    }
+    .kit-code-panel {
+      margin-top: 2rem;
+    }
+    .kit-code-block {
+      margin-bottom: 1rem;
+    }
+    .kit-code-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.3rem;
+    }
+    .kit-code-block pre {
+      font-size: 0.8rem;
+      padding: 0.75rem;
+      margin: 0;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .kit-code-block pre code {
+      padding: 0;
+      background: none;
+      color: inherit;
     }
     .kit-cloud-banner {
       margin-bottom: 1rem;
