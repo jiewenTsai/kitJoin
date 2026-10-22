@@ -1815,88 +1815,88 @@
   },
   "files": {
     ".gitattributes": {
-      "checksum": "e20f657eb0b2e975f150d675d61e9688"
+      "checksum": "0a2bdfeb1c0a44b5a2bd0a7756e3bb9b"
     },
     ".Rbuildignore": {
       "checksum": "22f5ecb16be88b347c13a1dde8411884"
     },
     "app.R": {
-      "checksum": "0eade2d4e1626bbb124b0d23795d6c55"
+      "checksum": "43f2f7cf9d6f82ff56db8a14edeb5733"
     },
     "DESCRIPTION": {
-      "checksum": "14d0de877ab79dcc211f816e75f0286c"
+      "checksum": "a1aeb07a11b39e741753e49f9e4f0e23"
     },
     "inst/extdata/example_t1.csv": {
-      "checksum": "86b287c755537d1155c134d0572929a5"
+      "checksum": "276318a2a6d086f8f851fee1a831c72d"
     },
     "inst/extdata/example_t2.csv": {
-      "checksum": "9b1d52152be71ead9cc4467d13d169c0"
+      "checksum": "4754915807387be90319632b15fe1f0a"
     },
     "inst/extdata/example_t3.csv": {
-      "checksum": "9618a7eceb62dd5e640fb34d579bd306"
+      "checksum": "e36aa183d4535205c40cc4785b732196"
     },
     "LICENSE": {
-      "checksum": "336c98a424ec7b4ab73c3bc89ea68b20"
+      "checksum": "ddfe97732adf4d61e6c3b54f6ab0ef77"
     },
     "NAMESPACE": {
-      "checksum": "8cf21f578171de0d21a1322440f49e92"
+      "checksum": "0886ef5a7b33e5446629ab5a43793f16"
     },
     "R/app.R": {
-      "checksum": "1a0f0347369ac68162e0b46b354d64de"
+      "checksum": "59580bed9e327946b655e3b248ef3be5"
     },
     "R/attrition_pipeline.R": {
-      "checksum": "af8ee1a74bf69f7b63f5cf935d0a6df0"
+      "checksum": "50bb0890520db08d85e78ab7d0a9dac4"
     },
     "R/cloud.R": {
-      "checksum": "bbbebb34005bcd3162c88625c80a4f0c"
+      "checksum": "7a8d287f2b351e9867e3736d8fe5feb1"
     },
     "R/code_snippets.R": {
-      "checksum": "de44ee93cfbccdecb9b33ac128d97e38"
+      "checksum": "1014896ec97048de34d71cd819e1e7b5"
     },
     "R/constants.R": {
-      "checksum": "ed8a8157ea8c3a3d595becc00dce5d28"
+      "checksum": "54318ffa37e2c6cab7f5f70982be172f"
     },
     "R/io_data.R": {
-      "checksum": "0c7e0ef2d10aa5d00d7f35e852186601"
+      "checksum": "1fdabd3cddb1b10234abbbe9f33b5ebf"
     },
     "R/join_pipeline.R": {
-      "checksum": "30e3778a5db955722ecb25964ff57828"
+      "checksum": "99f9ab7207d44504b9cc28a246529189"
     },
     "R/kit_theme.R": {
-      "checksum": "f7246de6f4ccb03d37a058f720e83551"
+      "checksum": "079f51ef7eacc88c36841bff5cfd2db9"
     },
     "R/missing_pipeline.R": {
-      "checksum": "25f4eec04c5d09e1f291d97e5cd6b258"
+      "checksum": "ac7fc0667f2dfebe12c64b0bdb5a5583"
     },
     "R/mod_attrition.R": {
-      "checksum": "bc0a2c9a7a93740edce605d476f3697e"
+      "checksum": "7612482e862443e9a8988ed094db0a22"
     },
     "R/mod_join.R": {
-      "checksum": "f8b67e4a4254e6777c57eed08ea1b63c"
+      "checksum": "328eda2ee589421f851152f994d7e5c3"
     },
     "R/mod_missing.R": {
-      "checksum": "abc8aa422bde8623329b15e03118e10d"
+      "checksum": "f039ac04c06e6190fec0e4abd63ec0a3"
     },
     "R/mod_stack.R": {
-      "checksum": "87a4bbac6ae370a4df06380ce11bf153"
+      "checksum": "e09e2b38ffb26efc1214f22efae5116e"
     },
     "R/mod_upload.R": {
-      "checksum": "6b804130c86d5869564acc9635a22603"
+      "checksum": "6e44f7b3ef2f34e825ea835122d3404d"
     },
     "R/run_kitjoin.R": {
-      "checksum": "f8e2ee1feb11c13df40d7a32162da7d4"
+      "checksum": "9ee617de5ee669e2d312e4bbea5e4778"
     },
     "R/stack_pipeline.R": {
-      "checksum": "85164da5db02c810b09bec44246f1a94"
+      "checksum": "7f660c47d4139eff701ac3ae99e5c82d"
     },
     "R/ui_helpers.R": {
-      "checksum": "b78f2dc5337998873ff183b4befa0eb8"
+      "checksum": "a95894c7f735e707b7dc645b23d87e48"
     },
     "R/utils.R": {
-      "checksum": "3d9a740116542d0132a862b8d24b1317"
+      "checksum": "97441a20f3fe2df1e15bf583f2d80e82"
     },
     "README.md": {
-      "checksum": "d1cbbab50c233c7560870f44de18b344"
+      "checksum": "6a1205bbcfbeabc1c6dfccb936bd0f45"
     }
   },
   "users": null

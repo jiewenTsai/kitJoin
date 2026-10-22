@@ -200,13 +200,13 @@ mod_upload_server <- function(id, goto) {
       if (n == 0) return(NULL)
       if (n == 1) {
         return(shiny::tags$div(
-          class = "alert alert-info",
+          class = "kit-callout",
           "已加入 1 個檔案。串接、疊加與流失樣本都需要至少 2 個波次的檔案，請再加入一個檔案。"
         ))
       }
       link <- function(id, text) shiny::actionLink(ns(id), text)
       shiny::tags$div(
-        class = "alert alert-info kit-next-step",
+        class = "kit-callout kit-next-step",
         shiny::tags$strong("下一步："),
         shiny::tags$ul(
           if (count_code_cells(purrr::map(records(), "data")) > 0) {

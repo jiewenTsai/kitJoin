@@ -196,7 +196,7 @@ kit_summary_ui <- function(sentences, title = "結果摘要") {
 kit_source_note_ui <- function(n_files, source, code_cells, ns) {
   if (n_files < 2) {
     return(shiny::tags$div(
-      class = "alert alert-warning",
+      class = "kit-callout kit-callout-warning",
       "這個功能需要至少 2 個波次的檔案，目前只有 ", n_files, " 個。",
       shiny::actionLink(ns("goto_upload"), "到「① 上傳檔案」加入檔案")
     ))
@@ -209,7 +209,7 @@ kit_source_note_ui <- function(n_files, source, code_cells, ns) {
   }
   if (code_cells > 0) {
     return(shiny::tags$div(
-      class = "alert alert-warning kit-source-note",
+      class = "kit-callout kit-callout-warning",
       "目前使用：原始資料。資料中有 ", code_cells, " 格是 7777、9999 等常見的遺漏值代碼，",
       "若它們代表遺漏，請先",
       shiny::actionLink(ns("goto_missing"), "到「② 遺漏值轉 NA」處理"),

@@ -244,6 +244,32 @@ kit_css <- function() {
       color: #455a64;
       font-size: 0.9rem;
     }
+    .kit-callout {
+      background: #eef5fc;
+      border: 1px solid #c9dcf0;
+      border-left: 4px solid #2778c4;
+      border-radius: 0.375rem;
+      color: #1f2d3a;
+      padding: 0.8rem 1.1rem;
+      margin: 0.8rem 0 1rem;
+    }
+    .kit-callout-warning {
+      background: #fff8e1;
+      border-color: #f1d98c;
+      border-left-color: #e0a800;
+    }
+    .kit-callout ul {
+      margin: 0.35rem 0 0;
+    }
+    .kit-callout a,
+    .alert a {
+      color: inherit;
+      font-weight: 600;
+      text-decoration: underline;
+    }
+    .kit-callout a {
+      color: %1$s;
+    }
     .kit-file-table {
       background: #fff;
       margin-bottom: 0.4rem;
