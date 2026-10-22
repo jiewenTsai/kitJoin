@@ -1,128 +1,325 @@
-#' 分頁說明框（目標 / 步驟 / 原理 / 輸出）
+# 各分頁共用的 UI 元件與狀態訊息
+
+#' 分頁說明框（目標 / 步驟 / 輸出，技術說明預設收起）
 #'
-#' @param goal  本分頁目標（字串）
+#' @param goal 本分頁目標
 #' @param steps 操作步驟（字串或 tags$ol(...)）
-#' @param principle 原理說明（字串）
-#' @param output 輸出形式（字串）
-#' @param note 附注（字串，可 NULL）
-kit_tab_guide <- function(goal, steps, principle, output, note = NULL) {
+#' @param output 輸出形式
+#' @param technical 技術說明（給想了解原理的人，預設收起；可 NULL）
+#' @param note 附注（可 NULL）
+#' @noRd
+kit_tab_guide <- function(goal, steps, output, technical = NULL, note = NULL) {
   shiny::tags$div(
-    class = "alert alert-success",
-    shiny::tags$strong("【本分頁目標】"), " ", goal,
-    shiny::tags$hr(style = "margin: 0.5rem 0;"),
-    shiny::tags$strong("步驟："), steps,
-    shiny::tags$br(),
-    shiny::tags$strong("原理："), principle,
-    shiny::tags$br(),
-    shiny::tags$strong("輸出："), output,
-    if (!is.null(note)) shiny::tagList(
-      shiny::tags$br(),
-      shiny::tags$small(class = "text-muted", note)
-    )
+    class = "kit-guide",
+    shiny::tags$p(shiny::tags$strong("這一頁做什麼："), goal),
+    shiny::tags$div(shiny::tags$strong("步驟："), steps),
+    shiny::tags$p(shiny::tags$strong("會得到："), output),
+    if (!is.null(note)) shiny::tags$p(class = "kit-guide-note", note),
+    if (!is.null(technical)) {
+      shiny::tags$details(
+        shiny::tags$summary("技術說明（給想了解原理的人）"),
+        shiny::tags$p(technical)
+      )
+    }
   )
 }
 
-#' 是否為雲端版（Posit Connect Cloud）
-#'
-#' 優先看環境變數 KIT_DEPLOY（"cloud" / "local"，於 Connect Cloud 設定）；
-#' 未設定時，以 Posit Connect 預設的 R_CONFIG_ACTIVE = "rsconnect" 判斷。
-kit_is_cloud <- function() {
-  deploy <- tolower(Sys.getenv("KIT_DEPLOY"))
-  if (nzchar(deploy)) return(identical(deploy, "cloud"))
-  identical(Sys.getenv("R_CONFIG_ACTIVE"), "rsconnect")
+#' 編號步驟清單
+#' @noRd
+kit_steps <- function(...) {
+  shiny::tags$ol(class = "kit-steps", lapply(c(...), shiny::tags$li))
 }
 
-#' 單檔上傳上限（MB，依 shiny.maxRequestSize）
+#' 單檔上傳上限（MB）
+#' @noRd
 kit_max_upload_mb <- function() {
-  round(getOption("shiny.maxRequestSize", 5 * 1024^2) / 1024^2)
+  round(getOption("shiny.maxRequestSize", KIT_UPLOAD_MB * 1024^2) / 1024^2)
 }
 
-#' 雲端版提醒（標題下方一行）
-kit_cloud_banner <- function() {
-  shiny::tags$div(
-    class = "alert alert-warning kit-cloud-banner",
-    role = "alert",
-    shiny::tags$span(
-      paste0(
-        "此為雲端版：上傳的資料會傳送至位於美國的 Posit 伺服器。",
-        "含個資或受 IRB 限制的資料請改用本機版。",
-        "上傳前請閱讀頁面最下方的"
-      ),
-      .noWS = "after"
-    ),
-    shiny::tags$a(href = "#kit-cloud-terms", "〈雲端版使用須知〉", .noWS = "after"),
-    "。"
-  )
+#' 維度描述：「5 列 × 7 欄」；欄位多於預覽欄數時補一句只預覽前幾欄
+#' @noRd
+format_dims <- function(nrow, ncol, preview_cols = NULL) {
+  base <- sprintf("%d 列 × %d 欄", as.integer(nrow), as.integer(ncol))
+  if (!is.null(preview_cols) && preview_cols < ncol) {
+    paste0(base, "（以下只預覽前 ", preview_cols, " 欄）")
+  } else {
+    base
+  }
 }
 
-#' 雲端版使用須知（頁面最下方，灰色小字）
-kit_cloud_footer <- function() {
-  ext_link <- function(href, text) {
-    shiny::tags$a(href = href, target = "_blank", rel = "noopener noreferrer", text)
+#' 串接方法的小例子：第 1 波 A B C、第 2 波 B C D
+#' @noRd
+join_method_example <- function() {
+  row <- function(method, kept) {
+    shiny::tags$tr(shiny::tags$td(method), shiny::tags$td(kept))
   }
-  # 標題接句號、內文串成一段，避免 HTML 在標籤與句子間插入空白
-  section <- function(title, ...) {
-    shiny::tags$p(
-      shiny::tags$strong(paste0(title, "。"), .noWS = "after"),
-      paste0(...)
-    )
-  }
-  shiny::tags$footer(
-    id = "kit-cloud-terms",
-    class = "kit-cloud-footer",
-    shiny::tags$div(class = "kit-cloud-footer-title", "雲端版使用須知"),
-    section(
-      "一、資料傳輸與儲存",
-      "本雲端版部署於 Posit Connect Cloud，主機位於美國 AWS us-east-2 區域。",
-      "您上傳的檔案經加密連線傳送至該伺服器，暫存於伺服器的暫存空間以進行處理，",
-      "本工具不另行保存、備份或分享您的資料；下載檔亦僅於您按下下載時即時產生。",
-      "各使用者的資料於各自連線中處理，其他使用者無法看到。",
-      "平台層級的暫存、日誌與備份由 Posit 管理，請參閱其隱私權政策。"
-    ),
-    section(
-      "二、平台安全性",
-      "依 Posit 官方說明：傳輸以 TLS 1.2 以上加密，靜態資料以 AES-256 加密；",
-      "平台為多租戶架構，以角色權限（RBAC）隔離各客戶資料；",
-      "已完成 SOC 2 Type I 稽核（Type II 預計 2027 年第一季）。",
-      "以上為 Posit 之聲明，本網站未另行驗證，亦不構成任何安全保證。"
-    ),
-    section(
-      "三、KIT 使用者注意事項",
-      "若資料含可識別個人之資訊（如姓名、身分證字號、出生日期、地址、聯絡方式），",
-      "或資料申請時之使用規範、IRB 核准計畫書限制資料存放位置或跨境傳輸，請勿上傳至雲端版。",
-      "使用前請自行確認符合 KIT 資料使用規範及《個人資料保護法》相關規定。"
-    ),
-    section(
-      "四、建議使用方式",
-      "已去識別化之資料可使用雲端版；含個資或受 IRB 限制之資料請使用本機版（資料不會離開您的電腦）。",
-      sprintf("單檔上傳上限為 %d MB，雲端運算資源有限，大型檔案亦建議使用本機版。",
-              kit_max_upload_mb())
-    ),
-    section(
-      "五、免責聲明",
-      "本工具以現況提供，僅供資料處理輔助之用。使用者應自行確認輸出結果之正確性，",
-      "並自行負擔上傳資料之合規責任。對於因使用本工具或第三方平台（Posit Connect Cloud）",
-      "所生之資料外洩、遺失或其他損害，本工具開發者不負任何責任。"
-    ),
-    shiny::tags$p(
-      "參考連結：",
-      ext_link("https://docs.posit.co/connect-cloud/user/platform/security.html", "Posit 安全說明"),
-      " · ",
-      ext_link("https://docs.posit.co/connect-cloud/whats-new/posts/2026-07-01-soc-2-type-i-attestation.html",
-               "SOC 2 稽核公告"),
-      " · ",
-      ext_link("https://trust.posit.co", "Posit Trust Center"),
-      " · ",
-      ext_link("https://posit.co/about/privacy-policy/", "Posit 隱私權政策"),
-      " · ",
-      ext_link("https://github.com/jiewenTsai/kitJoin", "kitJoin 本機版（GitHub）")
+  shiny::tags$details(
+    class = "kit-example",
+    shiny::tags$summary("看例子：三種方法會留下誰？"),
+    shiny::tags$p("假設第 1 波有 A、B、C 三人，第 2 波有 B、C、D 三人："),
+    shiny::tags$table(
+      class = "table table-sm kit-example-table",
+      shiny::tags$thead(shiny::tags$tr(
+        shiny::tags$th("方法"),
+        shiny::tags$th("結果留下")
+      )),
+      shiny::tags$tbody(
+        row("向後追蹤樣本（left join）", "A、B、C（A 的第 2 波欄位是空白；D 不在第 1 波，不納入）"),
+        row("全勤樣本（inner join）", "B、C"),
+        row("全樣本（full join）", "A、B、C、D（缺席波次的欄位是空白）")
+      )
     )
   )
 }
 
-#' 教學區塊（預設收起）：用 R 怎麼做？
+
+# ── 狀態訊息 ─────────────────────────────────────────────────────────────────
+
+#' 狀態物件
 #'
-#' @param output_id 由 server 以 [kit_code_blocks()] 填入內容的 uiOutput id
+#' @param state "idle"、"stale"、"success"、"warning" 或 "error"
+#' @param message 主要訊息
+#' @param warnings 需要使用者注意的事（黃色條列）
+#' @param notes 補充說明（灰色小字）
+#' @param details 技術細節（收起）
+#' @noRd
+kit_status <- function(state = "idle", message = "", warnings = character(0),
+                       notes = character(0), details = NULL) {
+  list(
+    state = state,
+    message = message,
+    warnings = warnings,
+    notes = notes,
+    details = details
+  )
+}
+
+#' 執行結果的狀態：有提醒時為 warning，否則為 success
+#' @noRd
+kit_done_status <- function(
+    message,
+    warnings = character(0),
+    notes = character(0)) {
+  state <- if (length(warnings) > 0) "warning" else "success"
+  kit_status(state, message, warnings = warnings, notes = notes)
+}
+
+#' 執行失敗的狀態：白話錯誤直接顯示；未預期的錯誤附上技術細節
+#' @noRd
+kit_error_status <- function(e, action) {
+  if (inherits(e, "kit_user_error")) {
+    return(kit_status("error", conditionMessage(e)))
+  }
+  kit_status(
+    "error",
+    paste0(
+      action, "時發生未預期的錯誤。請確認檔案內容與設定後再試一次；",
+      "如果一直發生，請把下方「技術細節」回報給開發者。"
+    ),
+    details = conditionMessage(e)
+  )
+}
+
+#' 檔案或設定變更後，舊結果失效
+#' @noRd
+kit_stale_status <- function(run_label) {
+  kit_status("stale", paste0("檔案或設定已變更，舊的結果已清除。請重新按「", run_label, "」。"))
+}
+
+#' 狀態訊息 UI
+#' @noRd
+make_status_ui <- function(st) {
+  if (is.null(st) || st$state == "idle") return(NULL)
+  look <- switch(st$state,
+    stale = list("alert alert-info", "【需要重新執行】"),
+    success = list("alert alert-success", "【完成】"),
+    warning = list("alert alert-warning", "【完成，但請注意】"),
+    error = list("alert alert-danger", "【沒有完成】")
+  )
+  shiny::tags$div(
+    class = paste(look[[1]], "kit-status"),
+    role = "alert",
+    shiny::tags$strong(look[[2]]), " ", st$message,
+    if (length(st$warnings) > 0) {
+      shiny::tags$ul(lapply(st$warnings, shiny::tags$li))
+    },
+    if (length(st$notes) > 0) {
+      shiny::tags$div(
+        class = "kit-status-notes",
+        lapply(st$notes, shiny::tags$div)
+      )
+    },
+    if (!is.null(st$details)) {
+      shiny::tags$details(
+        shiny::tags$summary("技術細節"),
+        shiny::tags$code(st$details)
+      )
+    }
+  )
+}
+
+#' 顯示通知：失敗用紅色、其他用一般樣式
+#' @noRd
+kit_notify <- function(st) {
+  if (st$state == "error") {
+    shiny::showNotification(
+      st$message,
+      type = "error",
+      duration = KIT_NOTIFY_ERROR_SECONDS
+    )
+  } else {
+    shiny::showNotification(
+      st$message,
+      type = "message",
+      duration = KIT_NOTIFY_SECONDS
+    )
+  }
+}
+
+#' 白話摘要框
+#' @noRd
+kit_summary_ui <- function(sentences, title = "結果摘要") {
+  shiny::tags$div(
+    class = "kit-summary",
+    shiny::tags$strong(title),
+    shiny::tags$ul(lapply(sentences, shiny::tags$li))
+  )
+}
+
+#' 目前使用哪一份資料（原始 / 遺漏值處理後），以及檔案數不足的提醒
+#'
+#' @param n_files 已上傳檔案數
+#' @param source "raw" 或 "na"
+#' @param code_cells 原始資料中等於遺漏值代碼的格數
+#' @param ns 模組的 namespace 函式（連結按鈕用）
+#' @noRd
+kit_source_note_ui <- function(n_files, source, code_cells, ns) {
+  if (n_files < 2) {
+    return(shiny::tags$div(
+      class = "alert alert-warning",
+      "這個功能需要至少 2 個波次的檔案，目前只有 ", n_files, " 個。",
+      shiny::actionLink(ns("goto_upload"), "到「① 上傳檔案」加入檔案")
+    ))
+  }
+  if (identical(source, "na")) {
+    return(shiny::tags$p(
+      class = "kit-source-note",
+      "目前使用：「② 遺漏值轉 NA」處理後的資料。"
+    ))
+  }
+  if (code_cells > 0) {
+    return(shiny::tags$div(
+      class = "alert alert-warning kit-source-note",
+      "目前使用：原始資料。資料中有 ", code_cells, " 格是 7777、9999 等常見的遺漏值代碼，",
+      "若它們代表遺漏，請先",
+      shiny::actionLink(ns("goto_missing"), "到「② 遺漏值轉 NA」處理"),
+      "，否則會被當成一般數值。"
+    ))
+  }
+  shiny::tags$p(class = "kit-source-note", "目前使用：原始資料。")
+}
+
+
+# ── 下載 ─────────────────────────────────────────────────────────────────────
+
+#' 下載區（CSV + SAV）
+#'
+#' 沒有結果時顯示停用的按鈕與「先執行」提示；有結果時顯示下載按鈕、
+#' 檔名與 SAV 自動改名提醒。
+#'
+#' @param output,ns 模組的 output 與 namespace 函式
+#' @param data_fn 回傳要匯出的資料框；沒有結果時回傳 NULL
+#' @param filename_fn function(ext) 回傳下載檔名
+#' @param run_label 產生結果的按鈕名稱（給提示用）
+#' @noRd
+kit_download_server <- function(output, ns, data_fn, filename_fn, run_label) {
+  output$download_csv <- shiny::downloadHandler(
+    filename = function() filename_fn("csv"),
+    content = function(file) write_kit_csv(data_fn(), file)
+  )
+  output$download_sav <- shiny::downloadHandler(
+    filename = function() filename_fn("sav"),
+    content = function(file) write_kit_sav(data_fn(), file)
+  )
+  output$downloads <- shiny::renderUI({
+    df <- data_fn()
+    if (is.null(df)) {
+      disabled <- function(label) {
+        shiny::tags$button(
+          type = "button",
+          class = "btn btn-outline-secondary me-2",
+          disabled = NA,
+          shiny::icon("download"),
+          label
+        )
+      }
+      return(shiny::tags$div(
+        class = "kit-downloads",
+        disabled("下載 CSV"), disabled("下載 SAV"),
+        shiny::tags$small(
+          class = "kit-hint",
+          paste0("先按上方「", run_label, "」，才能下載結果。")
+        )
+      ))
+    }
+    renamed <- sav_renamed_cols(names(df))
+    shiny::tags$div(
+      class = "kit-downloads",
+      shiny::downloadButton(
+        ns("download_csv"),
+        "下載 CSV",
+        class = "btn-primary me-2"
+      ),
+      shiny::downloadButton(
+        ns("download_sav"),
+        "下載 SAV（SPSS）",
+        class = "btn-outline-primary"
+      ),
+      shiny::tags$small(
+        class = "kit-hint",
+        "CSV 的遺漏值為空白儲存格，可直接用 Excel 開啟。",
+        if (length(renamed) > 0) {
+          paste0(
+            "匯出 SAV 時，有 ", length(renamed), " 個欄名不符合 SPSS 規則，會自動改名：",
+            paste(
+              utils::head(paste(names(renamed), "→", renamed), 5),
+              collapse = "、"
+            ),
+            if (length(renamed) > 5) " …" else "", "。"
+          )
+        }
+      )
+    )
+  })
+}
+
+#' 下載區的位置（搭配 kit_download_server()）
+#' @noRd
+kit_download_ui <- function(ns) {
+  shiny::uiOutput(ns("downloads"))
+}
+
+#' 結果檔名：joined_20261022_153000.csv
+#' @noRd
+timestamped_name <- function(prefix) {
+  function(ext) {
+    paste0(prefix, "_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".", ext)
+  }
+}
+
+#' 預覽表（共用格式）
+#' @noRd
+kit_preview_table <- function(df, priority_cols = NULL, n = KIT_PREVIEW_ROWS) {
+  df_for_display(preview_df_cols(df, priority_cols = priority_cols), n)
+}
+
+
+# ── 教學：用 R 怎麼做？ ──────────────────────────────────────────────────────
+
+#' 教學區塊（預設收起）
+#'
+#' @param output_id 由 server 以 `kit_code_blocks()` 填入內容的 uiOutput id
+#' @noRd
 kit_code_panel <- function(output_id) {
   shiny::tags$div(
     class = "kit-code-panel",
@@ -141,6 +338,7 @@ kit_code_panel <- function(output_id) {
 #' 教學區塊內容：說明 + tidyverse 版 + base R 版（附複製按鈕）
 #'
 #' @param snips list(tidy = 字串, base = 字串)
+#' @noRd
 kit_code_blocks <- function(snips) {
   block <- function(label, code) {
     shiny::tags$div(
@@ -154,14 +352,17 @@ kit_code_blocks <- function(snips) {
           onclick = paste0(
             "var b=this;navigator.clipboard.writeText(",
             "b.parentElement.nextElementSibling.innerText).then(function(){",
-            "b.textContent='已複製';setTimeout(function(){b.textContent='複製';},1500);});"
+            "b.textContent='已複製';",
+            "setTimeout(function(){b.textContent='複製';},1500);});"
           ),
           "複製"
         )
       ),
       # 直接組 HTML：避免 tags$pre() 排版時在程式碼前插入縮排空白
       shiny::HTML(paste0(
-        "<pre><code>", htmltools::htmlEscape(sub("\\s+$", "", code)), "</code></pre>"
+        "<pre><code>",
+        htmltools::htmlEscape(sub("\\s+$", "", code)),
+        "</code></pre>"
       ))
     )
   }
@@ -173,40 +374,5 @@ kit_code_blocks <- function(snips) {
     ),
     block("tidyverse 版", snips$tidy),
     block("base R 版", snips$base)
-  )
-}
-
-#' 維度描述：列在前、欄在後
-format_dims <- function(nrow, ncol, preview_cols = NULL) {
-  base <- sprintf("%d 列 × %d 欄", nrow, ncol)
-  if (!is.null(preview_cols)) {
-    paste0(base, "，以下僅預覽前 ", preview_cols, " 欄")
-  } else {
-    base
-  }
-}
-
-#' 狀態訊息 UI（串接 / 疊加共用）
-make_status_ui <- function(st) {
-  if (is.null(st) || st$state == "idle") return(NULL)
-  prefix <- switch(
-    st$state,
-    running = "【進行中】",
-    success = "【成功】",
-    error = "【失敗】",
-    ""
-  )
-  cls <- switch(
-    st$state,
-    running = "alert alert-info",
-    success = "alert alert-success",
-    error = "alert alert-danger",
-    "alert alert-secondary"
-  )
-  shiny::tags$div(
-    class = cls,
-    role = "alert",
-    style = "margin-top: 8px;",
-    shiny::tags$strong(prefix), " ", st$message
   )
 }

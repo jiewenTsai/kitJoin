@@ -31,16 +31,21 @@ kit_theme <- function() {
   )
 }
 
-#' App 版本（每次功能更新請手動遞增，例如 0.1.0 → 0.1.1 或 0.2.0；
-#' 並同步更新 DESCRIPTION 的 Version 欄位）
-KIT_APP_VERSION <- "0.2.3"
-
-#' 讀取 Shiny app 檔案最後修改日期（yyyy-mm-dd）
-kit_app_last_modified <- function() {
-  app_files <- c("app.R", "ui.R", "server.R", "global.R")
-  app_files <- app_files[file.exists(app_files)]
-  if (length(app_files) == 0) return("unknown")
-  format(max(file.info(app_files)$mtime), "%Y-%m-%d")
+#' 讀取 DESCRIPTION 的版本與日期
+#'
+#' 雲端版、本機 run.bat、套件 run_kitjoin() 都以 DESCRIPTION 的
+#' Version / Date 為準，三者顯示一致（不看檔案修改時間，因為解壓、
+#' 安裝、部署都會改變 mtime）。每次更新請同步遞增 Version 並改 Date。
+#' @noRd
+kit_app_description <- function() {
+  if ("kitJoin" %in% loadedNamespaces()) {
+    desc <- utils::packageDescription("kitJoin")
+    return(list(version = desc$Version, date = desc$Date))
+  }
+  # 雲端版與 run.bat：工作目錄為專案根目錄
+  if (!file.exists("DESCRIPTION")) return(list(version = NA, date = NA))
+  desc <- read.dcf("DESCRIPTION", fields = c("Version", "Date"))
+  list(version = desc[1, "Version"], date = desc[1, "Date"])
 }
 
 #' KIT 品牌色常數（供自訂 CSS 或圖表使用）
@@ -169,6 +174,95 @@ kit_css <- function() {
       font-weight: 400;
       letter-spacing: 0.02em;
     }
+    .kit-guide {
+      background: #f1f7ee;
+      border-left: 4px solid %1$s;
+      border-radius: 0.375rem;
+      padding: 0.9rem 1.1rem;
+      margin: 1rem 0;
+      color: #263238;
+    }
+    .kit-guide p {
+      margin: 0 0 0.4rem;
+    }
+    .kit-guide-note {
+      font-size: 0.85rem;
+      color: #455a64;
+    }
+    .kit-guide details summary,
+    .kit-example summary,
+    .kit-status details summary {
+      cursor: pointer;
+      color: %1$s;
+      font-size: 0.85rem;
+    }
+    .kit-steps {
+      margin: 0.2rem 0 0.4rem 1.2rem;
+      padding: 0;
+    }
+    .kit-hint {
+      display: block;
+      color: #546e7a;
+      font-size: 0.85rem;
+      margin: -0.4rem 0 0.9rem;
+    }
+    .kit-downloads .kit-hint {
+      margin: 0.4rem 0 0;
+    }
+    .kit-example {
+      margin: -0.3rem 0 1rem;
+    }
+    .kit-example-table {
+      max-width: 44rem;
+      font-size: 0.85rem;
+      margin-top: 0.4rem;
+    }
+    .kit-status {
+      margin-top: 0.9rem;
+    }
+    .kit-status ul {
+      margin: 0.4rem 0 0;
+    }
+    .kit-status-notes {
+      margin-top: 0.4rem;
+      font-size: 0.85rem;
+    }
+    .kit-downloads {
+      margin: 0.9rem 0 1.2rem;
+    }
+    .kit-summary {
+      background: #fff;
+      border: 1px solid %6$s;
+      border-radius: 0.375rem;
+      padding: 0.8rem 1.1rem 0.3rem;
+      margin-bottom: 1.2rem;
+    }
+    .kit-summary ul {
+      margin: 0.4rem 0 0.5rem;
+    }
+    .kit-source-note {
+      color: #455a64;
+      font-size: 0.9rem;
+    }
+    .kit-file-table {
+      background: #fff;
+      margin-bottom: 0.4rem;
+    }
+    .kit-file-table td {
+      vertical-align: middle;
+    }
+    .kit-file-table .form-group {
+      margin-bottom: 0;
+    }
+    .kit-row-buttons .btn {
+      margin-right: 0.25rem;
+    }
+    .kit-audit {
+      margin-top: 1.2rem;
+    }
+    .kit-codes-parsed {
+      margin: -0.5rem 0 1rem;
+    }
   ", cols$primary, cols$primary_light, cols$accent,
      cols$subtitle, cols$text_muted, cols$border))
 }
@@ -176,9 +270,15 @@ kit_css <- function() {
 #' 頁首版本與最後修改日期
 #' @export
 kit_app_meta <- function() {
+  meta <- kit_app_description()
   shiny::div(
     class = "kit-app-meta",
-    sprintf("v%s · %s", KIT_APP_VERSION, kit_app_last_modified())
+    paste(c(
+      if (!is.null(meta$version) && !is.na(meta$version)) {
+        paste0("v", meta$version)
+      },
+      if (!is.null(meta$date) && !is.na(meta$date)) meta$date
+    ), collapse = " · ")
   )
 }
 

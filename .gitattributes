@@ -1,2 +1,4 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+# Windows 批次檔必須是 CRLF 換行（含 GitHub 自動打包的 ZIP）
+*.bat text eol=crlf

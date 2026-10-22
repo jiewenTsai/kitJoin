@@ -1,21 +1,30 @@
 Package: kitJoin
 Title: KIT Multi-Wave Data Join Tool
-Version: 0.2.3
+Version: 0.3.0
+Date: 2026-10-22
 Authors@R: person("KIT", "Join Tool", email = "joinkit@example.com", role = c("aut", "cre"))
 Description: Shiny application for joining multi-wave survey data (CSV and
-    SPSS SAV). Launch with \code{run_kitjoin()}. Supports join keys,
-    suffixes, join methods,
+    SPSS SAV). Launch with \code{run_kitjoin()}. Supports wide joins by ID,
+    long-format stacking, attrition flags, missing-value code conversion,
     post-join validation, and export to CSV or SAV.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
 Imports:
     bslib,
-    dplyr,
+    dplyr (>= 1.1.0),
     haven,
     htmltools,
     purrr,
     readr,
     shiny,
-    tibble
-Config/roxygen2/version: 8.0.0
+    stats,
+    tibble,
+    tools,
+    utils
+Suggests:
+    testthat (>= 3.0.0),
+    withr
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.1.1

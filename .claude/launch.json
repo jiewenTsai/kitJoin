@@ -4,7 +4,7 @@
     {
       "name": "kitjoin",
       "runtimeExecutable": "C:/Program Files/R/R-4.6.0/bin/Rscript.exe",
-      "runtimeArgs": ["-e", "shiny::runApp('app.R', port = 7461, launch.browser = FALSE)"],
+      "runtimeArgs": ["-e", "Sys.setenv(KIT_DEPLOY = 'local'); shiny::runApp('app.R', port = 7461, launch.browser = FALSE)"],
       "port": 7461
     }
   ]

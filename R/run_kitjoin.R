@@ -1,31 +1,21 @@
-#' 啟動 KIT 資料串接 Shiny App
+#' 啟動 KIT 資料串接工具
 #'
-#' @param launch.browser 是否在瀏覽器開啟
-#' @param ... 傳遞給 [shiny::runApp()]
-#' @return 不可見 NULL，side effect 啟動 app
+#' 在瀏覽器開啟 kitJoin。資料只在您的電腦上處理，不會上傳到網路。
+#'
+#' @param launch.browser 是否自動開啟瀏覽器；也可以傳入開啟網址的函式
+#' @param ... 傳給 [shiny::runApp()] 的其他參數，例如 `port`
+#' @return 不可見的 NULL；app 關閉後才會回傳
 #' @export
-run_kitjoin <- function(
-    launch.browser = if (interactive()) {
-      getOption("shiny.launch.browser", TRUE)
-    } else {
-      function(url) {
-        if (.Platform$OS.type == "windows") {
-          tryCatch(utils::shell.exec(url), error = function(e) {
-            shell(paste0("start \"\" ", shQuote(url, type = "cmd")), wait = FALSE)
-          })
-        } else {
-          utils::browseURL(url)
-        }
-        invisible(NULL)
-      }
-    },
-    ...) {
-  options(shiny.maxRequestSize = 500 * 1024^2)
-  options(shiny.autoload.r = FALSE)
-  app_dir <- system.file("shiny-app", package = "kitJoin")
-  if (!nzchar(app_dir) || !dir.exists(app_dir)) {
-    stop("找不到 Shiny app。請嘗試：\n  shiny::runApp(\"app.R\")", call. = FALSE)
-  }
-  shiny::runApp(app_dir, launch.browser = launch.browser, ...)
+#' @examples
+#' if (interactive()) {
+#'   run_kitjoin()
+#' }
+run_kitjoin <- function(launch.browser = kit_open_browser, ...) {
+  old <- Sys.getenv("KIT_DEPLOY", unset = NA)
+  on.exit(
+    if (is.na(old)) Sys.unsetenv("KIT_DEPLOY") else Sys.setenv(KIT_DEPLOY = old)
+  )
+  Sys.setenv(KIT_DEPLOY = "local")
+  shiny::runApp(kit_app(), launch.browser = launch.browser, ...)
   invisible(NULL)
 }
