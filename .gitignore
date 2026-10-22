@@ -18,3 +18,6 @@ renv/staging/
 !/data48.sav
 !/data60.sav
 !/irt36.csv
+
+# run.bat 執行時產生的 log
+kitjoin_log.txt
