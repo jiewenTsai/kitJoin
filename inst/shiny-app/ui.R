@@ -61,8 +61,8 @@ ui <- bslib::page_fluid(
         goal = "將遺漏值代碼（如 7777、9999）改為 NA，可單檔下載，並供後續分頁使用。",
         steps = "輸入遺漏值代碼 → 確認不處理的欄位（如 ID）→ 執行轉換 → 檢視核對結果 → 選擇檔案下載",
         principle = paste0(
-          "數值欄（含 SAV 標籤欄）中等於任一代碼的值改為 NA；",
-          "SAV 標籤欄同時移除這些代碼的數值標籤。文字欄僅在勾選時比對。"
+          "數值欄（含 SAV 標籤欄）與文字欄中等於任一代碼的值改為 NA；",
+          "SAV 標籤欄同時移除這些代碼的數值標籤。可取消勾選「文字欄也比對」改為只處理數值欄。"
         ),
         output = "所有已上傳檔案各自轉換；欄位與列數不變，僅遺漏值代碼變為 NA。",
         note = paste0(
@@ -93,7 +93,7 @@ ui <- bslib::page_fluid(
       shiny::checkboxInput(
         "na_match_text",
         "文字欄也比對（例如 CSV 中被讀成文字的 \"9999\"）",
-        value = FALSE,
+        value = TRUE,
         width = "100%"
       ),
       shiny::checkboxInput(

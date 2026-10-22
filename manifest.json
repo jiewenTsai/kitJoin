@@ -1872,7 +1872,7 @@
       "checksum": "a33b149edb8e11d53fd222c561ac43d3"
     },
     "DESCRIPTION": {
-      "checksum": "3746baa0d91c6c6d9d490dd21461cd54"
+      "checksum": "173f90c6562ae0fb1aa530c2a7f0d370"
     },
     "inst/shiny-app/app.R": {
       "checksum": "8464075ffaedaddedfa7ebce31cde1f5"
@@ -1884,10 +1884,10 @@
       "checksum": "e389fb0d93d2b59186c74b6505c3bfcc"
     },
     "inst/shiny-app/server.R": {
-      "checksum": "0fe73b380cd6c4dc7ae05006aab00f71"
+      "checksum": "87b2183de49a2e9c85cd13911ed90dac"
     },
     "inst/shiny-app/ui.R": {
-      "checksum": "05946bbec1365387aad97e6222d70fad"
+      "checksum": "1a3bbf8d6ff16b471fe3c4d554ad6e6f"
     },
     "LICENSE": {
       "checksum": "b8bc673cfa53c02a030752d22e4dff25"
@@ -1899,7 +1899,7 @@
       "checksum": "535eb1cf83184f82e82a54da2fc682bd"
     },
     "R/code_snippets.R": {
-      "checksum": "b0cebd84fcf797c2212d6d0956099871"
+      "checksum": "46f3302d797c5ad41ce42b9ff54d0298"
     },
     "R/io_data.R": {
       "checksum": "4e0fbad894463110e49d909cb375bb82"
@@ -1908,7 +1908,7 @@
       "checksum": "f77b212ee7c44d7d9257a79801b5ab3c"
     },
     "R/kit_theme.R": {
-      "checksum": "5ae060370a53bcb06f41d5e977bb0cef"
+      "checksum": "74cceb36fedd50ae8c6c09154a9cbdbd"
     },
     "R/missing_pipeline.R": {
       "checksum": "3de65827293709809d75f4127fe3f3e3"

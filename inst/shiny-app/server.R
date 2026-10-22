@@ -729,15 +729,21 @@ server <- function(input, output, session) {
     ord  <- slot_order()
     nms  <- if (length(ord) >= 1) loaded_names() else character(0)
     ch   <- setNames(as.character(ord), nms)
-    prev_base   <- input$attrition_baseline
-    prev_follow <- input$attrition_followup
+    prev_base   <- shiny::isolate(input$attrition_baseline)
+    prev_follow <- shiny::isolate(input$attrition_followup)
+    base_sel    <- if (!is.null(prev_base) && prev_base %in% ch) prev_base else ch[1]
+    # 後期預設與前期不同（先上傳一個檔時兩者會相同，第二個檔上傳後改選另一個）
+    follow_ok   <- !is.null(prev_follow) && prev_follow %in% ch &&
+      (prev_follow != base_sel || length(ch) < 2)
+    follow_sel  <- if (follow_ok) prev_follow else setdiff(ch, base_sel)[1]
+    if (is.na(follow_sel)) follow_sel <- ch[1]
     shiny::updateSelectInput(session, "attrition_baseline",
       choices  = ch,
-      selected = if (!is.null(prev_base) && prev_base %in% ch) prev_base else ch[1]
+      selected = base_sel
     )
     shiny::updateSelectInput(session, "attrition_followup",
       choices  = ch,
-      selected = if (!is.null(prev_follow) && prev_follow %in% ch) prev_follow else ch[min(2, length(ch))]
+      selected = follow_sel
     )
   })
 
@@ -901,35 +907,47 @@ server <- function(input, output, session) {
   or_empty <- function(expr) {
     tryCatch(expr, error = function(e) character(0))
   }
-  slot_wave <- function(slot) {
-    slot <- suppressWarnings(as.integer(slot))
-    if (length(slot) == 0 || is.na(slot)) character(0) else slot_label(slot)
+  # 範例程式用的檔案資訊（檔名、波次、欄位）
+  code_file_info <- function(min_files = 1L) {
+    code_files(
+      or_empty(loaded_names()),
+      or_empty(get_file_labels()),
+      tryCatch(purrr::map(loaded_data(), names), error = function(e) NULL),
+      min_files = min_files
+    )
+  }
+  slot_pos <- function(slot) {
+    match(suppressWarnings(as.integer(slot)), slot_order())
   }
 
   output$code_read <- renderUI({
-    kit_code_blocks(code_read(or_empty(loaded_names()), or_empty(get_file_labels())))
+    kit_code_blocks(code_read(code_file_info()))
   })
 
   output$code_missing <- renderUI({
     kit_code_blocks(code_missing(
+      code_file_info(),
       na_codes_parsed()$codes,
-      if (is.null(input$na_exclude_cols)) character(0) else input$na_exclude_cols,
+      input$na_exclude_cols,
       isTRUE(input$na_match_text)
     ))
   })
 
   output$code_join <- renderUI({
-    kit_code_blocks(code_join(input$by_vars, input$join_method))
+    kit_code_blocks(code_join(code_file_info(2L), input$by_vars, input$join_method))
   })
 
   output$code_stack <- renderUI({
-    kit_code_blocks(code_stack())
+    kit_code_blocks(code_stack(code_file_info(2L)))
   })
 
   output$code_attrition <- renderUI({
+    f <- code_file_info(2L)
+    uploaded <- length(or_empty(loaded_names())) >= 2
     kit_code_blocks(code_attrition(
-      slot_wave(input$attrition_baseline),
-      slot_wave(input$attrition_followup),
+      f,
+      if (uploaded) slot_pos(input$attrition_baseline) else 1L,
+      if (uploaded) slot_pos(input$attrition_followup) else 2L,
       input$attrition_id_vars
     ))
   })
