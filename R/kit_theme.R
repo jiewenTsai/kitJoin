@@ -108,8 +108,8 @@ kit_css <- function() {
       margin: 2.5rem 0 1.5rem;
       padding-top: 1rem;
       border-top: 1px solid %6$s;
-      font-size: 0.78rem;
-      line-height: 1.65;
+      font-size: 0.7rem;
+      line-height: 1.6;
       color: #757575;
     }
     .kit-cloud-footer p {

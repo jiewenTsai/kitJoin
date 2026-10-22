@@ -42,10 +42,15 @@ kit_cloud_banner <- function() {
   shiny::tags$div(
     class = "alert alert-warning kit-cloud-banner",
     role = "alert",
-    "此為雲端版：上傳的資料會傳送至位於美國的 Posit 伺服器。",
-    "含個資或受 IRB 限制的資料請改用本機版。",
-    "上傳前請閱讀頁面最下方的",
-    shiny::tags$a(href = "#kit-cloud-terms", "〈雲端版使用須知〉"),
+    shiny::tags$span(
+      paste0(
+        "此為雲端版：上傳的資料會傳送至位於美國的 Posit 伺服器。",
+        "含個資或受 IRB 限制的資料請改用本機版。",
+        "上傳前請閱讀頁面最下方的"
+      ),
+      .noWS = "after"
+    ),
+    shiny::tags$a(href = "#kit-cloud-terms", "〈雲端版使用須知〉", .noWS = "after"),
     "。"
   )
 }
@@ -55,8 +60,12 @@ kit_cloud_footer <- function() {
   ext_link <- function(href, text) {
     shiny::tags$a(href = href, target = "_blank", rel = "noopener noreferrer", text)
   }
+  # 標題接句號、內文串成一段，避免 HTML 在標籤與句子間插入空白
   section <- function(title, ...) {
-    shiny::tags$p(shiny::tags$strong(title), "　", ...)
+    shiny::tags$p(
+      shiny::tags$strong(paste0(title, "。"), .noWS = "after"),
+      paste0(...)
+    )
   }
   shiny::tags$footer(
     id = "kit-cloud-terms",
