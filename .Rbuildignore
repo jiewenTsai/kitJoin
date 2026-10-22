@@ -2,7 +2,11 @@
 ^\.Rproj\.user$
 ^\.git$
 ^\.gitignore$
+^\.gitattributes$
 ^\.cursor$
+^\.claude$
+^\.Rhistory$
+^app\.R$
 ^scripts$
 ^manifest\.json$
 ^\.rscignore$
@@ -12,3 +16,4 @@
 ^data48\.sav$
 ^data60\.sav$
 ^irt36\.csv$
+^LICENSE\.md$

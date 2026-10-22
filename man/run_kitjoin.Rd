@@ -2,27 +2,23 @@
 % Please edit documentation in R/run_kitjoin.R
 \name{run_kitjoin}
 \alias{run_kitjoin}
-\title{啟動 KIT 資料串接 Shiny App}
+\title{啟動 KIT 資料串接工具}
 \usage{
-run_kitjoin(
-  launch.browser = getOption("shiny.launch.browser", interactive()),
-  ...
-)
+run_kitjoin(launch.browser = kit_open_browser, ...)
 }
 \arguments{
-\item{launch.browser}{是否在瀏覽器開啟}
+\item{launch.browser}{是否自動開啟瀏覽器；也可以傳入開啟網址的函式}
 
-\item{...}{傳遞給 \code{\link[shiny]{runApp}}()}
+\item{...}{傳給 \code{\link[shiny:runApp]{shiny::runApp()}} 的其他參數，例如 \code{port}}
 }
 \value{
-不可見 NULL，side effect 啟動 app
+不可見的 NULL；app 關閉後才會回傳
 }
 \description{
-啟動 KIT 資料串接 Shiny App
+在瀏覽器開啟 kitJoin。資料只在您的電腦上處理，不會上傳到網路。
 }
 \examples{
-\dontrun{
-run_kitjoin()
+if (interactive()) {
+  run_kitjoin()
 }
-
 }

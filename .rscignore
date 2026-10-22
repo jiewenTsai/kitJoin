@@ -2,7 +2,10 @@
 .Rhistory
 .Rproj.user
 .cursor
+.claude
 run.bat
 scripts
 kitjoin_log.txt
 man
+tests
+LICENSE.md
