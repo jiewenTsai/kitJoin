@@ -6,6 +6,16 @@
 #' @return A [bslib::bs_theme()] object.
 #' @export
 kit_theme <- function() {
+  # CJK 字型切成上百個 unicode-range 片段，local = FALSE 改由瀏覽器向
+  # Google CDN 按需下載，避免伺服器啟動時抓下全部字檔；
+  # 未指定 wght 時只提供 400，需列出 CSS 用到的字重
+  kit_font <- bslib::font_collection(
+    bslib::font_google(
+      "Chiron GoRound TC", local = FALSE, wght = c(400, 500, 700)
+    ),
+    "sans-serif"
+  )
+
   bslib::bs_theme(
     bootswatch = "lumen",
     primary = "#2d7535",
@@ -14,8 +24,8 @@ kit_theme <- function() {
     info = "#2778c4",
     warning = "#c6d033",
     danger = "#d9534f",
-    base_font = bslib::font_google("Roboto"),
-    heading_font = bslib::font_google("Roboto"),
+    base_font = kit_font,
+    heading_font = kit_font,
     "navbar-bg" = "#2d7535",
     "body-bg" = "#f5f5f5"
   )
@@ -23,7 +33,7 @@ kit_theme <- function() {
 
 #' App 版本（每次功能更新請手動遞增，例如 0.1.0 → 0.1.1 或 0.2.0；
 #' 並同步更新 DESCRIPTION 的 Version 欄位）
-KIT_APP_VERSION <- "0.2.1"
+KIT_APP_VERSION <- "0.2.2"
 
 #' 讀取 Shiny app 檔案最後修改日期（yyyy-mm-dd）
 kit_app_last_modified <- function() {
