@@ -36,7 +36,24 @@ stack_files_long <- function(dfs, wave_labels) {
   result <- dplyr::bind_rows(purrr::map2(h$dfs, wave_labels, function(df, w) {
     dplyr::mutate(df, wave = w, .before = 1)
   }))
+  result <- restore_var_labels(result, dfs)
   list(result = result, harmonized_cols = h$harmonized_cols)
+}
+
+# bind_rows 合併一般字元欄（及轉為字元的欄）時會丟掉屬性：
+# 依檔案順序補回第一個找到的 SAV 變項標籤
+restore_var_labels <- function(result, dfs) {
+  for (col in names(result)) {
+    if (!is.null(attr(result[[col]], "label", exact = TRUE))) next
+    for (df in dfs) {
+      label <- if (col %in% names(df)) attr(df[[col]], "label", exact = TRUE)
+      if (!is.null(label)) {
+        attr(result[[col]], "label") <- label
+        break
+      }
+    }
+  }
+  result
 }
 
 #' 長格式疊加後核對

@@ -412,7 +412,7 @@ server <- function(input, output, session) {
   output$download_na_csv <- downloadHandler(
     filename = function() na_export_name(na_view()$name, "csv"),
     content = function(file) {
-      readr::write_csv(fix_utf8_df(na_view()$data), file, na = "")
+      readr::write_excel_csv(fix_utf8_df(na_view()$data), file, na = "")
     }
   )
 
@@ -858,7 +858,7 @@ server <- function(input, output, session) {
     content = function(file) {
       res <- attrition_result()
       req(res)
-      readr::write_csv(fix_utf8_df(res$result), file)
+      readr::write_excel_csv(fix_utf8_df(res$result), file)
     }
   )
 
@@ -869,7 +869,7 @@ server <- function(input, output, session) {
     content = function(file) {
       req(result_data(), result_mode() == "wide")
       df <- prepare_export(result_data(), "wide", input$by_vars)
-      readr::write_csv(df, file)
+      readr::write_excel_csv(df, file)
     }
   )
 
@@ -888,7 +888,7 @@ server <- function(input, output, session) {
     content = function(file) {
       req(result_data(), result_mode() == "long")
       df <- prepare_export(result_data(), "long", input$by_vars)
-      readr::write_csv(df, file)
+      readr::write_excel_csv(df, file)
     }
   )
 

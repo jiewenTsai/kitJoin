@@ -24,7 +24,7 @@ ui <- bslib::page_fluid(
           shiny::tags$li("在「後綴或波次名稱」欄填入該波次代號（如 t1、t2）"),
           shiny::tags$li("若需調整順序，使用已上傳清單中的 ↑↓ 按鈕")
         ),
-        principle = "每框單檔，支援 CSV / SAV 混用上傳；CSV 自動偵測 UTF-8 / BIG5 / Latin1 編碼。",
+        principle = "每框單檔，支援 CSV / SAV 混用上傳；CSV 自動偵測 UTF-8 / BIG5（CP950）/ Latin1 編碼。",
         output = "尚未合併；各檔原始資料載入記憶體，供「寬格式串接」、「長格式疊加」及「建立流失樣本」分頁使用。"
       ),
 

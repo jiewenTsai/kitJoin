@@ -56,10 +56,20 @@ read_csv_auto <- function(path) {
       locale = readr::locale(encoding = enc)
     )
   }
-  df <- tryCatch(try_enc("UTF-8"), error = function(e) NULL)
-  if (is.null(df)) df <- tryCatch(try_enc("BIG5"), error = function(e) NULL)
-  if (is.null(df)) df <- try_enc("Latin1")
-  fix_utf8_df(df)
+  # readr 以 UTF-8 讀非 UTF-8 檔不會報錯，需檢查結果是否為合法 UTF-8；
+  # CP950 為 BIG5 超集（Windows 繁中 Excel 另存的 CSV）
+  for (enc in c("UTF-8", "CP950")) {
+    df <- tryCatch(try_enc(enc), error = function(e) NULL)
+    if (!is.null(df) && is_valid_utf8_df(df)) return(fix_utf8_df(df))
+  }
+  fix_utf8_df(try_enc("Latin1"))
+}
+
+is_valid_utf8_df <- function(df) {
+  chr_ok <- vapply(df, function(x) {
+    !is.character(x) || all(validUTF8(x[!is.na(x)]))
+  }, logical(1))
+  all(validUTF8(names(df))) && all(chr_ok)
 }
 
 fix_utf8_chr <- function(x) {
@@ -73,7 +83,11 @@ fix_utf8_df <- function(df) {
     if (inherits(x, "labelled") && is.numeric(x)) {
       x
     } else if (inherits(x, "labelled") || is.character(x) || is.factor(x)) {
-      fix_utf8_chr(as.character(x))
+      # as.character() 會清掉屬性，需另外保留 SAV 變項標籤
+      label <- attr(x, "label", exact = TRUE)
+      out <- fix_utf8_chr(as.character(x))
+      attr(out, "label") <- label
+      out
     } else {
       x
     }
