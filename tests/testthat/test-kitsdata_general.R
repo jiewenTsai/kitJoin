@@ -416,6 +416,7 @@ test_that("C2：變項標籤不同的欄合成同一個題號時，特別提醒"
   cols <- c("w1c21_5", "w3d32_5")
   s <- kits_item_settings(dfs, cols) |> kits_bulk_domain(cols, "tsup")
   s$item_id_out <- c("tsup5", "tsup5")
+  s <- kits_bulk_shift(s, cols, 1)   # 計分對照之後欄就沒有變項標籤：要在之前比
   out <- kits_build(dfs, c("a", "b", "c"), kg_waves_spec(dfs, s))
   expect_match(out$warnings, "變項標籤不一樣，請特別確認：tsup5", all = FALSE)
 })
@@ -711,4 +712,16 @@ test_that("發現 11：BOM、SAV 的標籤欄、分號 CSV、include 與 map_raw
   two <- rbind(set(), transform(set(), domain = "cog"))
   expect_error(kits_settings_import(two), "同一題有好幾列")
   expect_equal(nrow(kits_settings_import(rbind(set(), set()))$data), 1)  # 完全一樣的列只留一列
+})
+
+test_that("帶標籤的文字欄（SAV）也能判斷是不是數字；TDCYP W1–W4 jsq（有檔案時才跑）", {
+  x <- haven::labelled(c("1", "2", "x"), c(a = "1"))
+  expect_equal(kits_as_num(x), c(1, 2, NA))
+  expect_false(kits_numeric_like(x))
+  expect_true(kits_numeric_like(haven::labelled(c("1", " 2"), c(a = "1"))))
+  paths <- kg_tdcyp(sprintf("w%d_jsq.sav", 1:4))
+  skip_if_not(all(file.exists(paths)))
+  dfs <- purrr::map(paths, function(p) read_data_file(p, basename(p))$data)
+  cand <- expect_no_error(kits_candidate_cols(dfs, character(0)))
+  expect_true("w4c4_1" %in% cand$numeric)
 })

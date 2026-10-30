@@ -246,7 +246,7 @@ kits_item_domains <- function(cols, table = NULL, reverse = "suffix") {
 kits_numeric_like <- function(x) {
   if (is.numeric(x) || all(is.na(x))) return(TRUE)
   if (!is.character(x)) return(FALSE)
-  txt <- trimws(x)
+  txt <- trimws(as.vector(unclass(x)))
   keep <- !is.na(txt) & nzchar(txt)
   !anyNA(kits_as_num(txt[keep]))
 }
@@ -289,7 +289,7 @@ kits_text_fix <- function(dfs, items) {
     like <- vapply(df[text], kits_numeric_like, logical(1))
     drop <- text[!like]
     example <- vapply(df[drop], function(x) {
-      txt <- trimws(as.character(x))
+      txt <- trimws(as.vector(unclass(x)))
       txt[!is.na(txt) & nzchar(txt) & is.na(kits_as_num(txt))][1]
     }, character(1))
     list(convert = text[like], drop = drop, example = example)
@@ -361,9 +361,10 @@ kits_item_ranges <- function(dfs, items, below = Inf) {
 #' 一欄的數值（文字欄能讀成數字的也算；帶標籤的欄用代碼）
 #' @noRd
 kits_as_num <- function(x) {
-  if (is.character(x)) return(suppressWarnings(as.numeric(trimws(x))))
   if (is.factor(x)) return(rep(NA_real_, length(x)))
-  as.numeric(unclass(x))
+  x <- as.vector(unclass(x))   # 帶標籤的文字欄（SAV）也先變成一般的向量
+  if (is.character(x)) return(suppressWarnings(as.numeric(trimws(x))))
+  as.numeric(x)
 }
 
 #' 各檔案這一欄的值標籤（值 → 標籤）；沒有時 NULL
@@ -1187,6 +1188,12 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   if (length(num$problems) > 0) return(list(problems = num$problems))
   warnings <- c(warnings, num$warnings)
 
+  # 輸出題號（item_id_out）：在計分對照之前看（計分後的欄沒有變項標籤）
+  rename <- kits_item_rename(spec$items)
+  clash <- kits_rename_problems(dfs, file_names, spec$items, rename)
+  if (length(clash) > 0) return(list(problems = clash))
+  warnings <- c(warnings, kits_rename_warning(dfs, spec$items, rename))
+
   # 計分對照：原分數 → 計分（每一題自己的對照；沒有改的題不動）
   mapped <- kits_apply_maps(dfs, spec$items)
   if (length(mapped$problems) > 0) return(list(problems = mapped$problems))
@@ -1194,10 +1201,6 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   if (mapped$n > 0) notes <- c(notes, paste0("計分對照：", mapped$n, " 題的原分數改成計分。"))
   problems <- kits_score_problems(dfs, items)
   if (length(problems) > 0) return(list(problems = problems))
-  rename <- kits_item_rename(spec$items)
-  clash <- kits_rename_problems(dfs, file_names, spec$items, rename)
-  if (length(clash) > 0) return(list(problems = clash))
-  warnings <- c(warnings, kits_rename_warning(dfs, spec$items, rename))
 
   warnings <- c(warnings, kits_cohort_codes(dfs, file_names, spec$cohort, spec$na_codes))
   use_labels <- identical(spec$value_labels, "label")
@@ -1323,7 +1326,7 @@ kits_number_problems <- function(dfs, file_names, map, per_file = list()) {
       if (is.na(col) || !nzchar(col) || !col %in% names(dfs[[i]])) next
       x <- dfs[[i]][[col]]
       if (is.numeric(x) || all(is.na(x))) next
-      txt <- trimws(as.character(x))
+      txt <- trimws(as.character(as.vector(unclass(x))))
       bad <- unique(txt[!is.na(txt) & nzchar(txt) & is.na(kits_as_num(txt))])
       if (length(bad) == 0) next
       msg <- paste0(
