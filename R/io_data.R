@@ -177,12 +177,102 @@ write_kit_csv_gz <- function(df, file) {
   invisible(file)
 }
 
-#' 匯出 SAV：不合法的 SPSS 變項名稱自動改名
+#' 匯出 SAV：不合法的 SPSS 變項名稱自動改名；寫完讀回來驗證
+#'
+#' haven 寫某些文字欄的數值標籤（例如值是「99 + 78 個空白 + 控制字元」）時，
+#' 寫出的檔自己讀不回來。寫完先用 read_sav() 讀表頭；讀不回來就依序：
+#' 1. 文字欄的數值標籤去掉控制字元與前後空白；
+#' 2. 移除文字欄的數值標籤；
+#' 3. 移除所有數值標籤；
+#' 每一步重寫一次，讀得回來就停。
+#'
+#' @return invisible(list(fixed = 被修改數值標籤的欄（原欄名）, step = 0–3))
 #' @noRd
 write_kit_sav <- function(df, file) {
   df <- fix_utf8_df(df)
+  original <- names(df)
   names(df) <- sav_safe_names(names(df))
   haven::write_sav(df, file)
+  if (sav_readable(file)) return(invisible(list(fixed = character(0), step = 0L)))
+
+  fixes <- list(clean_string_value_labels, drop_string_value_labels, drop_all_value_labels)
+  for (step in seq_along(fixes)) {
+    fixed <- fixes[[step]](df)
+    haven::write_sav(fixed$df, file)
+    if (sav_readable(file)) {
+      return(invisible(list(fixed = original[match(fixed$cols, names(df))], step = step)))
+    }
+  }
+  kit_abort("SAV 檔寫出後無法讀回，可能是資料中有 SPSS 不支援的內容。請改下載 CSV。")
+}
+
+#' 寫出的 SAV 讀得回來嗎（只讀表頭與第 1 列；數值標籤在表頭）
+#' @noRd
+sav_readable <- function(file) {
+  tryCatch({
+    haven::read_sav(file, n_max = 1)
+    TRUE
+  }, error = function(e) FALSE)
+}
+
+#' 文字欄的數值標籤：值去掉控制字元與前後空白；去掉後重複或變空白的就移除
+#' @return list(df, cols = 有改到的欄)
+#' @noRd
+clean_string_value_labels <- function(df) {
+  cols <- character(0)
+  for (col in names(df)) {
+    x <- df[[col]]
+    labels <- attr(x, "labels", exact = TRUE)
+    if (!is.character(x) || is.null(labels)) next
+    new <- trimws(gsub("[[:cntrl:]]", "", unclass(labels)))
+    keep <- nzchar(new) & !duplicated(new)
+    cleaned <- stats::setNames(new[keep], names(labels)[keep])
+    if (identical(unname(cleaned), unname(unclass(labels))) &&
+          identical(names(cleaned), names(labels))) next
+    attr(x, "labels") <- if (length(cleaned) > 0) cleaned
+    df[[col]] <- if (length(cleaned) > 0) x else haven::zap_labels(x)
+    cols <- c(cols, col)
+  }
+  list(df = df, cols = cols)
+}
+
+#' 移除文字欄的數值標籤（保留變項標籤）
+#' @noRd
+drop_string_value_labels <- function(df) {
+  cols <- names(df)[vapply(df, function(x) {
+    is.character(x) && !is.null(attr(x, "labels", exact = TRUE))
+  }, logical(1))]
+  for (col in cols) df[[col]] <- haven::zap_labels(df[[col]])
+  list(df = df, cols = cols)
+}
+
+#' 移除所有數值標籤（保留變項標籤）
+#' @noRd
+drop_all_value_labels <- function(df) {
+  cols <- names(df)[vapply(df, function(x) {
+    !is.null(attr(x, "labels", exact = TRUE))
+  }, logical(1))]
+  for (col in cols) df[[col]] <- haven::zap_labels(df[[col]])
+  list(df = df, cols = cols)
+}
+
+#' SAV 修改了數值標籤時，給使用者看的說明；沒有修改時為 NULL
+#' @noRd
+sav_fix_message <- function(written) {
+  cols <- written$fixed
+  if (is.null(cols) || length(cols) == 0) return(NULL)
+  what <- switch(as.character(written$step),
+    "1" = "去掉了這些文字欄數值標籤裡的控制字元與多餘空白",
+    "2" = "移除了這些文字欄的數值標籤",
+    "移除了這些欄的數值標籤"
+  )
+  paste0(
+    "SAV 檔照原樣寫出後讀不回來（原檔的數值標籤有 SPSS 存不了的內容），",
+    "所以", what, "再重新寫出：",
+    paste(utils::head(cols, 10), collapse = "、"),
+    if (length(cols) > 10) paste0(" 等 ", length(cols), " 欄") else "",
+    "。資料值與變項標籤都沒有改。"
+  )
 }
 
 #' 匯出 SAV 時會被改名的欄位（給 UI 事先提醒）

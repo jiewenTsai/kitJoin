@@ -101,3 +101,37 @@ test_that("空檔、只有表頭的檔在 ① 給白話錯誤", {
     class = "kit_user_error"
   )
 })
+
+test_that("SAV 寫完讀不回來時，清理文字欄的數值標籤再重寫並說明（B2）", {
+  # 中文值 + 很長、含控制字元的文字值標籤（TDCYP w1_jsq 的 w1a8_k）
+  bad <- haven::labelled(
+    c("我喜歡的", "外套"),
+    stats::setNames(paste0("99", strrep(" ", 78), "\v"), "遺漏值"),
+    label = "選項說明"
+  )
+  df <- tibble::tibble(id = 1:2, w1a8_k = bad, ok = haven::labelled(1:2, c(是 = 1L)))
+  path <- withr::local_tempfile(fileext = ".sav")
+  written <- write_kit_sav(df, path)
+  expect_equal(written$fixed, "w1a8_k")
+  expect_equal(written$step, 1L)
+  back <- haven::read_sav(path)
+  expect_equal(unname(attr(back$w1a8_k, "labels")), "99")
+  expect_equal(attr(back$w1a8_k, "label"), "選項說明")
+  expect_equal(attr(back$ok, "labels"), c(是 = 1))
+  expect_match(sav_fix_message(written), "w1a8_k")
+
+  # 正常的檔不修改
+  ok_path <- withr::local_tempfile(fileext = ".sav")
+  expect_length(write_kit_sav(df["ok"], ok_path)$fixed, 0)
+  expect_null(sav_fix_message(write_kit_sav(df["ok"], ok_path)))
+})
+
+test_that("TDCYP w1_jsq 的 SAV 匯出讀得回來", {
+  path <- "/Users/jiewentsai/Documents/ClaudePlayMac/lab20261030_kitsui/lab1031/tdcyp_data/w1_jsq.sav"
+  skip_if_not(file.exists(path))
+  df <- read_data_file(path, "w1_jsq.sav")$data
+  out <- withr::local_tempfile(fileext = ".sav")
+  written <- write_kit_sav(df, out)
+  expect_true("w1a8_k" %in% written$fixed)
+  expect_equal(dim(haven::read_sav(out)), dim(df))
+})

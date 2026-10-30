@@ -276,12 +276,23 @@ kit_download_server <- function(session, output, data_fn, filename_fn, run_label
         session, id, label, filename_fn(ext), function(file) writer(df, file), class
       )
     }
+    # SAV 寫完讀不回來而修改了數值標籤時，下載當下跳出通知
+    write_sav_notify <- function(df, file) {
+      written <- write_kit_sav(df, file)
+      msg <- sav_fix_message(written)
+      if (!is.null(msg)) {
+        try(shiny::showNotification(
+          msg, type = "warning", duration = KIT_NOTIFY_ERROR_SECONDS, session = session
+        ), silent = TRUE)
+      }
+      invisible(written)
+    }
     shiny::tags$div(
       class = "kit-downloads",
       button("download_csv", "下載 CSV", "csv", write_kit_csv, "btn-primary me-2"),
       button("download_csvgz", "下載 CSV.GZ", "csv.gz", write_kit_csv_gz,
              "btn-outline-primary me-2"),
-      button("download_sav", "下載 SAV（SPSS）", "sav", write_kit_sav, "btn-outline-primary"),
+      button("download_sav", "下載 SAV（SPSS）", "sav", write_sav_notify, "btn-outline-primary"),
       shiny::tags$small(
         class = "kit-hint",
         "CSV 的遺漏值為空白儲存格，可直接用 Excel 開啟。",

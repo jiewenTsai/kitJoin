@@ -141,3 +141,35 @@ test_that("① 空檔與只有表頭的檔不會被加入（低：空檔）", {
     }
   )
 })
+
+test_that("④ 下載的 SAV 讀得回來，即使原檔有 SPSS 存不了的文字值標籤（B2）", {
+  bad <- haven::labelled(
+    c("我喜歡的", "外套"),
+    stats::setNames(paste0("99", strrep(" ", 78), "\v"), "遺漏值")
+  )
+  dfs <- list(tibble::tibble(id = 1:2, k = bad), tibble::tibble(id = 3:4, k = bad))
+  files <- list(
+    keys = shiny::reactive(c("f1", "f2")),
+    names = shiny::reactive(c("a.sav", "b.sav")),
+    labels = shiny::reactive(c("t1", "t2")),
+    data = shiny::reactive(dfs),
+    encodings = shiny::reactive(c(NA_character_, NA_character_))
+  )
+  working <- list(
+    data = shiny::reactive(dfs),
+    source = shiny::reactive("raw"),
+    code_cells = shiny::reactive(0L)
+  )
+  shiny::testServer(
+    mod_stack_server,
+    args = list(files = files, working = working, goto = function(tab) NULL),
+    {
+      session$setInputs(run = 1)
+      sav <- kit_test_download_file(session, "download_sav")
+      expect_true(sav_readable(sav))
+      back <- haven::read_sav(sav)
+      expect_equal(unname(attr(back$k, "labels")), "99")
+      expect_equal(nrow(back), 4)
+    }
+  )
+})
