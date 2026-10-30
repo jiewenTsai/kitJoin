@@ -53,21 +53,33 @@ test_that("依數值標籤：每一欄只轉換自己標成遺漏的值（A6）"
   plain <- c(95, 99, 1, 2, 3)
   df <- tibble::tibble(w3id = c(95, 96, 97, 98, 99), weight = weight, scale = scale, plain = plain)
   out <- replace_na_by_labels(df, kw, exclude = guess_id_cols(names(df)))
-  # 真實的 95、99 公斤保留；997、999 轉換
-  expect_equal(as.vector(out$data$weight), c(45, 95, 99, NA, NA))
+  # 真實的 95、99 公斤保留；999 遺漏值轉換；997「不知道或不清楚」預設不轉（不是預設關鍵字）
+  expect_equal(as.vector(out$data$weight), c(45, 95, 99, 997, NA))
   # 量表中間的「不清楚」(2) 不是遺漏
   expect_equal(as.vector(out$data$scale), c(1, 2, NA, NA, 3))
   expect_equal(attr(out$data$scale, "labels"), c(很不清楚 = 1, 不清楚 = 2, 清楚 = 3))
   expect_equal(out$data$plain, plain)
   expect_equal(out$data$w3id, df$w3id)
   expect_equal(out$detail$欄位, c("weight", "scale"))
-  expect_equal(out$detail$轉換的代碼[1], "997 不知道或不清楚（1 格）、999 遺漏值（1 格）")
-  expect_equal(out$detail$合計, c(2L, 2L))
+  expect_equal(out$detail$轉換的代碼[1], "999 遺漏值（1 格）")
+  expect_equal(out$detail$合計, c(1L, 2L))
+  # 使用者自己加上「不知道」時才轉 997
+  more <- replace_na_by_labels(df, c(kw, "不知道"), exclude = guess_id_cols(names(df)))
+  expect_equal(as.vector(more$data$weight), c(45, 95, 99, NA, NA))
+  expect_equal(more$detail$轉換的代碼[1], "997 不知道或不清楚（1 格）、999 遺漏值（1 格）")
 
   tbl <- label_na_table(list(df), "a.sav", kw)
   expect_equal(tbl$欄位, c("weight", "scale"))
-  expect_equal(tbl$資料中的格數, c(2L, 2L))
+  expect_equal(tbl$資料中的格數, c(1L, 2L))
   expect_equal(label_na_table(list(tibble::tibble(x = 1)), "a.csv", kw)$欄位, character())
+})
+
+test_that("預設關鍵字不含「不知道」「不清楚」「don't know」", {
+  expect_false(any(c("不知道", "不清楚", "don't know") %in% kw))
+  expect_true(all(c("遺漏", "跳答", "跳題", "不適用", "拒答", "拒絕回答", "未回答", "未作答",
+                    "漏答", "無反應", "missing", "refused", "not applicable", "skip",
+                    "no answer") %in% kw))
+  expect_null(label_na_codes_of(haven::labelled(c(1, 97), c(同意 = 1, 不知道 = 97)), kw))
 })
 
 test_that("依代碼清單仍可用：KIT 預設代碼不變（A6）", {
@@ -83,7 +95,7 @@ test_that("遺漏值格數提醒也算數值標籤標成遺漏的值（C5）", {
   expect_equal(count_code_cells(list(df), keywords = kw), 2)
 })
 
-test_that("TDCYP w1_jsq：依數值標籤不會改到真實體重，997/999 會轉換", {
+test_that("TDCYP w1_jsq：依數值標籤不會改到真實體重，999 會轉換，997（不知道或不清楚）預設不轉", {
   path <- "/Users/jiewentsai/Documents/ClaudePlayMac/lab20261030_kitsui/lab1031/tdcyp_data/w1_jsq.sav"
   skip_if_not(file.exists(path))
   df <- read_data_file(path, "w1_jsq.sav")$data
@@ -93,5 +105,6 @@ test_that("TDCYP w1_jsq：依數值標籤不會改到真實體重，997/999 會�
   real <- before %in% 95:99
   expect_gt(sum(real), 0)
   expect_equal(after[real], before[real])
-  expect_false(any(after %in% c(997, 999)))
+  expect_false(any(after %in% 999))
+  expect_equal(sum(after %in% 997), sum(before %in% 997))
 })

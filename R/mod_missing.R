@@ -56,6 +56,10 @@ mod_missing_ui <- function(id) {
         ns("keywords"), "數值標籤含這些字的值，視為遺漏值（以逗號分隔）",
         value = kit_na_label_keywords_default(), width = "100%"
       ),
+      shiny::tags$small(
+        class = "kit-hint",
+        "預設不含「不知道」「不清楚」（有些題是有效的答案）；要轉成 NA 時請自己加上。"
+      ),
       shiny::uiOutput(ns("label_found"))
     ),
     shiny::selectizeInput(
@@ -148,7 +152,7 @@ mod_missing_server <- function(id, files) {
         )),
         shiny::tags$small(
           class = "kit-hint",
-          "某個欄位不該轉換（例如「不知道」在這題是有效答案）時，把它加到下方「不要處理的欄位」。"
+          "某個欄位不該轉換（例如「不適用」在這題是有效答案）時，把它加到下方「不要處理的欄位」。"
         ),
         shiny::tags$div(class = "kit-table-scroll", kit_static_table(shown)),
         if (nrow(tbl) > nrow(shown)) {

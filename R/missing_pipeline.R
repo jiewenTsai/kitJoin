@@ -33,11 +33,14 @@ guess_id_cols <- function(cols) {
 }
 
 #' 預設的「遺漏值標籤」關鍵字（數值標籤含這些字的值，視為遺漏值代碼）
+#'
+#' 不含「不知道」「不清楚」「don't know」：在有些題是有效的答案（例如「97 不知道或不清楚」），
+#' 要轉成 NA 時請使用者自己加上。
 #' @noRd
 kit_na_label_keywords_default <- function() {
   paste(
-    "遺漏, 跳答, 跳題, 不適用, 不知道, 不清楚, 拒答, 拒絕回答, 未回答, 未作答, 漏答, 無反應,",
-    "missing, refused, don't know, not applicable, skip, no answer"
+    "遺漏, 跳答, 跳題, 不適用, 拒答, 拒絕回答, 未回答, 未作答, 漏答, 無反應,",
+    "missing, refused, not applicable, skip, no answer"
   )
 }
 

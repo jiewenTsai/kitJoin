@@ -27,9 +27,11 @@ SPSS files whose ID column, item names and missing-value codes differ from KIT's
   (`1e+05`) when compared with text IDs or written to `subj_id` / `visit_id`. Text IDs are
   trimmed before matching.
 * ② can convert per variable from SPSS value labels: only values whose label says missing
-  (遺漏、跳答、不適用、不知道、拒答…) become NA, so a real weight of 99 kg stays. This mode is
-  chosen automatically when the KIT codes are absent but such labels exist; the code list
-  is still available.
+  (遺漏、跳答、跳題、不適用、拒答、未作答、missing、refused, skip…) become NA, so a real
+  weight of 99 kg stays. 不知道 / 不清楚 / "don't know" are not in the default keywords
+  (they can be a valid answer); add them in ② when you want them turned into NA. ⑥ uses
+  the same rule when it looks for suspected codes. This mode is chosen automatically when
+  the KIT codes are absent but such labels exist; the code list is still available.
 * ② results are cleared when the codes, excluded columns or text matching change, and
   ③–⑦ say that ② must be run again instead of silently using the raw data.
 * SPSS files saved as Big5 without a proper encoding record are re-read as CP950 (①

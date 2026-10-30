@@ -59,6 +59,10 @@ test_that("A1：遺漏值代碼來自值標籤、② 的代碼、7777 以上、�
   expect_equal(nrow(kits_value_codes(c(0, 5, 10, 30, 99))), 0)
   expect_equal(nrow(kits_value_codes(c(1, 99))), 0)
   expect_equal(nrow(kits_value_codes(c(12.5, 13, 14))), 0)
+  # 「不知道」「不清楚」「don't know」不是疑似代碼（和 ② 的預設關鍵字一樣）
+  expect_equal(nrow(kits_value_codes(c(0, 1, 2, 3), c("3" = "不知道或不清楚"))), 0)
+  expect_equal(nrow(kits_value_codes(c(0, 1, 7), c("7" = "Don't know"))), 0)
+  expect_equal(kits_value_codes(c(0, 1, 7), c("7" = "Refused"))$value, 7)
   expect_equal(kits_code_like(c(0, 1, 2, 9)), 9)
   expect_equal(kits_code_like(c(0, 1, 3)), numeric(0))
 })
