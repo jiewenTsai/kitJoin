@@ -587,7 +587,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
             "文字欄不能當題目，不列在表裡：", paste(utils::head(text_cols, 10), collapse = "、"),
             if (length(text_cols) > 10) "…", "。"
           ))
-        }
+        },
+        kitsdata_mixed_note(candidates()$mixed, files$names())
       )
     })
 
@@ -789,12 +790,24 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
 
     output$code <- shiny::renderUI({
       side <- kits_side_codes(working$data(), kits_side_cols(map(), per_file()), codes_2())
+      text_fix <- kits_text_fix(working$data(), items()$column)
       kit_code_blocks(list(tidy = code_kitsdata(
         code_files_from(files), spec(), na_applied = identical(working$source(), "na"),
-        side_codes = side
+        side_codes = side, text_fix = text_fix
       ), base = NULL))
     })
   })
+}
+
+#' 在某些檔案是文字的題目欄：哪個檔案、哪一欄（那個檔案的這一題不轉）
+#' @noRd
+kitsdata_mixed_note <- function(mixed, file_names) {
+  if (is.null(mixed) || nrow(mixed) == 0) return(NULL)
+  shown <- paste0(mixed$column, "（", file_names[mixed$file], "）")
+  shiny::tags$p(class = "small text-warning", paste0(
+    nrow(mixed), " 個題目欄在部分檔案是文字：", paste(utils::head(shown, 8), collapse = "、"),
+    if (nrow(mixed) > 8) "…", "。這些檔案的這一題不轉，其他檔案照常轉。"
+  ))
 }
 
 #' 第一個檔案第一列的 visit_id 例子（看得出怎麼組）

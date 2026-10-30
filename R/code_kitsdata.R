@@ -8,10 +8,11 @@
 #' @param f code_files_from(files)
 #' @param spec kits_spec()
 #' @param na_applied TRUE 時資料已經過「② 遺漏值轉 NA」（加一行註解）
-#' @param side_codes kits_side_codes()：wave_m、age_m 欄裡的遺漏值代碼
+#' @param side_codes kits_side_codes()：性別、wave_m、age_m 欄裡的遺漏值代碼
+#' @param text_fix NULL 或 kits_text_fix()：文字的題目欄（轉成數字、或這個檔案不轉）
 #' @return 字串
 #' @noRd
-code_kitsdata <- function(f, spec, na_applied = FALSE, side_codes = list()) {
+code_kitsdata <- function(f, spec, na_applied = FALSE, side_codes = list(), text_fix = NULL) {
   # 自己填的值：每個檔案先 mutate() 成一欄（欄名就是 kits 的欄名），後面當成那一欄
   typed <- spec$typed %||% list()
   per_file <- spec$per_file %||% list()
@@ -44,6 +45,7 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, side_codes = list()) {
     paste0("item_settings <- read_csv(", r_str(KITS_SETTINGS_FILE),
            ", col_types = cols(include = \"l\", .default = \"c\"))"),
     "items <- item_settings$item_id[item_settings$include]",
+    code_kitsdata_text_fix(f, text_fix),
     code_kitsdata_codes(f, spec$items, side_codes),
     code_kitsdata_maps(f, spec$items),
     "",
@@ -70,6 +72,30 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, side_codes = list()) {
     "# app 為了省記憶體，是一段一段（每 5,000 列寬資料）轉換、寫進 .csv.gz；結果和這裡相同",
     'write_csv(kits_long, "kits_long.csv.gz")   # 副檔名 .gz 會自動壓縮'
   )
+}
+
+# 文字的題目欄：內容都是數字的轉成數字；有一般文字的，這個檔案不轉這一題
+code_kitsdata_text_fix <- function(f, text_fix) {
+  if (is.null(text_fix)) return(NULL)
+  per_file <- purrr::map_chr(seq_along(f$obj), function(i) {
+    fx <- text_fix[[i]]
+    if (is.null(fx) || (length(fx$convert) == 0 && length(fx$drop) == 0)) return(NA_character_)
+    lines <- c(
+      if (length(fx$convert) > 0) {
+        paste0("  mutate(across(any_of(", r_cols_vector(fx$convert, quote = TRUE),
+               "), \\(x) as.numeric(as.vector(x))))")
+      },
+      if (length(fx$drop) > 0) {
+        paste0("  select(-any_of(", r_cols_vector(fx$drop, quote = TRUE), "))")
+      }
+    )
+    obj <- f$obj[i]
+    code_lines(paste0(obj, " <- ", obj, " |>"),
+               paste0(lines, c(rep(" |>", length(lines) - 1), "")))
+  })
+  per_file <- per_file[!is.na(per_file)]
+  if (length(per_file) == 0) return(NULL)
+  c("", "# 文字的題目欄：內容都是數字的轉成數字；有一般文字的，這個檔案不轉這一題", per_file)
 }
 
 # 遺漏值代碼改成 NA：一樣的代碼寫在一起（題目設定的 missing_codes；wave_m、age_m 另外寫）

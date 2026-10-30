@@ -241,17 +241,87 @@ kits_item_domains <- function(cols, table = NULL, reverse = "suffix") {
   tibble::tibble(column = cols, domain = domain, source = source)
 }
 
+#' 一欄能不能當題目：數字欄、全空白的欄，或內容都是數字的文字欄（例如 "1"、"2"）
+#' @noRd
+kits_numeric_like <- function(x) {
+  if (is.numeric(x) || all(is.na(x))) return(TRUE)
+  if (!is.character(x)) return(FALSE)
+  txt <- trimws(x)
+  keep <- !is.na(txt) & nzchar(txt)
+  !anyNA(kits_as_num(txt[keep]))
+}
+
 #' 候選題目欄：各檔欄位聯集，去掉已對應的欄與世代欄
-#' @return list(numeric = 數值欄, text = 文字欄（不能當題目）)
+#'
+#' 在某個檔案是數字（或內容都是數字的文字）就是候選；某些檔案裡是一般文字時，
+#' 只有那些檔案的這一欄不轉（列在 mixed，轉換時提醒）。
+#' @return list(numeric = 候選欄, text = 每個檔案都是文字的欄（不能當題目），
+#'   mixed = tibble(column, file)：在這個檔案是文字、在別的檔案是數字的欄)
 #' @noRd
 kits_candidate_cols <- function(dfs, mapped) {
   cols <- setdiff(as.character(unique(unlist(purrr::map(dfs, names)))), mapped)
+  ok <- purrr::map(dfs, function(df) {
+    have <- intersect(cols, names(df))
+    stats::setNames(vapply(df[have], kits_numeric_like, logical(1)), have)
+  })
   is_num <- vapply(cols, function(col) {
-    all(purrr::map_lgl(dfs, function(df) {
-      !col %in% names(df) || is.numeric(df[[col]]) || all(is.na(df[[col]]))
-    }))
+    any(purrr::map_lgl(ok, function(o) isTRUE(o[col])))
   }, logical(1))
-  list(numeric = cols[is_num], text = cols[!is_num])
+  mixed <- purrr::imap(ok, function(o, i) {
+    bad <- names(o)[!o & names(o) %in% cols[is_num]]
+    tibble::tibble(column = bad, file = rep(i, length(bad)))
+  }) |>
+    purrr::list_rbind()
+  if (is.null(mixed) || nrow(mixed) == 0) {
+    mixed <- tibble::tibble(column = character(0), file = integer(0))
+  }
+  list(numeric = cols[is_num], text = cols[!is_num], mixed = mixed)
+}
+
+#' 題目欄是文字的檔案怎麼處理：內容都是數字的轉成數字（convert），有一般文字的這個檔案
+#' 不轉這一題（drop，example 是一個例子）
+#' @return list（每個檔案一個）：list(convert, drop, example)
+#' @noRd
+kits_text_fix <- function(dfs, items) {
+  purrr::map(dfs, function(df) {
+    have <- intersect(items, names(df))
+    text <- have[vapply(df[have], function(x) !is.numeric(x) && !all(is.na(x)), logical(1))]
+    like <- vapply(df[text], kits_numeric_like, logical(1))
+    drop <- text[!like]
+    example <- vapply(df[drop], function(x) {
+      txt <- trimws(as.character(x))
+      txt[!is.na(txt) & nzchar(txt) & is.na(kits_as_num(txt))][1]
+    }, character(1))
+    list(convert = text[like], drop = drop, example = example)
+  })
+}
+
+#' 套用 kits_text_fix()：文字的題目欄轉成數字，或從那個檔案拿掉
+#' @return list(dfs, notes, warnings)
+#' @noRd
+kits_apply_text_fix <- function(dfs, file_names, fix) {
+  notes <- character(0)
+  warnings <- character(0)
+  for (i in seq_along(dfs)) {
+    f <- fix[[i]]
+    for (col in f$convert) dfs[[i]][[col]] <- kits_as_num(dfs[[i]][[col]])
+    if (length(f$convert) > 0) {
+      notes <- c(notes, paste0(
+        file_names[i], "：", length(f$convert), " 個題目欄是文字、內容都是數字，轉成數字（",
+        paste(utils::head(f$convert, 5), collapse = "、"), if (length(f$convert) > 5) "…", "）。"
+      ))
+    }
+    if (length(f$drop) > 0) {
+      dfs[[i]] <- dfs[[i]][setdiff(names(dfs[[i]]), f$drop)]
+      shown <- paste0(f$drop, "（例如「", f$example, "」）")
+      warnings <- c(warnings, paste0(
+        file_names[i], "：", length(f$drop), " 個題目欄在這個檔案是文字，這個檔案的這些題不轉：",
+        paste(utils::head(shown, 5), collapse = "、"), if (length(f$drop) > 5) "…", "。",
+        "其他檔案的同一題照常轉。"
+      ))
+    }
+  }
+  list(dfs = dfs, notes = notes, warnings = warnings)
 }
 
 
@@ -1054,6 +1124,12 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   map <- spec$map
   notes <- character(0)
   warnings <- character(0)
+
+  # 文字的題目欄：內容都是數字的轉成數字；有一般文字的，只有那個檔案不轉這一題
+  fixed <- kits_apply_text_fix(dfs, file_names, kits_text_fix(dfs, items))
+  dfs <- fixed$dfs
+  notes <- c(notes, fixed$notes)
+  warnings <- c(warnings, fixed$warnings)
 
   # 遺漏值代碼改成 NA（題目，以及 wave_m、age_m）：不會變成分數
   coded <- kits_apply_codes(dfs, kits_items_with_codes(dfs, spec$items, spec$na_codes))

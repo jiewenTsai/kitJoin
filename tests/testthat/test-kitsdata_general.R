@@ -617,3 +617,54 @@ test_that("發現 7：app 裡選「標籤」", {
     expect_match(output[["kitsdata-code"]]$html, "as_label(grade)", fixed = TRUE)
   })
 })
+
+# ── 發現 8：某一題在一個檔案是文字 ──────────────────────────────────────────
+
+test_that("發現 8：文字的題目欄只影響那個檔案：內容都是數字的轉成數字，有文字的那個檔案不轉", {
+  dfs <- list(
+    tibble::tibble(id = 1:2, wave_m = 0, q1 = c(0, 1), q2 = c(1, 1), note = c("a", "b")),
+    tibble::tibble(id = 1:2, wave_m = 12, q1 = c(" 1", "2"), q2 = c("1", "其他"),
+                   note = c("c", "d"))
+  )
+  cand <- kits_candidate_cols(dfs, c("id", "wave_m"))
+  expect_setequal(cand$numeric, c("q1", "q2"))
+  expect_equal(cand$text, "note")
+  expect_equal(cand$mixed$column, "q2")
+  expect_equal(cand$mixed$file, 2L)
+  map <- kits_guess_map(c("id", "wave_m"))
+  map$subj_id <- "id"
+  s <- kits_item_settings(dfs, c("q1", "q2")) |> kits_bulk_domain(c("q1", "q2"), "a")
+  expect_equal(s$raw[[1]], c(0, 1, 2))
+  spec <- kg_spec(s, map, c("B1", "B1"))
+  out <- expect_no_warning(kits_build(dfs, c("w1.sav", "w2.sav"), spec))
+  expect_length(out$problems, 0)
+  expect_match(out$notes, "w2.sav：1 個題目欄是文字、內容都是數字，轉成數字（q1）", all = FALSE)
+  expect_match(out$warnings, "w2.sav：1 個題目欄在這個檔案是文字.*q2（例如「其他」）", all = FALSE)
+  long <- kits_long_of(out)
+  expect_equal(sum(long$item_id == "q2"), 2)       # 只有 w1 的 q2
+  expect_equal(sum(long$item_id == "q1"), 4)
+  side <- list()
+  code <- code_kitsdata(code_files(c("w1.csv", "w2.csv"), c("t1", "t2")), spec,
+                        text_fix = kits_text_fix(dfs, spec$items$column))
+  expect_match(code, 'select(-any_of(c("q2")))', fixed = TRUE)
+  # 程式碼：CSV 讀回來型別會變，所以用 SAV 比對
+  dir <- withr::local_tempdir()
+  for (i in 1:2) haven::write_sav(dfs[[i]], file.path(dir, paste0("w", i, ".sav")))
+  readr::write_excel_csv(kits_settings_export(s), file.path(dir, KITS_SETTINGS_FILE), na = "")
+  code <- code_kitsdata(code_files(c("w1.sav", "w2.sav"), c("t1", "t2")), spec,
+                        text_fix = kits_text_fix(dfs, spec$items$column))
+  env <- new.env()
+  withr::with_dir(dir, suppressMessages(eval(parse(text = code), envir = env)))
+  kg_same_long(env$kits_long, long)
+})
+
+test_that("發現 8：app 的摘要列出在部分檔案是文字的題", {
+  dir <- withr::local_tempdir()
+  paths <- file.path(dir, c("w1.sav", "w2.sav"))
+  haven::write_sav(tibble::tibble(id = 1:2, q2 = c(1, 1)), paths[1])
+  haven::write_sav(tibble::tibble(id = 1:2, q2 = c("1", "其他")), paths[2])
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kg_upload(paths))
+    expect_match(output[["kitsdata-settings_summary"]]$html, "1 個題目欄在部分檔案是文字：q2（w2.sav）")
+  })
+})
