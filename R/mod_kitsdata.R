@@ -1,261 +1,219 @@
 # ⑥ 轉成 kits 作答檔
+#
+# 三個步驟，做完一步收成一行（KIT 設計語言：步驟卡）：
+#   1. 每個檔案是哪個世代、哪個波次（一列一個檔案）
+#   2. 哪些欄是題目（題目表，或用欄名挑；一開始一題都不納入）
+#   3. 計分檢查：只列出要決定的事，旁邊就是決定的按鈕；逐題表收起來
+# 三步都好了才能按「轉換成作答檔」；轉換完，主角換成「下載作答檔」。
+# 純函式在 kitsdata_steps.R；轉換與檢查在 kitsdata_pipeline.R。
 
 #' @noRd
 mod_kitsdata_ui <- function(id) {
   ns <- shiny::NS(id)
+  open_is <- function(k) paste0("output.open == '", k, "'")
   shiny::tagList(
     kit_tab_guide(
-      goal = paste0(
-        "把寬格式的資料（一列一個孩子的一個波次、一題一欄）轉成 kits 與 kitsUI 要的作答檔：",
-        "一列一個孩子的一個波次的一題。"
-      ),
+      goal = "把各波次的資料轉成 kitsUI 要的作答檔。",
       steps = kit_steps(
-        "替每個檔案填世代（例如 M03），或選世代所在的欄",
-        "確認孩子編號、波次、時間點等欄位的對應（各檔欄名不同時，每個檔案各選一欄）",
-        "在「3. 題目設定」給每一題領域（可以上傳題目表），不是題目的欄排除；需要時調整計分對照",
-        "按「執行轉換」，看檢查結果，下載 .csv.gz"
+        "說清楚每個檔案是哪個世代、哪個波次",
+        "挑出哪些欄是題目（有題目表就上傳）",
+        "看計分檢查，決定要不要改",
+        "按「轉換成作答檔」，下載"
       ),
       output = shiny::tagList(
-        paste0(
-          "一個作答檔（多個檔案合併成一個），固定 9 欄：",
-          paste(KITS_COLUMNS$column, collapse = "、"), "。可以直接上傳到 kitsUI。"
-        ),
-        " ",
-        htmltools::tagAppendAttributes(kit_kitsui_button("開啟 kitsUI 上傳"), class = "btn-sm")
+        "一個作答檔（.csv.gz；多個檔案合併成一個），可以直接上傳到 kitsUI。",
+        " ", htmltools::tagAppendAttributes(kit_kitsui_button("開啟 kitsUI"), class = "btn-sm")
       ),
       note = paste0(
-        "沒有作答的題不會放進作答檔。原檔的波次名稱（t1、t2）這一頁不會用到；",
-        "多個檔案時，每個檔案可以是不同世代、各有好幾個波次。"
+        "只要一個波次或一個領域時，請在「上傳檔案」只上傳那一個檔案。",
+        "沒有作答的題不會放進作答檔。"
       ),
       technical = paste0(
         "每個檔案先把每一題的原分數換成計分（計分對照），",
         "再用 tidyr::pivot_longer() 把題目欄轉成 item_id、item_score，最後接上領域並合併。",
         "檢查都在寬資料上做；長格式在下載時每 5,000 列寬資料轉一段、寫進 .csv.gz，不會整張放進記憶體。",
         "visit_id 由 {cohort}_{subj_id}_{波次標籤} 組成；沒有波次標籤欄時改用 wave_m。",
-        "這一頁不把任何值改成 NA：疑似遺漏值代碼（值標籤是「遺漏值」「跳答」這類、② 的代碼、",
-        "7777 以上、和分數明顯分開的值）只提醒，不在計分對照裡，照原樣寫進作答檔；",
-        "要當成遺漏值，請先用「② 遺漏值轉 NA」。"
+        "這一頁不把任何值改成 NA：疑似遺漏值代碼（值標籤是「遺漏值」「跳答」這類、",
+        "「遺漏值轉 NA」的代碼、7777 以上、和分數明顯分開的值）要在第 3 步決定：",
+        "先用「遺漏值轉 NA」改成 NA，或照原樣當成分數。"
       )
-    ),
-    shiny::tags$div(
-      class = "kit-callout",
-      shiny::tags$strong("多個檔案會合併成一個作答檔。"),
-      "只要一個波次或一個領域時，請在 ① 只上傳那一個檔案。"
     ),
     shiny::uiOutput(ns("source_note")),
-    shiny::uiOutput(ns("codes_note")),
-    kitsdata_spec_ui(),
+    shiny::conditionalPanel(
+      "output.has_files == 'yes'", ns = ns,
 
-    shiny::h4("1. 世代（每個檔案）"),
-    shiny::uiOutput(ns("cohort_table")),
+      # 第 1 步 ----
+      shiny::tags$section(
+        class = "kit-stepcard",
+        shiny::uiOutput(ns("head1")),
+        shiny::conditionalPanel(
+          open_is(1), ns = ns, class = "kit-stepbody",
+          shiny::tags$p("已經照欄名猜好了（淡黃色），請看一遍，不對就改。",
+                        "每一格可以選檔案裡的一欄，也可以直接打字填一個值（例如 2009）。"),
+          shiny::uiOutput(ns("files_table")),
+          shiny::tags$div(
+            class = "kit-inline",
+            shiny::selectInput(ns("wave_unit"), "波次的單位", choices = KITS_WAVE_UNITS,
+                               selected = "month", width = "15rem"),
+            shiny::uiOutput(ns("visit_note"))
+          ),
+          shiny::uiOutput(ns("wave_unit_note")),
+          kitsdata_detail(
+            "還有性別、實際月齡、波次標籤（不一定要）",
+            shiny::uiOutput(ns("more_table")),
+            shiny::radioButtons(
+              ns("value_labels"), "世代欄、性別欄有值標籤時（SPSS 檔），作答檔寫：",
+              choices = c("代碼（例如 1、2）" = "code", "標籤（例如 男、女）" = "label"),
+              selected = "code", inline = TRUE
+            )
+          ),
+          shiny::uiOutput(ns("step1_problems")),
+          shiny::actionButton(ns("ok1"), "對，下一步", class = "btn-default")
+        )
+      ),
 
-    shiny::h4("2. 對應欄位"),
-    shiny::tags$small(
-      class = "kit-hint",
-      "已依欄名預先猜好，可以改。選「某一欄」時，同一個欄名套用到每個檔案；",
-      "各檔欄名不同時（例如 w1_id、w2_id、w3id），選「各檔各選一欄」，",
-      "再到上面「1.」的表裡替每個檔案選一欄。"
-    ),
-    shiny::tags$div(class = "kit-table-scroll", kitsdata_map_ui(ns)),
-    shiny::selectInput(
-      ns("wave_unit"), "wave_m（時間點）的單位", choices = KITS_WAVE_UNITS, selected = "month",
-      width = "16rem"
-    ),
-    shiny::uiOutput(ns("wave_unit_note")),
-    shiny::uiOutput(ns("visit_note")),
+      # 第 2 步 ----
+      shiny::tags$section(
+        class = "kit-stepcard",
+        shiny::uiOutput(ns("head2")),
+        shiny::conditionalPanel(
+          open_is(2), ns = ns, class = "kit-stepbody",
+          shiny::uiOutput(ns("intro2")),
+          shiny::fileInput(
+            ns("item_file"), "上傳題目表（item_id、domain）或之前下載的題目設定",
+            accept = c(".csv", ".sav"), buttonLabel = "選擇檔案…", placeholder = "還沒有上傳",
+            width = "34rem"
+          ),
+          kitsdata_detail(
+            "沒有題目表：用欄名挑",
+            shiny::tags$div(
+              class = "kit-inline",
+              shiny::textInput(ns("pick_prefix"), "欄名開頭是", width = "16rem",
+                               placeholder = "例如 w1d5_、w2d5_"),
+              shiny::selectizeInput(ns("pick_domain"), "領域", choices = NULL, width = "12rem",
+                                    options = list(create = TRUE, placeholder = "例如 distress")),
+              shiny::actionButton(ns("pick_add"), "加入這些欄", class = "btn-default")
+            ),
+            shiny::uiOutput(ns("pick_note")),
+            shiny::actionLink(ns("pick_clear"), "全部清掉，重新挑")
+          ),
+          shiny::uiOutput(ns("items_status")),
+          kitsdata_details_row(
+            kitsdata_detail("看挑出來的題目", shiny::uiOutput(ns("items_list"))),
+            kitsdata_detail(
+              "題目表的格式",
+              shiny::tags$p(class = "kit-hint",
+                "CSV 或 SAV，一列一題：item_id（資料裡的欄名）、domain（領域）；",
+                "可以再加 item_id_out（作答檔的題號：各波次欄名不同、其實是同一題時，給同一個題號）。",
+                "也可以上傳之前在這一頁下載的「題目設定」，會連計分對照一起套用。"),
+              shiny::selectInput(
+                ns("reverse_rule"), "反向題的欄名（題目表查不到時，用原題的領域）",
+                choices = KITS_REVERSE_RULES, selected = "suffix", width = "24rem"
+              )
+            ),
+            kitsdata_detail("不能當題目的欄", shiny::uiOutput(ns("text_cols")))
+          ),
+          shiny::actionButton(ns("ok2"), "對，下一步", class = "btn-default")
+        )
+      ),
 
-    shiny::h4("3. 題目設定"),
-    shiny::tags$small(
-      class = "kit-hint",
-      paste0(
-        "一列一個題目欄（「2.」對應到的欄不算）。先勾選要改的列，再按上面的按鈕一次改好。",
-        "「計分對照」上一列是原分數、下一列是計分；粗體是改過的。"
-      )
-    ),
-    shiny::fileInput(
-      ns("item_file"),
-      "上傳題目表（item_id、domain，可以再加 item_id_out）或題目設定檔（之前下載的；CSV 或 SAV）",
-      accept = c(".csv", ".sav"), buttonLabel = "選擇檔案…", placeholder = "沒有上傳",
-      width = "60%"
-    ),
-    shiny::uiOutput(ns("item_file_note")),
-    shiny::selectInput(
-      ns("reverse_rule"), "反向題的欄名（題目表查不到時，改用原題的領域）",
-      choices = KITS_REVERSE_RULES, selected = "suffix", width = "24rem"
-    ),
-    shiny::tags$div(
-      class = "mb-2",
-      shiny::uiOutput(ns("settings_dl_ui"), inline = TRUE),
-      shiny::tags$small(
-        class = "text-muted ms-2",
-        "欄位：item_id、include、domain、map_raw_to_score（計分對照，寫成「原分數=計分」，",
-        "例如 1=0;2=1）、item_id_out（輸出的題號）。",
-        "下一波上傳這個檔，就會套用同樣的設定。"
-      )
-    ),
-    shiny::uiOutput(ns("settings_summary")),
-    shiny::uiOutput(ns("shift_suggest")),
-    kitsdata_bulk_ui(ns),
-    shiny::uiOutput(ns("settings_table")),
-    kitsdata_filter_js(ns),
+      # 第 3 步 ----
+      shiny::tags$section(
+        class = "kit-stepcard",
+        shiny::uiOutput(ns("head3")),
+        shiny::conditionalPanel(
+          open_is(3), ns = ns, class = "kit-stepbody",
+          shiny::tags$p("kits 要的分數是 0、1、2…。轉換前，看下面每一件事："),
+          shiny::uiOutput(ns("checks")),
+          kitsdata_details_row(kitsdata_detail(
+            shiny::textOutput(ns("items_title"), inline = TRUE),
+            kitsdata_items_tools(ns),
+            shiny::uiOutput(ns("items_table")),
+            kitsdata_bulk_tools(ns)
+          ))
+        )
+      ),
 
-    shiny::h4("4. 轉成長格式（pivot_longer）"),
-    shiny::tags$small(
-      class = "kit-hint",
-      "kits 的作答檔格式固定，這些參數不能改；⑦ 長寬互轉可以自己設定。"
-    ),
-    mod_pivot_longer_ui(ns("pivot")),
-
-    shiny::actionButton(ns("run"), "執行轉換", class = "btn-primary"),
-    shiny::uiOutput(ns("status")),
-    shiny::uiOutput(ns("result")),
-    kit_code_panel(ns("code"), title = "用 R 怎麼做？（tidyverse 版）")
+      shiny::uiOutput(ns("ready")),
+      shiny::uiOutput(ns("run_ui")),
+      shiny::uiOutput(ns("status")),
+      shiny::uiOutput(ns("result"))
+    )
   )
 }
 
-# 對應欄位的表：kits 的欄 | 說明 | 用哪一欄
-kitsdata_map_ui <- function(ns) {
-  rows <- purrr::pmap(KITS_MAP_ROWS, function(field, type, required, meaning, typed, per_file,
-                                               label) {
-    none <- if (field == "visit_id") "（自動組成）" else "（還沒選）"
-    col_select <- shiny::selectInput(
-      ns(paste0("map_", field)), NULL, choices = stats::setNames("", none), width = "14rem"
-    )
-    has_src <- typed || per_file
-    src <- if (has_src) {
-      shiny::selectInput(
-        ns(paste0("src_", field)), NULL, width = "10rem",
-        choices = c("某一欄" = "column", if (per_file) c("各檔各選一欄" = "per_file"),
-                    if (typed) c("自己填" = "typed"), if (typed && !required) c("不用" = "none"))
-      )
-    }
-    cond <- function(value) paste0("input['", ns(paste0("src_", field)), "'] == '", value, "'")
-    hint <- function(value, text) {
-      shiny::conditionalPanel(cond(value), shiny::tags$small(class = "text-muted", text))
-    }
-    shiny::tags$tr(
-      shiny::tags$td(shiny::tags$code(field)),
-      shiny::tags$td(meaning, if (required) shiny::tags$strong("（必填）")),
-      shiny::tags$td(src),
-      shiny::tags$td(
-        if (has_src) shiny::conditionalPanel(cond("column"), col_select) else col_select,
-        if (typed) hint("typed", "在上面「1.」的表裡，每個檔案各填一個值。"),
-        if (per_file) hint("per_file", "在上面「1.」的表裡，每個檔案各選一欄。")
-      )
-    )
-  })
-  shiny::tags$table(
-    class = "table table-sm align-middle kit-file-table",
-    shiny::tags$thead(shiny::tags$tr(
-      shiny::tags$th("kits 的欄"), shiny::tags$th("意思"), shiny::tags$th("從哪裡來"),
-      shiny::tags$th("用檔案裡的哪一欄")
-    )),
-    shiny::tags$tbody(rows)
+# 收合的細節（一行小字標題）與一排細節
+kitsdata_detail <- function(title, ..., open = FALSE) {
+  shiny::tags$details(
+    class = "kit-detail", open = if (open) NA,
+    shiny::tags$summary(title),
+    shiny::tags$div(class = "kit-detail-body", ...)
+  )
+}
+kitsdata_details_row <- function(...) shiny::tags$div(class = "kit-details", ...)
+
+# 逐題表上面：找欄名、要不要顯示沒挑的欄、換頁、勾選
+kitsdata_items_tools <- function(ns) {
+  shiny::tags$div(
+    class = "kit-inline",
+    shiny::textInput(ns("tbl_search"), NULL, placeholder = "找欄名，例如 d5", width = "14rem"),
+    shiny::checkboxInput(ns("tbl_all"), "也顯示沒挑的欄", value = FALSE),
+    shiny::actionButton(ns("tbl_prev"), "上一頁", class = "btn-sm btn-default"),
+    shiny::textOutput(ns("tbl_page"), inline = TRUE),
+    shiny::actionButton(ns("tbl_next"), "下一頁", class = "btn-sm btn-default")
   )
 }
 
-# 「3. 題目設定」上方的按鈕列：選取、對選取的列做批次動作
-kitsdata_bulk_ui <- function(ns) {
-  btn <- function(id, label, cls = "btn-outline-secondary") {
-    shiny::actionButton(ns(id), label, class = paste("btn-sm", cls))
+# 逐題表下面：對勾選的列做一件事
+KITS_BULK_ACTIONS <- c(
+  "設領域" = "domain", "計分加減（例如 -1）" = "shift", "反向計分" = "reverse",
+  "合併原分數" = "merge", "還原（計分＝原分數）" = "restore", "不要這幾欄" = "exclude",
+  "要這幾欄" = "include", "輸出題號：去掉欄名的一段" = "out_prefix", "輸出題號：還原成欄名" = "out_reset"
+)
+kitsdata_bulk_tools <- function(ns) {
+  when <- function(value, ...) {
+    shiny::conditionalPanel(paste0("input.bulk_action == '", value, "'"), ns = ns, ...)
   }
-  row <- function(...) shiny::tags$div(class = "kit-bulk-row", ...)
   shiny::tags$div(
     class = "kit-bulk",
-    shiny::tags$style(shiny::HTML(paste(
-      ".kit-bulk { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: .375rem;",
-      "  padding: .5rem .75rem; margin-bottom: .5rem; }",
-      ".kit-bulk-row { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center;",
-      "  margin: .25rem 0; }",
-      ".kit-bulk-row .form-group { margin-bottom: 0; }",
-      ".kit-bulk-row .shiny-input-container:not(.shiny-input-container-inline) {",
-      "  width: auto; }",
-      ".kit-map { border-collapse: collapse; font-size: .8rem; }",
-      ".kit-map th, .kit-map td { border: 1px solid #dee2e6; padding: 0 .35rem;",
-      "  text-align: center; }",
-      ".kit-map th { background: #f1f3f5; font-weight: normal; white-space: nowrap; }",
-      ".kit-map td.changed { font-weight: bold; background: #fff3cd; }",
-      ".kit-settings-scroll { max-height: 32rem; overflow: auto; }",
-      ".kit-settings tr.excluded td { color: #adb5bd; }",
-      ".kit-settings th { white-space: nowrap; }"
-    ))),
-    row(
-      shiny::tags$strong("選取："), btn("sel_all", "全選"), btn("sel_none", "全不選"),
-      shiny::textInput(ns("sel_filter"), NULL, placeholder = "依欄名篩選，例如 lan",
-                       width = "12rem"),
-      btn("sel_filtered", "選取篩選出來的列"),
-      shiny::tags$span(
-        class = "text-muted small", shiny::textOutput(ns("sel_count"), inline = TRUE)
-      )
+    shiny::tags$div(
+      class = "kit-inline",
+      shiny::actionLink(ns("tbl_sel_all"), "勾選全部符合的列"),
+      shiny::actionLink(ns("tbl_sel_none"), "全部不勾"),
+      shiny::textOutput(ns("sel_count"), inline = TRUE)
     ),
-    row(
-      shiny::tags$strong("對選取的列："),
-      shiny::selectizeInput(ns("bulk_domain"), NULL, choices = NULL, width = "11rem",
-                            options = list(create = TRUE, placeholder = "選或輸入領域")),
-      btn("do_domain", "設領域"),
-      shiny::tags$span("｜平移"),
-      shiny::numericInput(ns("bulk_shift"), NULL, value = -1, step = 1, width = "5.5rem"),
-      btn("do_shift", "平移"),
-      shiny::tags$span("｜反向：最高分"),
-      shiny::textInput(ns("bulk_max"), NULL, placeholder = "空白＝各題目前最高計分",
-                       width = "12rem"),
-      btn("do_reverse", "反向")
-    ),
-    row(
-      shiny::tags$span("合併：原分數"),
-      shiny::textInput(ns("merge_from"), NULL, placeholder = "例如 4、5", width = "7rem"),
-      shiny::tags$span("→ 計分"),
-      shiny::numericInput(ns("merge_to"), NULL, value = NA, step = 1, width = "5.5rem"),
-      btn("do_merge", "合併"),
-      shiny::tags$span("｜"),
-      btn("do_restore", "還原（計分＝原分數）"),
-      btn("do_exclude", "排除", "btn-outline-danger"),
-      btn("do_include", "納入", "btn-outline-success")
-    ),
-    row(
-      shiny::tags$span("輸出題號：欄名去掉"),
-      shiny::textInput(ns("out_pattern"), NULL, value = "^w[0-9]+", width = "8rem"),
-      btn("do_out_prefix", "去掉"),
-      btn("do_out_reset", "還原成欄名")
+    shiny::tags$div(
+      class = "kit-inline",
+      shiny::selectInput(ns("bulk_action"), "對勾選的列", choices = KITS_BULK_ACTIONS,
+                         width = "17rem"),
+      when("domain", shiny::selectizeInput(
+        ns("bulk_domain"), "領域", choices = NULL, width = "12rem",
+        options = list(create = TRUE, placeholder = "選或輸入領域")
+      )),
+      when("shift", shiny::numericInput(ns("bulk_shift"), "加減", value = -1, step = 1,
+                                        width = "7rem")),
+      when("reverse", shiny::textInput(ns("bulk_max"), "最高分", placeholder = "空白＝各題最高分",
+                                       width = "11rem")),
+      when("merge",
+           shiny::textInput(ns("merge_from"), "原分數", placeholder = "例如 4、5", width = "8rem"),
+           shiny::numericInput(ns("merge_to"), "都變成", value = NA, step = 1, width = "7rem")),
+      when("out_prefix", shiny::textInput(ns("out_pattern"), "去掉（規則）", value = "^w[0-9]+",
+                                          width = "9rem")),
+      shiny::actionButton(ns("bulk_apply"), "套用", class = "btn-default")
     ),
     shiny::tags$small(
-      class = "text-muted",
-      "平移、反向都在目前的計分上做（例如先合併再平移）；合併是把指定的原分數都改成同一個計分。",
-      "遺漏值代碼（例如 98、99）不要用合併接起來，請先到「② 遺漏值轉 NA」改成 NA。",
-      "輸出題號是作答檔的 item_id：各波次欄名不同、其實是同一題時，給它們同一個題號",
-      "（例如 w1d5_1、w2d5_1 去掉 ^w[0-9]+ 都是 d5_1；題號換了的，用題目表的 item_id_out 欄）。"
+      class = "kit-hint",
+      "加減、反向都在目前的計分上做。遺漏值代碼（例如 98、99）不要用合併接起來，",
+      "請先用「遺漏值轉 NA」改成 NA。輸出題號是作答檔的 item_id：各波次欄名不同、其實是同一題時，",
+      "給它們同一個題號（例如 w1d5_1、w2d5_1 去掉 ^w[0-9]+ 都是 d5_1）。"
     )
   )
-}
-
-# 依欄名篩選在瀏覽器做（不重畫表格）：打字時藏起不符合的列，表格重畫後再套一次。
-# 規則和 kitsdata_filter_cols() 一樣：去掉前後空白、不分大小寫、包含就顯示。
-kitsdata_filter_js <- function(ns) {
-  shiny::tags$script(shiny::HTML(sprintf(
-    "(function() {
-  var box = '%s', out = '%s';
-  function apply() {
-    var el = document.getElementById(box), tab = document.getElementById(out);
-    if (!el || !tab) return;
-    var f = el.value.replace(/^[ \\t\\r\\n]+|[ \\t\\r\\n]+$/g, '').toLowerCase();
-    tab.querySelectorAll('tr[data-col]').forEach(function(tr) {
-      var hit = !f || tr.getAttribute('data-col').toLowerCase().indexOf(f) >= 0;
-      tr.style.display = hit ? '' : 'none';
-    });
-  }
-  $(document).on('input change', '#' + box, apply);
-  $(document).on('shiny:value', function(e) {
-    if (e.name === out) setTimeout(apply, 0);
-  });
-})();",
-    ns("sel_filter"), ns("settings_table")
-  )))
 }
 
 #' @param files mod_upload_server() 的回傳值
 #' @param working mod_missing_server() 的回傳值
-#' @param goto function(tab) 切換分頁（到 ② 處理遺漏值代碼）
-#' @param na_codes NULL 或 reactive：② 的代碼清單（數字向量），用來找疑似遺漏值代碼（只提醒）
+#' @param goto function(tab) 切換分頁（到「遺漏值轉 NA」）
+#' @param na_codes NULL 或 reactive：「遺漏值轉 NA」的代碼清單（只用來找疑似遺漏值代碼）
 #' @noRd
 mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
@@ -263,270 +221,175 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     result <- shiny::reactiveVal(NULL)
     status <- shiny::reactiveVal(kit_status())
     codes_2 <- shiny::reactive(if (is.null(na_codes)) NULL else na_codes())
+    dfs <- shiny::reactive(working$data())
+    has_files <- shiny::reactive(length(files$keys()) > 0)
+
+    # 步驟：現在打開哪一步（0 = 都收起來，轉換完成時），第 1、2 步按過「對，下一步」沒有
+    open <- shiny::reactiveVal(1L)
+    ok <- shiny::reactiveValues(s1 = FALSE, s2 = FALSE)
+    output$open <- shiny::renderText(as.character(open()))
+    output$has_files <- shiny::renderText(if (has_files()) "yes" else "no")
+    shiny::outputOptions(output, "open", suspendWhenHidden = FALSE)
+    shiny::outputOptions(output, "has_files", suspendWhenHidden = FALSE)
+    # 換了檔案：從第 1 步重來
+    shiny::observeEvent(files$keys(), {
+      ok$s1 <- FALSE
+      ok$s2 <- FALSE
+      open(1L)
+    }, ignoreInit = TRUE)
+    shiny::observeEvent(input$edit1, open(1L))
+    shiny::observeEvent(input$edit2, if (ok$s1) open(2L))
+    shiny::observeEvent(input$edit3, if (ok$s1 && ok$s2) open(3L))
 
     output$source_note <- shiny::renderUI({
-      n <- length(files$keys())
-      if (n == 0) {
+      if (!has_files()) {
         return(shiny::tags$div(
           class = "kit-callout kit-callout-warning",
-          "請先到「① 上傳檔案」加入寬格式的資料檔（一個或多個）。"
+          "請先到「上傳檔案」加入寬格式的資料檔（一個或多個）。"
         ))
       }
-      src <- working$source() %||% "raw"
-      shiny::tagList(
-        shiny::tags$p(
-          class = "kit-source-note",
-          "目前使用：",
-          if (identical(src, "na")) "「② 遺漏值轉 NA」處理後的資料" else "原始資料",
-          "，共 ", n, " 個檔案。"
-        ),
-        # ② 的設定或檔案改過、還沒重新執行（fix-io 分支的 source = "stale"）
-        if (identical(src, "stale")) {
-          shiny::tags$div(
-            class = "kit-callout kit-callout-warning",
-            "② 的設定改過了，請",
-            shiny::actionLink(ns("goto_missing_stale"), "重新執行「② 遺漏值轉 NA」"),
-            "，這一頁才會用到新的結果。"
-          )
-        }
-      )
-    })
-
-    # 疑似遺漏值代碼還在資料裡：⑥ 不改、照原樣輸出；提醒先到 ② 改成 NA 再回來（不擋轉換）
-    shiny::observeEvent(input$goto_missing, goto("missing"))
-    shiny::observeEvent(input$goto_missing_stale, goto("missing"))
-    output$codes_note <- shiny::renderUI({
-      if (length(working$data()) == 0) return(NULL)
-      s <- settings()
-      n_items <- sum(s$n_codes[s$include] %||% 0)
-      n_side <- kits_code_cells(working$data(), unlist(kits_side_cols(map(), per_file())),
-                                codes_2())
-      n <- n_items + n_side
-      if (n == 0) return(NULL)
-      shiny::tags$div(
-        class = "kit-callout kit-callout-warning",
-        paste0(
-          "題目、性別、wave_m 或 age_m 有 ", format(n, big.mark = ","), " 格疑似遺漏值代碼",
-          "（值標籤是「遺漏值」「跳答」「不適用」這類、② 的代碼、7777 以上，",
-          "或和分數明顯分開的值，例如 1–5 分以外的 95–99）。",
-          "這一頁不會改它們，會照原樣當成分數寫進作答檔；每一題的代碼列在「3. 題目設定」的提醒欄。",
-          "如果它們是遺漏值，請先"
-        ),
-        shiny::actionLink(ns("goto_missing"), "到「② 遺漏值轉 NA」"),
-        "把它們改成 NA，再回來轉換。"
-      )
-    })
-
-    all_cols <- shiny::reactive(unique(unlist(purrr::map(working$data(), names))))
-
-    # 1. 世代 ----
-    output$cohort_table <- shiny::renderUI({
-      keys <- files$keys()
-      if (length(keys) == 0) return(NULL)
-      dfs <- working$data()
-      fields <- typed_fields()
-      pf <- pf_fields()
-      guess <- kits_guess_per_file(dfs)
-      labels <- files$labels()
-      rows <- purrr::pmap(list(keys, files$names(), dfs, labels, seq_along(keys)),
-                          function(key, name, df, wl, k) {
-        src_id <- paste0("cohort_src_", key)
-        txt_id <- paste0("cohort_txt_", key)
-        src <- shiny::isolate(input[[src_id]]) %||% "__text__"
-        if (!src %in% c("__text__", names(df))) src <- "__text__"
-        shiny::tags$tr(
-          shiny::tags$td(shiny::tags$strong(name), shiny::tags$br(), shiny::tags$small(
-            class = "text-muted", format_dims(nrow(df), ncol(df))
-          )),
-          shiny::tags$td(shiny::selectInput(
-            ns(src_id), NULL, width = "12rem", selected = src,
-            choices = list(
-              "自己填" = "__text__",
-              "檔案裡的欄" = as.list(stats::setNames(names(df), names(df)))
-            )
-          )),
-          shiny::tags$td(shiny::conditionalPanel(
-            paste0("input['", ns(src_id), "'] == '__text__'"),
-            shiny::textInput(ns(txt_id), NULL, value = shiny::isolate(input[[txt_id]]) %||% "",
-                             placeholder = "例如 M03", width = "10rem")
-          )),
-          purrr::map(pf, function(field) {
-            id <- pf_id(field, key)
-            prev <- shiny::isolate(input[[id]])
-            selected <- if (!is.null(prev) && prev %in% names(df)) prev else guess[[field]][k]
-            shiny::tags$td(shiny::selectInput(
-              ns(id), NULL, width = "10rem", selected = selected,
-              choices = c(stats::setNames("", "（沒有）"), names(df))
-            ))
-          }),
-          purrr::map(fields, function(field) {
-            id <- typed_id(field, key)
-            shiny::tags$td(shiny::textInput(
-              ns(id), NULL, width = "9rem",
-              value = shiny::isolate(input[[id]]) %||% typed_default(field, wl),
-              placeholder = if (field == "wave_m") kitsdata_wave_example(wave_unit()) else
-                if (field == "age_m") "例如 18"
-            ))
-          })
-        )
-      })
-      shiny::tagList(
+      # 「遺漏值轉 NA」的設定或檔案改過、還沒重新執行
+      if (identical(working$source(), "stale")) {
         shiny::tags$div(
-          class = "kit-table-scroll",
-          shiny::tags$table(
-            class = "table table-sm align-middle kit-file-table",
-            shiny::tags$thead(shiny::tags$tr(
-              shiny::tags$th("檔案"), shiny::tags$th("世代從哪裡來"), shiny::tags$th("世代"),
-              purrr::map(pf, function(field) {
-                shiny::tags$th(KITS_MAP_ROWS$label[KITS_MAP_ROWS$field == field], "的欄",
-                               shiny::tags$code(field))
-              }),
-              purrr::map(fields, function(field) {
-                shiny::tags$th(KITS_MAP_ROWS$label[KITS_MAP_ROWS$field == field],
-                               shiny::tags$code(field))
-              })
-            )),
-            shiny::tags$tbody(rows)
-          )
-        ),
-        shiny::tags$small(
-          class = "kit-hint",
-          "世代一定要給（例如 M03、M36）；空白時不能轉換。這一頁不會從檔名猜世代。",
-          if (length(fields) > 0) "「2. 對應欄位」選「自己填」的欄，每個檔案都要填一個值。",
-          if (length(pf) > 0) "「2. 對應欄位」選「各檔各選一欄」的欄，每個檔案選自己的欄。"
-        ),
-        shiny::radioButtons(
-          ns("value_labels"), "世代欄、性別欄有值標籤時（SPSS 檔），作答檔寫：",
-          choices = c("代碼（例如 1、2）" = "code", "標籤（例如 男、女）" = "label"),
-          selected = shiny::isolate(input$value_labels) %||% "code", inline = TRUE
-        ),
-        shiny::uiOutput(ns("typed_note"))
-      )
-    })
-    output$typed_note <- shiny::renderUI({
-      bad <- kits_typed_problems(files$names(), typed())
-      if (length(bad) == 0) return(NULL)
-      shiny::tags$div(class = "text-danger small", lapply(bad, shiny::tags$div))
-    })
-
-    cohorts <- shiny::reactive({
-      purrr::map(files$keys(), function(key) {
-        src <- input[[paste0("cohort_src_", key)]] %||% "__text__"
-        if (identical(src, "__text__")) {
-          list(type = "text", value = trimws(input[[paste0("cohort_txt_", key)]] %||% ""))
-        } else {
-          list(type = "column", value = src)
-        }
-      })
-    })
-
-    # 2. 對應欄位：欄位變動時更新選項；保留還在的選擇，否則用猜的
-    shiny::observeEvent(all_cols(), {
-      cols <- all_cols()
-      guess <- kits_guess_map(cols)
-      sources <- kits_guess_sources(working$data())
-      for (field in KITS_MAP_ROWS$field) {
-        id <- paste0("map_", field)
-        prev <- input[[id]]
-        selected <- if (!is.null(prev) && prev %in% cols) prev else guess[[field]]
-        none <- if (field == "visit_id") "（自動組成）" else "（還沒選）"
-        shiny::updateSelectInput(
-          session, id, choices = c(stats::setNames("", none), cols), selected = selected
+          class = "kit-callout kit-callout-warning",
+          "「遺漏值轉 NA」的設定改過了，請",
+          shiny::actionLink(ns("goto_missing_stale"), "重新執行「遺漏值轉 NA」"),
+          "，這一頁才會用到新的結果。"
         )
-        # 來源第一次的預設：各檔都有同一欄時是「某一欄」；欄名各檔不同、每個檔案都猜得到時是
-        # 「各檔各選一欄」；猜不到的選填欄是「不用」（不會自動選自己填）
-        row <- KITS_MAP_ROWS[KITS_MAP_ROWS$field == field, ]
-        if ((row$typed || row$per_file) && is.null(input[[paste0("src_", field)]])) {
-          shiny::updateSelectInput(session, paste0("src_", field), selected = sources[[field]])
-        }
       }
     })
+    shiny::observeEvent(input$goto_missing, goto("missing"))
+    shiny::observeEvent(input$goto_missing_stale, goto("missing"))
 
-    # 對應欄位的來源：某一欄（column）、自己填（typed）、不用（none）；沒有選時是某一欄
-    src_of <- function(field) {
-      row <- KITS_MAP_ROWS[KITS_MAP_ROWS$field == field, ]
-      if (!row$typed && !row$per_file) return("column")
-      input[[paste0("src_", field)]] %||% "column"
-    }
-    map <- shiny::reactive({
-      purrr::map(stats::setNames(nm = KITS_MAP_ROWS$field), function(field) {
-        if (src_of(field) != "column") return("")
-        input[[paste0("map_", field)]] %||% ""
-      })
-    })
-    typed_fields <- shiny::reactive({
-      KITS_MAP_ROWS$field[purrr::map_lgl(KITS_MAP_ROWS$field, function(f) src_of(f) == "typed")]
-    })
-    pf_fields <- shiny::reactive({
-      KITS_MAP_ROWS$field[purrr::map_lgl(KITS_MAP_ROWS$field, function(f) src_of(f) == "per_file")]
-    })
-    # 各檔各選一欄：每個檔案一個欄名（還沒顯示選單時用每個檔案自己猜的欄）
-    per_file <- shiny::reactive({
+    all_cols <- shiny::reactive(unique(unlist(purrr::map(dfs(), names))))
+
+    # 第 1 步 ----
+    guess <- shiny::reactive(kits_step1_guess(dfs()))
+    cell_id <- function(field, key) paste0("cell_", field, "_", key)
+    cells <- shiny::reactive({
       keys <- files$keys()
-      fields <- pf_fields()
-      if (length(fields) == 0) return(list())
-      guess <- kits_guess_per_file(working$data())
+      g <- guess()
+      fields <- c(KITS_STEP1_MAIN, KITS_STEP1_MORE)
       stats::setNames(purrr::map(fields, function(field) {
         purrr::map2_chr(keys, seq_along(keys), function(key, k) {
-          input[[pf_id(field, key)]] %||% guess[[field]][k]
+          v <- input[[cell_id(field, key)]]
+          if (is.null(v)) g[[field]][k] %||% "" else trimws(paste(v, collapse = ""))
         })
       }), fields)
     })
-    # 自己填的值：每個檔案一個（還沒顯示輸入框時用預設值：波次標籤是 ① 的波次名稱）
-    typed <- shiny::reactive({
+    step1 <- shiny::reactive(kits_step1_spec(dfs(), files$names(), cells()))
+
+    # 一格：選檔案裡的一欄，或打字填一個值
+    cell_input <- function(field, key, df, k, width = "11rem") {
+      id <- cell_id(field, key)
+      prev <- shiny::isolate(input[[id]])
+      g <- guess()[[field]][k] %||% ""
+      value <- prev %||% g
+      choices <- c("", names(df))
+      if (nzchar(value) && !value %in% choices) choices <- c(choices, value)
+      box <- shiny::selectizeInput(
+        ns(id), NULL, choices = choices, selected = value, width = width,
+        options = list(
+          create = TRUE, createOnBlur = TRUE, persist = FALSE,
+          placeholder = if (field == "cohort") "例如 M03" else "選一欄或打字",
+          render = I("{option_create: function(d, esc) {
+            return '<div class=\"create\">填入「' + esc(d.input) + '」</div>'; }}")
+        )
+      )
+      shiny::tags$td(class = if (is.null(prev) && nzchar(g)) "kit-guess", box)
+    }
+    file_rows <- function(fields) {
       keys <- files$keys()
-      labels <- files$labels()
-      fields <- typed_fields()
-      stats::setNames(purrr::map(fields, function(field) {
-        purrr::map2_chr(keys, labels, function(key, wl) {
-          trimws(input[[typed_id(field, key)]] %||% typed_default(field, wl))
-        })
-      }), fields)
+      purrr::pmap(list(keys, files$names(), dfs(), seq_along(keys)), function(key, name, df, k) {
+        shiny::tags$tr(
+          shiny::tags$td(shiny::tags$strong(name), shiny::tags$br(),
+                         shiny::tags$small(class = "kit-hint", format_dims(nrow(df), ncol(df)))),
+          purrr::map(fields, function(field) cell_input(field, key, df, k))
+        )
+      })
+    }
+    file_table <- function(fields) {
+      shiny::tags$div(
+        class = "kit-table-scroll",
+        shiny::tags$table(
+          class = "table kit-file-table",
+          shiny::tags$thead(shiny::tags$tr(
+            shiny::tags$th("檔案"),
+            purrr::map(fields, function(f) shiny::tags$th(KITS_STEP1_LABELS[[f]]))
+          )),
+          shiny::tags$tbody(file_rows(fields))
+        )
+      )
+    }
+    output$files_table <- shiny::renderUI({
+      if (!has_files()) return(NULL)
+      file_table(KITS_STEP1_MAIN)
+    })
+    output$more_table <- shiny::renderUI({
+      if (!has_files()) return(NULL)
+      shiny::tagList(
+        file_table(KITS_STEP1_MORE),
+        shiny::tags$small(class = "kit-hint",
+          "實際月齡：kitsUI 的題目表通過年齡要用它。波次標籤（例如 m108g03）不會輸出，",
+          "只用來組列次編號；列次編號通常讓它自動組成。")
+      )
     })
 
     wave_unit <- shiny::reactive(input$wave_unit %||% "month")
     output$wave_unit_note <- shiny::renderUI({
       if (identical(wave_unit(), "month")) return(NULL)
-      shiny::tags$div(
-        class = "kit-callout kit-callout-warning",
+      shiny::tags$small(
+        class = "kit-hint",
         "作答檔的 wave_m 只放數字，單位不會寫進去。kitsUI 目前把 wave_m 當成月：",
         "圖的時間軸、依 wave_m 借題庫參數的規則、age50 這類以月計算的結果，",
         "用年或波次序號時要自己換算或解讀。"
       )
     })
-
     output$visit_note <- shiny::renderUI({
-      dfs <- working$data()
-      if (length(dfs) == 0) return(NULL)
-      first <- kits_apply_typed(dfs[1], list(map = map(), typed = purrr::map(typed(), 1)))
-      rule <- kits_visit_rule(first$spec$map, per_file())
-      example <- kitsdata_visit_example(first$dfs[[1]], cohorts()[[1]],
-                                        kits_file_map(first$spec$map, per_file(), 1))
-      cls <- if (is.null(rule$parts) || rule$parts[3] != "wave_m") "kit-source-note" else
-        "kit-callout kit-callout-warning"
-      shiny::tags$div(
-        class = cls, rule$note,
-        if (!is.null(example)) shiny::tags$span("例子：", shiny::tags$code(example))
-      )
+      s <- step1()
+      if (!has_files() || length(s$problems) > 0) return(NULL)
+      first <- kits_apply_typed(dfs()[1], list(map = s$map, typed = purrr::map(s$typed, 1)))
+      example <- kitsdata_visit_example(first$dfs[[1]], s$cohort[[1]],
+                                        kits_file_map(first$spec$map, s$per_file, 1))
+      if (is.null(example)) return(NULL)
+      shiny::tags$small(class = "kit-hint", "作答檔裡的列次編號會長這樣：", shiny::tags$code(example))
+    })
+    step1_msg <- shiny::reactiveVal(NULL)
+    output$step1_problems <- shiny::renderUI({
+      msg <- step1_msg()
+      if (length(msg) == 0) return(NULL)
+      shiny::tags$div(class = "kit-problems", shiny::tags$strong("還差："),
+                      shiny::tags$ul(lapply(msg, shiny::tags$li)))
+    })
+    shiny::observeEvent(cells(), step1_msg(NULL), ignoreInit = TRUE)
+    shiny::observeEvent(input$ok1, {
+      p <- step1()$problems
+      if (length(p) > 0) {
+        step1_msg(p)
+        return()
+      }
+      step1_msg(NULL)
+      ok$s1 <- TRUE
+      open(if (ok$s2) 3L else 2L)
     })
 
-    # 3. 題目設定 ----
-    # 設定存在伺服器：一列一個候選欄（納入、領域、計分對照）；資料變了沿用舊設定
+    # 第 2 步：題目設定（一開始一題都不納入） ----
     settings <- shiny::reactiveVal(kits_settings_empty())
     upload <- shiny::reactiveVal(NULL)
     cohort_cols <- shiny::reactive({
-      purrr::map_chr(purrr::keep(cohorts(), function(x) x$type == "column"), "value")
+      purrr::map_chr(purrr::keep(step1()$cohort, function(x) x$type == "column"), "value")
     })
     candidates <- shiny::reactive({
-      kits_candidate_cols(working$data(), c(kits_mapped_cols(map(), per_file()), cohort_cols()))
+      s <- step1()
+      kits_candidate_cols(dfs(), c(kits_mapped_cols(s$map, s$per_file), cohort_cols()))
     })
+    reverse_rule <- shiny::reactive(input$reverse_rule %||% "suffix")
     shiny::observe({
-      new <- kits_item_settings(working$data(), candidates()$numeric, codes_2())
+      new <- kits_item_settings(dfs(), candidates()$numeric, codes_2(), include = FALSE)
       up <- shiny::isolate(upload())
       if (inherits(up, "error")) up <- NULL
       settings(kits_settings_sync(shiny::isolate(settings()), new, up, reverse_rule()))
     })
-    reverse_rule <- shiny::reactive(input$reverse_rule %||% "suffix")
     # 換規則：拿掉用舊規則從原題來的領域，再用新規則套一次題目表
     shiny::observeEvent(input$reverse_rule, {
       up <- upload()
@@ -543,208 +406,349 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         kits_settings_import(read_data_file(f$datapath, f$name)$data),
         error = function(e) e
       )
+      if (!inherits(up, "error")) up$name <- f$name
       upload(up)
       if (!inherits(up, "error")) {
         settings(kits_settings_apply(settings(), up, reverse = reverse_rule()))
       }
     })
-    output$item_file_note <- shiny::renderUI({
-      up <- upload()
-      if (is.null(up)) return(NULL)
-      if (inherits(up, "error")) {
-        return(shiny::tags$div(class = "text-danger small", conditionMessage(up)))
-      }
-      what <- if (up$type == "settings") "題目設定檔" else "題目表"
-      no_dom <- sum(is.na(up$data$domain))
-      n_out <- sum(!is.na(up$data[["item_id_out"]] %||% NA))
-      shiny::tags$small(
-        class = "kit-hint",
-        paste0("已套用", what, "（", nrow(up$data), " 題）",
-               if (up$type == "settings") "：納入、領域與計分對照。" else "：領域。",
-               if (n_out > 0) paste0(n_out, " 題有輸出題號（item_id_out）。"),
-               if (no_dom > 0) paste0(no_dom, " 題沒有給領域，這些題的領域不變。"))
-      )
-    })
-    # 檔名固定，按鈕只畫一次；內容是按下載當下的設定
-    output$settings_dl_ui <- shiny::renderUI(kit_download_button(
-      session, "settings_dl", "下載題目設定（CSV）", KITS_SETTINGS_FILE,
-      function(file) readr::write_excel_csv(kits_settings_export(settings()), file, na = ""),
-      class = "btn-sm btn-outline-primary"
-    ))
     items <- shiny::reactive(kits_settings_items(settings()))
+    counts <- shiny::reactive(kits_step2_counts(settings()))
 
-    output$settings_summary <- shiny::renderUI({
-      s <- settings()
-      if (length(working$data()) == 0) return(NULL)
-      inc <- s[s$include, ]
-      dc <- dplyr::count(inc[!is.na(inc$domain), ], .data$domain)
-      text_cols <- candidates()$text
-      items_now <- kits_settings_items(s)
-      rename <- kits_item_rename(items_now)
-      clash <- kits_rename_problems(working$data(), files$names(), items_now, rename)
-      shiny::tags$div(
-        class = "kit-source-note",
-        if (length(rename) > 0) {
-          shiny::tags$p(paste0(
-            length(rename), " 題改了輸出題號，合成 ", length(unique(rename)), " 個題號。"
-          ))
-        },
-        if (length(clash) > 0) {
-          shiny::tags$div(class = "text-danger small", lapply(clash, shiny::tags$div))
-        },
-        shiny::tags$p(paste0(
-          nrow(s), " 欄：納入 ", nrow(inc), "、排除 ", nrow(s) - nrow(inc), "；",
-          "納入但沒有領域 ", sum(is.na(inc$domain)), " 題",
-          if (nrow(dc) > 0) paste0("；各領域：", paste0(dc$domain, " ", dc$n, " 題", collapse = "、")),
-          "。"
-        )),
-        if (length(text_cols) > 0) {
-          shiny::tags$p(class = "small", paste0(
-            "文字欄不能當題目，不列在表裡：", paste(utils::head(text_cols, 10), collapse = "、"),
-            if (length(text_cols) > 10) "…", "。"
-          ))
-        },
-        kitsdata_mixed_note(candidates()$mixed, files$names())
-      )
+    output$intro2 <- shiny::renderUI({
+      shiny::tags$p(paste0(
+        length(files$keys()), " 個檔案共 ", kit_num(length(all_cols())), " 欄，",
+        "大多不是題目。上傳題目表最快："
+      ))
     })
-
-    # 選取：存在伺服器；全選、全不選、選取篩選出來的列
-    sel <- shiny::reactiveVal(character(0))
-    set_sel <- function(rows) {
-      sel(rows)
-      shiny::updateCheckboxGroupInput(session, "sel", selected = rows)
-    }
-    shiny::observeEvent(input$sel, sel(input$sel %||% character(0)), ignoreNULL = FALSE)
-    shiny::observeEvent(input$sel_all, set_sel(settings()$column))
-    shiny::observeEvent(input$sel_none, set_sel(character(0)))
-    filtered <- shiny::reactive(kitsdata_filter_cols(settings()$column, input$sel_filter))
-    shiny::observeEvent(input$sel_filtered, set_sel(filtered()))
-    output$sel_count <- shiny::renderText({
-      paste0("已選取 ", length(intersect(sel(), settings()$column)), " 列")
+    # 用欄名挑
+    picked <- shiny::reactive(kits_pick_cols(settings()$column, input$pick_prefix))
+    output$pick_note <- shiny::renderUI({
+      if (!nzchar(trimws(input$pick_prefix %||% ""))) return(NULL)
+      shiny::tags$small(class = "kit-hint", paste0("符合 ", length(picked()), " 欄",
+        if (length(picked()) > 0) paste0("：", paste(utils::head(picked(), 6), collapse = "、"),
+                                        if (length(picked()) > 6) "…"), "。"))
+    })
+    shiny::observeEvent(input$pick_add, {
+      rows <- picked()
+      if (length(rows) == 0) {
+        shiny::showNotification("沒有符合的欄：請填欄名的開頭，例如 w1d5_。", type = "warning")
+        return()
+      }
+      s <- kits_bulk_include(settings(), rows, TRUE)
+      d <- trimws(input$pick_domain %||% "")
+      if (nzchar(d)) s <- kits_bulk_domain(s, rows, d)
+      settings(s)
+    })
+    shiny::observeEvent(input$pick_clear, {
+      settings(kits_bulk_include(settings(), settings()$column, FALSE))
     })
     shiny::observe({
       doms <- sort(unique(stats::na.omit(settings()$domain)))
-      shiny::updateSelectizeInput(session, "bulk_domain", choices = doms,
-                                  selected = shiny::isolate(input$bulk_domain))
+      for (id in c("pick_domain", "bulk_domain", "fix_domain")) {
+        shiny::updateSelectizeInput(session, id, choices = doms,
+                                    selected = shiny::isolate(input[[id]]))
+      }
     })
 
-    # 批次動作：只改選取的列
-    act <- function(fun) {
+    output$items_status <- shiny::renderUI({
+      up <- upload()
+      cnt <- counts()
+      s <- settings()
+      rename <- kits_item_rename(items())
+      clash <- kits_rename_problems(dfs(), files$names(), items(), rename)
+      up_line <- if (inherits(up, "error")) {
+        kitsdata_check("todo", "題目表讀不進來", conditionMessage(up))
+      } else if (!is.null(up)) {
+        miss <- setdiff(tolower(up$data$item_id), tolower(s$column))
+        kitsdata_check(
+          if (cnt$n_cols > 0) "ok" else "todo",
+          paste0(up$name %||% "題目表", "：", cnt$text),
+          paste0(
+            if (up$type == "settings") "已套用題目設定（納入、領域、計分對照）。",
+            if (length(rename) > 0) paste0("各波欄名不同的同一題，用 item_id_out 合成一題。"),
+            if (length(miss) > 0) paste0("題目表有 ", length(miss), " 題在資料裡找不到（",
+                                         paste(utils::head(miss, 5), collapse = "、"),
+                                         if (length(miss) > 5) "…", "）。")
+          )
+        )
+      } else if (cnt$n_cols > 0) {
+        kitsdata_check("ok", cnt$text, "")
+      }
+      shiny::tagList(
+        if (!is.null(up_line)) shiny::tags$ul(class = "kit-checklist", up_line),
+        if (length(clash) > 0) shiny::tags$div(class = "kit-problems", lapply(clash, shiny::tags$div)),
+        kitsdata_mixed_note(candidates()$mixed, files$names())
+      )
+    })
+    output$items_list <- shiny::renderUI({
+      it <- items()
+      if (nrow(it) == 0) return(shiny::tags$p(class = "kit-hint", "還沒有挑題目。"))
+      out_id <- ifelse(is.na(it$item_id_out), it$column, it$item_id_out)
+      tab <- dplyr::summarise(
+        dplyr::group_by(tibble::tibble(item = out_id, domain = it$domain, col = it$column),
+                        .data$item),
+        domain = dplyr::first(.data$domain), cols = paste(.data$col, collapse = "、"),
+        .groups = "drop"
+      )
+      shiny::tags$div(class = "kit-table-scroll", shiny::tags$table(
+        class = "table",
+        shiny::tags$thead(shiny::tags$tr(shiny::tags$th("題號"), shiny::tags$th("領域"),
+                                         shiny::tags$th("來自哪幾欄"))),
+        shiny::tags$tbody(purrr::pmap(tab, function(item, domain, cols) shiny::tags$tr(
+          shiny::tags$td(shiny::tags$code(item)), shiny::tags$td(domain %||% ""),
+          shiny::tags$td(cols)
+        )))
+      ))
+    })
+    output$text_cols <- shiny::renderUI({
+      tx <- candidates()$text
+      shiny::tags$p(class = "kit-hint", if (length(tx) == 0) "沒有。" else paste0(
+        "文字的欄不能當題目（", length(tx), " 欄）：", paste(utils::head(tx, 12), collapse = "、"),
+        if (length(tx) > 12) "…", "。"
+      ))
+    })
+    shiny::observeEvent(input$ok2, {
+      if (counts()$n_cols == 0) {
+        shiny::showNotification("還沒有挑題目：請上傳題目表，或用欄名挑。", type = "warning")
+        return()
+      }
+      ok$s2 <- TRUE
+      open(3L)
+    })
+
+    # 第 3 步：計分檢查 ----
+    ack <- shiny::reactiveValues(codes = NULL, shift = NULL, shifted = 0)
+    side_cells <- shiny::reactive({
+      s <- step1()
+      kits_code_cells(dfs(), unlist(kits_side_cols(s$map, s$per_file)), codes_2())
+    })
+    checks <- shiny::reactive({
+      kits_step3_checks(
+        settings(), side_cells(), na_applied = identical(working$source(), "na"),
+        ack = list(codes = ack$codes, shift = ack$shift, shifted = ack$shifted),
+        reverse_used = !is.null(upload()) && !inherits(upload(), "error")
+      )
+    })
+    n_todo <- shiny::reactive(sum(vapply(checks(), function(x) x$state == "todo", logical(1))))
+
+    output$checks <- shiny::renderUI({
+      ch <- checks()
+      if (length(ch) == 0) return(shiny::tags$p(class = "kit-hint", "還沒有挑題目。"))
+      btn <- function(id, label) shiny::actionButton(ns(id), label, class = "btn-default btn-choice")
+      actions <- list(
+        codes = function(x) if (x$state == "todo") list(
+          btn("goto_missing", "到「遺漏值轉 NA」改掉（建議）"),
+          btn("ack_codes", "它們是真的分數")
+        ) else if (!is.null(ack$codes)) list(shiny::actionLink(ns("unack_codes"), "改回來")),
+        shift = function(x) if (x$state == "todo") list(
+          btn("do_shift", paste0("全部減 ", kits_id_text(kits_settings_shift_hint(settings())),
+                                 "（建議）")),
+          btn("ack_shift", "不用改")
+        ) else if (!is.null(ack$shift)) list(shiny::actionLink(ns("unack_shift"), "改回來")),
+        domain = function(x) if (x$state == "todo") list(
+          shiny::selectizeInput(ns("fix_domain"), NULL, width = "12rem",
+                                choices = sort(unique(stats::na.omit(settings()$domain))),
+                                options = list(create = TRUE, placeholder = "選或輸入領域")),
+          btn("do_fix_domain", "這幾欄都設成這個領域")
+        ),
+        frac = function(x) if (x$state == "todo") list(btn("do_drop_frac", "不要這幾欄（建議）"))
+      )
+      shiny::tags$ul(class = "kit-checklist", lapply(ch, function(x) {
+        kitsdata_check(x$state, x$title, x$text, if (!is.null(actions[[x$id]])) actions[[x$id]](x))
+      }))
+    })
+    shiny::observeEvent(input$ack_codes, {
+      ch <- checks()$codes
+      n <- sum(settings()$n_codes[settings()$include] %||% 0) + side_cells()
+      if (!is.null(ch)) ack$codes <- n
+    })
+    shiny::observeEvent(input$unack_codes, ack$codes <- NULL)
+    shiny::observeEvent(input$do_shift, {
+      m <- kits_settings_shift_hint(settings())
+      if (is.null(m)) return()
+      settings(kits_bulk_shift(settings(), settings()$column[settings()$include], -m))
+      ack$shifted <- m
+    })
+    shiny::observeEvent(input$ack_shift, ack$shift <- kits_settings_shift_hint(settings()))
+    shiny::observeEvent(input$unack_shift, ack$shift <- NULL)
+    shiny::observeEvent(input$do_fix_domain, {
+      d <- trimws(input$fix_domain %||% "")
+      if (!nzchar(d)) {
+        shiny::showNotification("請先選或輸入領域，例如 distress。", type = "warning")
+        return()
+      }
+      settings(kits_bulk_domain(settings(), kits_settings_undecided(settings()), d))
+    })
+    shiny::observeEvent(input$do_drop_frac, {
+      s <- settings()
+      frac <- s$include & purrr::map_lgl(s$raw, function(r) any(r != round(r)))
+      settings(kits_bulk_include(s, s$column[frac], FALSE))
+    })
+
+    # 逐題表：一頁 25 列；勾選存在伺服器（換頁不會不見）
+    sel <- shiny::reactiveVal(character(0))
+    page <- shiny::reactiveVal(1L)
+    tbl_rows <- shiny::reactive({
+      s <- settings()
+      if (!isTRUE(input$tbl_all)) s <- s[s$include, ]
+      s[s$column %in% kitsdata_filter_cols(s$column, input$tbl_search), ]
+    })
+    n_pages <- shiny::reactive(max(1L, ceiling(nrow(tbl_rows()) / KITS_ITEMS_PAGE)))
+    shiny::observeEvent(list(input$tbl_search, input$tbl_all), page(1L), ignoreInit = TRUE)
+    shiny::observeEvent(input$tbl_prev, page(max(1L, page() - 1L)))
+    shiny::observeEvent(input$tbl_next, page(min(n_pages(), page() + 1L)))
+    page_rows <- shiny::reactive({
+      r <- tbl_rows()
+      p <- min(page(), n_pages())
+      r[seq_len(nrow(r)) > (p - 1) * KITS_ITEMS_PAGE & seq_len(nrow(r)) <= p * KITS_ITEMS_PAGE, ]
+    })
+    output$tbl_page <- shiny::renderText(paste0("第 ", min(page(), n_pages()), " / ", n_pages(), " 頁"))
+    output$items_title <- shiny::renderText(paste0("逐題看、逐題改（", kit_num(counts()$n_cols), " 欄）"))
+    output$items_table <- shiny::renderUI({
+      kits_items_page_html(ns("sel"), page_rows(), shiny::isolate(sel()))
+    })
+    shiny::observeEvent(input$sel, {
+      here <- page_rows()$column
+      sel(union(setdiff(sel(), here), intersect(input$sel %||% character(0), here)))
+    }, ignoreNULL = FALSE, ignoreInit = TRUE)
+    set_sel <- function(rows) {
+      sel(rows)
+      shiny::updateCheckboxGroupInput(session, "sel", selected = intersect(rows, page_rows()$column))
+    }
+    shiny::observeEvent(input$tbl_sel_all, set_sel(tbl_rows()$column))
+    shiny::observeEvent(input$tbl_sel_none, set_sel(character(0)))
+    output$sel_count <- shiny::renderText(paste0("已勾選 ", length(intersect(sel(), settings()$column)), " 列"))
+
+    shiny::observeEvent(input$bulk_apply, {
       rows <- intersect(sel(), settings()$column)
       if (length(rows) == 0) {
         shiny::showNotification("請先在表裡勾選要改的列。", type = "warning")
-        return(invisible())
+        return()
       }
-      out <- tryCatch(fun(settings(), rows), error = function(e) e)
+      s <- settings()
+      out <- tryCatch(switch(
+        input$bulk_action %||% "domain",
+        domain = {
+          d <- trimws(input$bulk_domain %||% "")
+          if (!nzchar(d)) kit_abort("請先選或輸入領域，例如 lan。")
+          kits_bulk_domain(s, rows, d)
+        },
+        shift = {
+          by <- input$bulk_shift
+          if (is.null(by) || is.na(by) || by != round(by) || by == 0) {
+            kit_abort("加減要是不等於 0 的整數，例如 -1。")
+          }
+          kits_bulk_shift(s, rows, by)
+        },
+        reverse = {
+          txt <- trimws(input$bulk_max %||% "")
+          top <- if (nzchar(txt)) suppressWarnings(as.numeric(txt)) else NA_real_
+          if (nzchar(txt) && is.na(top)) kit_abort("最高分要是數字，或留空白（用各題目前的最高分）。")
+          kits_bulk_reverse(s, rows, top)
+        },
+        merge = {
+          from <- kits_parse_values(input$merge_from)
+          to <- input$merge_to
+          if (length(from) == 0) kit_abort("請填要合併的原分數，例如 4、5。")
+          if (is.null(to) || is.na(to)) kit_abort("請填合併後的計分，例如 3。")
+          kits_bulk_merge(s, rows, from, to)
+        },
+        restore = kits_bulk_restore(s, rows),
+        exclude = kits_bulk_include(s, rows, FALSE),
+        include = kits_bulk_include(s, rows, TRUE),
+        out_prefix = kits_bulk_out_prefix(s, rows, trimws(input$out_pattern %||% "")),
+        out_reset = kits_bulk_out_reset(s, rows)
+      ), error = function(e) e)
       if (inherits(out, "error")) {
         shiny::showNotification(conditionMessage(out), type = "error")
       } else {
         settings(out)
       }
-    }
-    shiny::observeEvent(input$do_domain, act(function(s, rows) {
-      d <- trimws(input$bulk_domain %||% "")
-      if (!nzchar(d)) kit_abort("請先選或輸入領域，例如 lan。")
-      kits_bulk_domain(s, rows, d)
-    }))
-    shiny::observeEvent(input$do_shift, act(function(s, rows) {
-      by <- input$bulk_shift
-      if (is.null(by) || is.na(by) || by != round(by) || by == 0) {
-        kit_abort("平移量要是不等於 0 的整數，例如 -1。")
-      }
-      kits_bulk_shift(s, rows, by)
-    }))
-    shiny::observeEvent(input$do_reverse, act(function(s, rows) {
-      txt <- trimws(input$bulk_max %||% "")
-      top <- if (nzchar(txt)) suppressWarnings(as.numeric(txt)) else NA_real_
-      if (nzchar(txt) && is.na(top)) kit_abort("最高分要是數字，或留空白（用各題目前的最高計分）。")
-      kits_bulk_reverse(s, rows, top)
-    }))
-    shiny::observeEvent(input$do_merge, act(function(s, rows) {
-      from <- kits_parse_values(input$merge_from)
-      to <- input$merge_to
-      if (length(from) == 0) kit_abort("請填要合併的原分數，例如 4、5。")
-      if (is.null(to) || is.na(to)) kit_abort("請填合併後的計分，例如 3。")
-      kits_bulk_merge(s, rows, from, to)
-    }))
-    shiny::observeEvent(input$do_restore, act(kits_bulk_restore))
-    shiny::observeEvent(input$do_out_prefix, act(function(s, rows) {
-      kits_bulk_out_prefix(s, rows, trimws(input$out_pattern %||% ""))
-    }))
-    shiny::observeEvent(input$do_out_reset, act(kits_bulk_out_reset))
-    shiny::observeEvent(input$do_exclude, act(function(s, rows) kits_bulk_include(s, rows, FALSE)))
-    shiny::observeEvent(input$do_include, act(function(s, rows) kits_bulk_include(s, rows, TRUE)))
+    })
 
-    # 建議：所有納入的題都從 m 開始 → 一鍵選取全部、平移 −m（使用者按了才做）
-    output$shift_suggest <- shiny::renderUI({
-      m <- kits_settings_shift_hint(settings())
-      if (is.null(m)) return(NULL)
+    # 步驟標頭 ----
+    head_ui <- function(k, title, summary) {
+      state <- if (open() == k) "current" else if (k == 1 && ok$s1 || k == 2 && ok$s2 ||
+                                                  k == 3 && open() == 0L) "done" else "locked"
+      can_edit <- state == "done" && (k == 1 || ok$s1 && (k == 2 || ok$s2))
       shiny::tags$div(
-        class = "kit-callout",
-        shiny::tags$strong("建議："),
-        paste0("所有題目都從 ", m, " 開始，要選取全部、平移 ", kits_shift_text(-m), " 嗎？",
-               "（kits 的分數要從 0 開始）"),
-        shiny::actionButton(ns("apply_hint"), paste0("選取全部並平移 ", kits_shift_text(-m)),
-                            class = "btn-sm btn-primary ms-2")
+        class = paste0("kit-stephead is-", state),
+        shiny::tags$span(class = "kit-stepnum", if (state == "done") "✓" else k),
+        shiny::tags$span(class = "kit-steptitle", title),
+        if (state == "done") shiny::tags$span(class = "kit-stepsum", summary),
+        if (state == "locked") shiny::tags$span(class = "kit-stepsum", paste0("先完成第 ", k - 1, " 步")),
+        if (can_edit) shiny::actionLink(ns(paste0("edit", k)), "改", class = "kit-stepedit")
       )
-    })
-    shiny::observeEvent(input$apply_hint, {
-      m <- kits_settings_shift_hint(settings())
-      if (is.null(m)) return()
-      rows <- settings()$column[settings()$include]
-      set_sel(rows)
-      settings(kits_bulk_shift(settings(), rows, -m))
-    })
+    }
+    output$head1 <- shiny::renderUI(head_ui(
+      1, "每個檔案是哪個世代、哪個波次",
+      kits_step1_summary(cells(), length(files$keys()), wave_unit())
+    ))
+    output$head2 <- shiny::renderUI(head_ui(2, "哪些欄是題目", counts()$text))
+    output$head3 <- shiny::renderUI(head_ui(3, "計分檢查", kits_step3_summary(checks())))
 
-    # 篩選不是這張表的依賴：瀏覽器自己藏列（kitsdata_filter_js()），重畫時才帶入目前的篩選
-    output$settings_table <- shiny::renderUI({
-      kitsdata_settings_table(
-        ns("sel"), settings(), shiny::isolate(sel()), shiny::isolate(filtered())
-      )
-    })
-
-    # 4. pivot_longer：參數全部固定 ----
-    pivot_args <- mod_pivot_longer_server(
-      "pivot", data = shiny::reactive(NULL),
-      fixed = list(
-        cols = shiny::reactive(items()$column), names_to = "item_id",
-        values_to = "item_score", names_prefix = NULL, names_pattern = NULL,
-        values_drop_na = TRUE
-      )
-    )
-
+    # 轉換 ----
     spec <- shiny::reactive({
-      kits_spec(cohorts(), map(), items(), kits_settings_undecided(settings()), typed(),
-                codes_2(), per_file(), input$value_labels %||% "code")
+      s <- step1()
+      kits_spec(s$cohort, s$map, items(), kits_settings_undecided(settings()), s$typed,
+                codes_2(), s$per_file, input$value_labels %||% "code")
+    })
+    missing_steps <- shiny::reactive({
+      c(if (!ok$s1) "第 1 步確認", if (!ok$s2) "第 2 步挑題目",
+        if (ok$s1 && ok$s2 && n_todo() > 0) paste0("第 3 步有 ", n_todo(), " 件事要決定"))
+    })
+    output$ready <- shiny::renderUI({
+      if (!is.null(result())) return(NULL)
+      m <- missing_steps()
+      shiny::tags$p(
+        class = paste("kit-ready", if (length(m) > 0) "todo"),
+        if (length(m) > 0) paste0("還差：", paste(m, collapse = "、"), "。") else "三步都好了。"
+      )
+    })
+    output$run_ui <- shiny::renderUI({
+      if (!is.null(result())) return(NULL)
+      b <- shiny::actionButton(ns("run"), "轉換成作答檔", class = "btn-primary")
+      if (length(missing_steps()) > 0) b <- htmltools::tagAppendAttributes(b, disabled = NA)
+      b
     })
 
     # 設定或資料變動後，舊結果失效
-    shiny::observeEvent(list(spec(), working$data()), {
+    shiny::observeEvent(list(spec(), dfs()), {
       if (!is.null(result())) {
         result(NULL)
-        status(kit_stale_status("執行轉換"))
+        status(kit_stale_status("轉換成作答檔"))
       }
     }, ignoreInit = TRUE)
 
     shiny::observeEvent(input$run, {
       result(NULL)
-      st <- tryCatch(
+      m <- missing_steps()
+      if (length(m) > 0) {
+        st <- kit_status("error", paste0("還不能轉換：", paste(m, collapse = "、"), "。"))
+        status(st)
+        return()
+      }
+      problems <- step1()$problems
+      st <- if (length(problems) > 0) {
+        kit_status("error", "第 1 步還有問題：", warnings = problems)
+      } else tryCatch(
         shiny::withProgress(message = "正在轉換…", value = 0.3, {
-          out <- kits_build(working$data(), files$names(), spec(), pivot_args())
+          out <- kits_build(dfs(), files$names(), spec())
           if (length(out$problems) > 0) {
             kit_status(
               "error",
-              paste0("有 ", length(out$problems), " 個問題要先處理，處理後再按一次「執行轉換」："),
+              paste0("有 ", length(out$problems), " 個問題要先處理，處理後再按一次「轉換成作答檔」："),
               warnings = out$problems, notes = out$notes
             )
           } else {
             # 長格式不在這裡做出來：下載時才一段一段寫進 .csv.gz（省記憶體）
             result(out)
+            open(0L)
             kit_done_status(
               paste0(
-                "檢查完成！作答檔會有 ", format(out$n_rows, big.mark = ","), " 列、",
-                format(out$n_visits, big.mark = ","), " 個列次、", out$n_items, " 題。",
-                "請按下方按鈕下載。"
+                "作答檔 ", kit_num(out$n_rows), " 列：",
+                kit_num(out$n_visits), " 個列次、", out$n_items, " 題。"
               ),
               warnings = out$warnings, notes = out$notes
             )
@@ -763,33 +767,46 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       if (is.null(res)) return(NULL)
       kits_name <- timestamped_name("kits_long")
       shiny::tagList(
-        shiny::hr(),
-        shiny::h4("結果"),
         shiny::tags$div(
           class = "kit-downloads",
           kit_download_button(
             session, "download_gz", "下載作答檔（.csv.gz）", kits_name("csv.gz"),
             function(file) kitsdata_download(res$prep, file, write_kits_long_gz),
-            class = "btn-primary me-2"
+            class = "btn-primary"
           ),
-          kit_download_button(
-            session, "download_csv", "下載未壓縮的 CSV", kits_name("csv"),
-            function(file) kitsdata_download(res$prep, file, write_kits_long_csv),
-            class = "btn-outline-primary"
-          ),
-          shiny::tags$small(
-            class = "kit-hint",
-            paste0("未壓縮約 ", kits_size_text(res$csv_mb * 1024^2), "；壓縮檔通常小很多。"),
-            "按下載後才一段一段寫出檔案，資料大時要等一下。",
-            "kitsUI 可以直接讀 .csv.gz（單檔上限 ", KITSUI_UPLOAD_MB, " MB）。"
-          ),
-          shiny::tags$div(class = "mt-2", kit_kitsui_button("開啟 kitsUI 上傳作答檔"))
+          shiny::tags$a(href = KITSUI_URL, target = "_blank", rel = "noopener",
+                        class = "kit-next-link", "開啟 kitsUI，上傳這個檔 →")
         ),
-        shiny::h5("各世代 × 領域"),
+        shiny::h5("每個世代、每個領域有幾列"),
         shiny::tableOutput(ns("summary")),
-        shiny::h5("作答檔預覽"),
-        shiny::tags$small(class = "kit-hint", paste0("前 ", KIT_PREVIEW_ROWS * 2, " 列。")),
-        shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
+        kitsdata_details_row(
+          kitsdata_detail(
+            "作答檔預覽",
+            shiny::tags$small(class = "kit-hint", paste0("前 ", KIT_PREVIEW_ROWS * 2, " 列。")),
+            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
+          ),
+          kitsdata_detail(
+            "這次的設定（下次直接上傳）",
+            shiny::tags$p(class = "kit-hint",
+              "下一波在第 2 步上傳這個檔，就會套用同樣的題目、領域與計分對照。"),
+            shiny::uiOutput(ns("settings_dl_ui"), inline = TRUE)
+          ),
+          kitsdata_detail(
+            "其他下載",
+            kit_download_button(
+              session, "download_csv", "下載未壓縮的 CSV", kits_name("csv"),
+              function(file) kitsdata_download(res$prep, file, write_kits_long_csv),
+              class = "btn-default btn-sm"
+            ),
+            shiny::tags$small(
+              class = "kit-hint",
+              paste0(" 未壓縮約 ", kits_size_text(res$csv_mb * 1024^2), "。"),
+              "kitsUI 可以直接讀 .csv.gz（單檔上限 ", KITSUI_UPLOAD_MB, " MB）。"
+            )
+          ),
+          kitsdata_detail("kits 作答檔的格式", kitsdata_spec_ui()),
+          kitsdata_detail("用 R 怎麼做", shiny::uiOutput(ns("code")))
+        )
       )
     })
     output$summary <- shiny::renderTable(result()$summary, digits = 0)
@@ -797,15 +814,37 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       kit_preview_table(result()$preview, n = KIT_PREVIEW_ROWS * 2),
       striped = TRUE, spacing = "s"
     )
+    # 檔名固定；內容是按下載當下的設定
+    output$settings_dl_ui <- shiny::renderUI(kit_download_button(
+      session, "settings_dl", "下載題目設定（CSV）", KITS_SETTINGS_FILE,
+      function(file) readr::write_excel_csv(kits_settings_export(settings()), file, na = ""),
+      class = "btn-default btn-sm"
+    ))
 
     output$code <- shiny::renderUI({
-      text_fix <- kits_text_fix(working$data(), items()$column)
+      text_fix <- kits_text_fix(dfs(), items()$column)
       kit_code_blocks(list(tidy = code_kitsdata(
         code_files_from(files), spec(), na_applied = identical(working$source(), "na"),
         text_fix = text_fix
       ), base = NULL))
     })
   })
+}
+
+#' 檢查清單的一列：✓（沒問題）、!（要決定）、·（提醒）；按鈕放在說明下面
+#' @noRd
+kitsdata_check <- function(state, title, text = "", actions = NULL) {
+  mark <- c(ok = "✓", todo = "!", note = "·")[[state]]
+  shiny::tags$li(
+    class = paste("kit-check", state),
+    shiny::tags$span(class = "kit-check-mark", mark),
+    shiny::tags$div(
+      class = "kit-check-text",
+      shiny::tags$strong(title),
+      if (nzchar(text %||% "")) shiny::tags$span(text),
+      if (length(actions) > 0) shiny::tags$div(class = "kit-check-actions", actions)
+    )
+  )
 }
 
 #' 在某些檔案是文字的題目欄：哪個檔案、哪一欄（那個檔案的這一題不轉）
@@ -838,7 +877,7 @@ kitsdata_visit_example <- function(df, cohort, map) {
   if (is.na(out)) NULL else out
 }
 
-#' kits 作答檔的欄位表（欄位、必填、意思），放在頁面上方
+#' kits 作答檔的欄位表（欄位、必填、意思），放在結果下面的「kits 作答檔的格式」
 #' @noRd
 kitsdata_spec_ui <- function() {
   rows <- purrr::pmap(KITS_COLUMNS, function(column, type, required, from, meaning) {
@@ -849,9 +888,8 @@ kitsdata_spec_ui <- function() {
       shiny::tags$td(meaning)
     )
   })
-  shiny::tags$details(
-    class = "kit-example", open = NA,
-    shiny::tags$summary("kits 作答檔的 9 個欄位（名稱、順序、型別固定）"),
+  shiny::tagList(
+    shiny::tags$p(class = "kit-hint", "作答檔固定 9 個欄位（名稱、順序、型別都固定）："),
     shiny::tags$table(
       class = "table table-sm kit-example-table",
       shiny::tags$thead(shiny::tags$tr(
@@ -879,150 +917,6 @@ kitsdata_download <- function(prep, file, writer) {
   shiny::withProgress(message = "正在寫出作答檔…", value = 0, {
     writer(prep = prep, file = file, progress = function(p) shiny::setProgress(p))
   })
-}
-
-# 自己填的輸入框 id：typed_<欄>_<檔案>
-typed_id <- function(field, key) paste0("typed_", field, "_", key)
-
-# 各檔各選一欄的選單 id：pf_<欄>_<檔案>
-pf_id <- function(field, key) paste0("pf_", field, "_", key)
-
-# wave_m 自己填的例子（依單位）
-kitsdata_wave_example <- function(unit) {
-  switch(unit, year = "例如 1", index = "例如 2", other = "例如 0", "例如 18")
-}
-
-# 自己填的預設值：波次標籤用 ① 的波次名稱（t1、t2…），其他空白
-typed_default <- function(field, wave_label) {
-  if (identical(field, "wave")) wave_label %||% "" else ""
-}
-
-#' 「3. 題目設定」的表
-#'
-#' 選取欄用 Shiny 的 checkboxGroupInput 格式（容器 class 與 name = id），所以 input[[id]]
-#' 是選取的題號，updateCheckboxGroupInput() 也能用。篩選掉的列只是藏起來（選取不會不見）。
-#' 計分對照用兩列的小表：上一列原分數、下一列計分（改過的粗體）。
-#' 題目多時（150–300 題）用 htmltools 的標籤太慢：整張表一次用字串組好，回傳 HTML()；
-#' 標記和以前用標籤組的一樣（只少了標籤之間的換行與縮排），每一列多一個 data-col（給篩選用）。
-#' @param id 已經加上 namespace 的 input id
-#' @param shown 篩選出來的題號（其他列藏起來）
-#' @noRd
-kitsdata_settings_table <- function(id, settings, selected = character(0),
-                                    shown = settings$column) {
-  if (nrow(settings) == 0) {
-    return(shiny::tags$small(class = "kit-hint", "還沒有題目欄：請先在 ① 上傳資料，並完成「2.」。"))
-  }
-  esc <- function(x) htmltools::htmlEscape(x)
-  att <- function(x) htmltools::htmlEscape(x, attribute = TRUE)
-  col <- settings$column
-  inc <- settings$include
-  map <- kitsdata_map_cells(settings$raw, settings$score)
-  domain <- ifelse(
-    is.na(settings$domain), "<span class=\"text-danger\">（沒有）</span>", esc(settings$domain)
-  )
-  source <- ifelse(
-    is.na(settings$source), "",
-    paste0("<div class=\"text-muted small\">", esc(settings$source), "</div>")
-  )
-  out <- settings[["item_id_out"]] %||% rep(NA_character_, nrow(settings))
-  out_id <- ifelse(
-    is.na(out), "", paste0("<div class=\"small\">→ 題號 <code>", esc(out), "</code></div>")
-  )
-  rows <- paste0(
-    "<tr data-col=\"", att(col), "\"",
-    ifelse(inc, "", " class=\"excluded\""),
-    ifelse(col %in% shown, "", " style=\"display: none;\""), ">",
-    "<td><input type=\"checkbox\" name=\"", att(id), "\" value=\"", att(col), "\"",
-    ifelse(col %in% selected, " checked=\"checked\"", ""), "/></td>",
-    "<td>", ifelse(inc, "納入", "排除"), "</td>",
-    "<td><code>", esc(col), "</code>", out_id, "</td>",
-    "<td>", domain, source, "</td>",
-    "<td>", map$raw_text, "</td><td>", map$table, "</td><td>", map$after_text, "</td>",
-    "<td class=\"small text-danger\">", esc(kits_settings_alerts(settings)), "</td></tr>"
-  )
-  head <- c("選取", "納入", "欄位（item_id）", "領域", "原分數",
-            "計分對照（原分數 → 計分）", "計分後", "提醒")
-  htmltools::HTML(paste0(
-    "<div id=\"", att(id), "\" class=\"form-group shiny-input-checkboxgroup ",
-    "shiny-input-container\" style=\"width: 100%;\">",
-    "<div class=\"shiny-options-group kit-settings-scroll\">",
-    "<table class=\"table table-sm align-middle kit-settings\">",
-    "<thead><tr>", paste0("<th>", head, "</th>", collapse = ""), "</tr></thead>",
-    "<tbody>", paste(rows, collapse = ""), "</tbody></table></div></div>"
-  ))
-}
-
-#' 每一列的原分數、計分對照小表、計分後（三個字元向量，一列一個）
-#'
-#' 所有列的分數先攤平成一個向量一起處理，再依列號接回去。
-#' 原分數很多種（例如體重這種連續的欄）：只寫幾種、範圍，對照表收起來。
-#' @noRd
-kitsdata_map_cells <- function(raw, score) {
-  n <- length(raw)
-  len <- lengths(raw)
-  # 計分和原分數一樣長（不夠的補 NA，和以前 score[k] 的行為一樣）
-  if (!identical(lengths(score), len)) {
-    score <- Map(function(r, s) s[seq_along(r)], raw, score)
-  }
-  row <- factor(rep.int(seq_len(n), len), levels = seq_len(n))
-  r <- as.numeric(unlist(raw, use.names = FALSE))
-  s <- as.numeric(unlist(score, use.names = FALSE))
-  r_txt <- kits_num_text(r)
-  s_cell <- ifelse(
-    is.na(s), "<td class=\"changed text-danger\">？</td>",
-    paste0("<td", ifelse(s != r, " class=\"changed\"", ""), ">", kits_num_text(s), "</td>")
-  )
-  join <- function(x, by, sep = "") {
-    unname(vapply(split(x, by), paste, character(1), collapse = sep))
-  }
-  table <- paste0(
-    "<table class=\"kit-map\"><tr><th>原分數</th>", join(paste0("<td>", r_txt, "</td>"), row),
-    "</tr><tr><th>計分</th>", join(s_cell, row), "</tr></table>"
-  )
-  many <- len > KITS_MAP_SHOW_MAX
-  table[many] <- paste0("<details><summary>展開計分對照</summary>", table[many], "</details>")
-  table[len == 0] <- "<span class=\"text-muted\">（沒有作答）</span>"
-
-  # 計分後：每列去掉 NA、排序、去重複
-  ok <- !is.na(s)
-  a_row <- as.integer(row)[ok]
-  a <- s[ok]
-  o <- order(a_row, a)
-  a_row <- a_row[o]
-  a <- a[o]
-  k <- length(a)
-  keep <- k > 0 & c(TRUE, a_row[-1] != a_row[-k] | a[-1] != a[-k])
-  a_row <- factor(a_row[keep], levels = seq_len(n))
-  a <- a[keep]
-  list(
-    raw_text = kitsdata_values_text(r, r_txt, row),
-    table = table,
-    after_text = kitsdata_values_text(a, kits_num_text(a), a_row)
-  )
-}
-
-#' 每列的分數寫成一段文字：「0 1 2」；超過 KITS_MAP_SHOW_MAX 種時寫「29 種（8.1–11.9）」
-#'
-#' 有小數的列用整個向量一起 format()（小數位數一致，和以前一樣）。
-#' @param x 攤平的分數；txt 每個分數單獨的文字；row 列號（factor）
-#' @noRd
-kitsdata_values_text <- function(x, txt, row) {
-  n <- nlevels(row)
-  out <- unname(vapply(split(txt, row), paste, character(1), collapse = " "))
-  frac <- which(tabulate(as.integer(row)[!kits_num_is_int(x)], n) > 0)
-  if (length(frac) > 0) {
-    out[frac] <- vapply(split(x, row)[frac], function(v) {
-      paste(kits_num_format(v), collapse = " ")
-    }, character(1))
-  }
-  cnt <- tabulate(as.integer(row), n)
-  many <- which(cnt > KITS_MAP_SHOW_MAX)
-  if (length(many) > 0) {
-    lo <- vapply(split(x, row)[many], min, numeric(1))
-    hi <- vapply(split(x, row)[many], max, numeric(1))
-    out[many] <- paste0(cnt[many], " 種（", kits_num_text(lo), "–", kits_num_text(hi), "）")
-  }
-  out
 }
 
 # 數字的文字（和以前一樣：format(trim, drop0trailing, scientific = FALSE)）

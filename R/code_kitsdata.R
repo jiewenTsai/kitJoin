@@ -7,7 +7,7 @@
 #'
 #' @param f code_files_from(files)
 #' @param spec kits_spec()
-#' @param na_applied TRUE 時資料已經過「② 遺漏值轉 NA」（加一行註解）
+#' @param na_applied TRUE 時資料已經過「遺漏值轉 NA」（加一行註解）
 #' @param text_fix NULL 或 kits_text_fix()：文字的題目欄（轉成數字、或這個檔案不轉）
 #' @return 字串
 #' @noRd
@@ -34,8 +34,8 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, text_fix = NULL) {
     code_kitsdata_helpers(labels = identical(spec$value_labels, "label")), "",
     grep("^data_.* <- read_", strsplit(code_read(f)$tidy, "\n")[[1]], value = TRUE),
     if (na_applied) {
-      c("# 「② 遺漏值轉 NA」已經把遺漏值代碼改成 NA；",
-        "# 請先執行 ② 的「用 R 怎麼做？」裡的程式碼，再接著跑下面的程式")
+      c("# 「遺漏值轉 NA」已經把遺漏值代碼改成 NA；",
+        "# 請先執行「遺漏值轉 NA」的「用 R 怎麼做」裡的程式碼，再接著跑下面的程式")
     },
     "",
     "# 題目設定：⑥ 下載的 kits_item_settings.csv（item_id、include、domain、",
@@ -97,7 +97,7 @@ code_kitsdata_text_fix <- function(f, text_fix) {
   c("", "# 文字的題目欄：內容都是數字的轉成數字；有一般文字的，這個檔案不轉這一題", per_file)
 }
 
-# 疑似遺漏值代碼：⑥ 不改，照原樣寫進作答檔；有的話加一段註解，說要先用 ② 改成 NA
+# 疑似遺漏值代碼：⑥ 不改，照原樣寫進作答檔；有的話加一段註解，說要先用「遺漏值轉 NA」改成 NA
 code_kitsdata_codes <- function(items) {
   codes <- purrr::map(items[["codes"]] %||% list(), function(x) (x %||% kits_no_codes())$value)
   vals <- sort(unique(unlist(codes)))
@@ -108,7 +108,7 @@ code_kitsdata_codes <- function(items) {
     paste0("# 注意：有 ", sum(lengths(codes) > 0), " 題有疑似遺漏值代碼（", shown,
            if (length(vals) > 6) "…", "），"),
     "# 這裡照原樣當成分數（計分對照不會動到它們）。如果它們是遺漏值，",
-    "# 請先執行 ②「遺漏值轉 NA」的程式碼把它們改成 NA，再跑下面的程式"
+    "# 請先執行「遺漏值轉 NA」的程式碼把它們改成 NA，再跑下面的程式"
   )
 }
 

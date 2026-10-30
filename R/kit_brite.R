@@ -362,5 +362,85 @@ details > summary {
   }
   .nav-tabs .nav-link { white-space: nowrap; }
 }
+
+/* ── 新元件：步驟卡、檢查清單、細節列（kitJoin ⑥ 起） ── */
+/* 表格跟著內容寬度，最寬到版面寬度（KIT 設計語言 3.8） */
+.table { width: auto; max-width: 100%; }
+
+/* 步驟卡：一頁裡的幾個步驟。現在這一步有框和陰影；做完的收成一行；還不能做的是灰的 */
+.kit-stepcard {
+  border: 2px solid var(--nb-ink);
+  border-radius: 8px;
+  background: var(--nb-card);
+  margin-bottom: 1rem;
+}
+.kit-stepcard:has(.kit-stephead.is-current) { box-shadow: 3px 3px 0 var(--nb-ink); }
+.kit-stepcard:has(.kit-stephead.is-done) { background: transparent; border-color: #9a9a9a; }
+.kit-stepcard:has(.kit-stephead.is-locked) { background: transparent; border-color: #c9c3b6; }
+.kit-stephead { display: flex; align-items: center; gap: .8rem; padding: .8rem 1.1rem; flex-wrap: wrap; }
+.kit-stepnum {
+  flex: none; width: 2rem; height: 2rem; border-radius: 50%;
+  border: 2px solid var(--nb-ink); background: var(--nb-card);
+  display: flex; align-items: center; justify-content: center; font-weight: 700;
+}
+.kit-stephead.is-current .kit-stepnum { background: var(--nb-lime); }
+.kit-stephead.is-done .kit-stepnum { background: var(--nb-mint); }
+.kit-stephead.is-locked .kit-stepnum { border-color: #c9c3b6; color: #8a8a8a; }
+.kit-steptitle { font-weight: 700; font-size: 1.1rem; }
+.kit-stephead.is-locked .kit-steptitle { color: #8a8a8a; }
+.kit-stepsum { flex: 1; color: #4d4d4d; font-size: .92rem; }
+.kit-stephead.is-locked .kit-stepsum { color: #8a8a8a; font-size: .85rem; }
+.kit-stepedit { font-size: .9rem; font-weight: 700; }
+.kit-stepbody { padding: .2rem 1.1rem 1.1rem 3.9rem; }
+.kit-stepbody > p:first-child { margin-top: 0; }
+@media (max-width: 768px) { .kit-stepbody { padding-left: 1.1rem; } }
+/* 卡片裡的表不再加外框（框不疊框） */
+.kit-stepbody .table { border: 0; margin-bottom: .4rem; }
+.kit-stepbody .table td { vertical-align: middle; }
+.kit-stepbody .kit-table-scroll { border: 0; box-shadow: none; }
+td.kit-guess .selectize-input { background: #fffbe6; }
+
+/* 檢查清單：一列一件事；! 要決定、✓ 沒問題、· 提醒；按鈕在說明下面 */
+.kit-checklist { list-style: none; padding: 0; margin: 0 0 .6rem; }
+.kit-check { display: flex; gap: 1rem; align-items: flex-start; padding: .85rem 0;
+  border-top: 1px solid #e3ded2; }
+.kit-check:first-child { border-top: 0; }
+.kit-check-mark { flex: none; width: 1.6rem; font-weight: 900; font-size: 1.1rem; text-align: center; }
+.kit-check.todo .kit-check-mark { color: #d9730d; }
+.kit-check.ok .kit-check-mark { color: var(--bs-success); }
+.kit-check.note .kit-check-mark { color: #5a5a5a; }
+.kit-check-text { flex: 1; }
+.kit-check-text > strong { display: block; }
+.kit-check.ok .kit-check-text > strong { font-weight: 500; }
+.kit-check-text > span { display: block; font-size: .92rem; color: #4d4d4d; }
+.kit-check-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-top: .6rem; }
+.kit-check-actions .form-group { margin-bottom: 0; }
+.kit-problems { color: #8a2a00; font-size: .95rem; margin: .6rem 0; }
+.kit-problems ul { margin: .3rem 0 0; }
+
+/* 主要按鈕上面的一行：還差什麼 */
+.kit-ready { font-size: .95rem; margin: 1.4rem 0 .5rem; }
+.kit-ready.todo { color: #8a4a00; font-weight: 700; }
+.btn-primary:disabled, .btn-primary[disabled] { opacity: .5; box-shadow: none; }
+.kit-next-link { font-weight: 700; margin-left: .8rem; }
+.kit-downloads { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; margin: .6rem 0 1.4rem; }
+
+/* 細節列：結果或一步下面一排收起來的區塊，一行小字標題 */
+.kit-details { display: flex; flex-wrap: wrap; gap: .4rem 1.6rem; margin: 1rem 0;
+  padding-top: .8rem; border-top: 1px solid #d8d2c4; }
+.kit-detail[open] { flex-basis: 100%; }
+.kit-detail > summary { font-size: .9rem; color: #4d4d4d; cursor: pointer; }
+.kit-detail-body { padding: .6rem 0 .4rem; }
+
+/* 一排小控制項（標籤在上） */
+.kit-inline { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: flex-end; margin: .4rem 0; }
+.kit-inline .form-group, .kit-inline .shiny-input-container { margin-bottom: .3rem; }
+
+/* 逐題表 */
+.kit-items td { font-size: .92rem; }
+.kit-items .kit-flag { color: #8a4a00; font-size: .85rem; }
+.kit-items tr.kit-row-off td { color: #9a9a9a; }
+.kit-muted { color: #8a8a8a; }
+.kit-bulk { margin-top: .6rem; }
 )---"
 }

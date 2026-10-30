@@ -55,6 +55,12 @@ kit_max_upload_mb <- function() {
   round(getOption("shiny.maxRequestSize", KIT_UPLOAD_MB * 1024^2) / 1024^2)
 }
 
+#' 整數加千分位：3418 → "3,418"（KIT 設計語言 5：四位數以上加千分位）
+#' @noRd
+kit_num <- function(x) {
+  formatC(as.numeric(x), format = "d", big.mark = ",")
+}
+
 #' 維度描述：「5 列 × 7 欄」；欄位多於預覽欄數時補一句只預覽前幾欄
 #' @noRd
 format_dims <- function(nrow, ncol, preview_cols = NULL) {
