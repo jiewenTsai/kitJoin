@@ -321,26 +321,88 @@ pivot_locked_text <- function(arg, value) {
 #' 依參數執行 tidyr::pivot_longer()
 #'
 #' cols_exclude = TRUE 時 cols 是不轉的欄。轉換前先檢查：沒有欄、新欄名和留下的欄撞名、
-#' 好幾個 names_to 卻沒有 names_pattern。tidyr 的錯誤（例如數字與文字混在一起）改成中文。
+#' 好幾個 names_to 卻沒有 names_pattern。要轉的欄的標籤先整理（pivot_longer_labels()）：
+#' 數值標籤不一樣時拿掉，不會把第一欄的標籤套到每一題。tidyr 的錯誤改成中文；
+#' tidyr 的警告存在結果的 "kit_warnings" 屬性（reshape_longer() 會顯示）。
 #' @noRd
 pivot_longer_run <- function(df, args) {
   args <- utils::modifyList(PIVOT_LONGER_DEFAULTS, args)
   cols <- pivot_longer_cols(df, args)
   problem <- pivot_longer_problem(df, cols, args)
   if (!is.null(problem)) kit_abort(problem)
-  tryCatch(
-    tidyr::pivot_longer(
-      df, cols = dplyr::all_of(cols), names_to = args$names_to, values_to = args$values_to,
-      names_prefix = args$names_prefix, names_pattern = args$names_pattern,
-      values_drop_na = isTRUE(args$values_drop_na)
+  df <- pivot_longer_labels(df, cols)$data
+  caught <- character(0)
+  out <- tryCatch(
+    withCallingHandlers(
+      tidyr::pivot_longer(
+        df, cols = dplyr::all_of(cols), names_to = args$names_to, values_to = args$values_to,
+        names_prefix = args$names_prefix, names_pattern = args$names_pattern,
+        values_drop_na = isTRUE(args$values_drop_na)
+      ),
+      warning = function(w) {
+        caught <<- c(caught, conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
     ),
     error = function(e) {
-      kit_abort(
-        "寬轉長沒有成功：", conditionMessage(e),
+      msg <- conditionMessage(e)
+      hint <- if (grepl("combine|incompatible|type", msg, ignore.case = TRUE)) {
         "（常見原因：選到的欄有的是數字、有的是文字。請只選同一種型別的欄。）"
-      )
+      }
+      kit_abort("寬轉長沒有成功：", msg, hint)
     }
   )
+  if (length(caught) > 0) attr(out, "kit_warnings") <- unique(caught)
+  out
+}
+
+#' 寬轉長前整理標籤（SPSS 檔的值標籤、變項標籤）
+#'
+#' 要轉的欄放進同一個值欄，只能有一套標籤：
+#' - 數值標籤：每一欄都一樣時保留；不一樣（或有的欄有、有的沒有）時全部拿掉，值不變
+#'   （不然 tidyr 會把第一欄的標籤套到每一題）。
+#' - 變項標籤（label）：每一欄都一樣時保留；不一樣時拿掉（值欄不是任何一題）。
+#' @return list(data, conflict = 數值標籤不一樣時 TRUE, zap_var = 拿掉變項標籤時 TRUE,
+#'   cols = 有標籤的欄, warning = 給使用者看的提醒（沒有時 NULL）, examples)
+#' @noRd
+pivot_longer_labels <- function(df, cols) {
+  cols <- intersect(cols, names(df))
+  vlab <- lapply(df[cols], function(x) attr(x, "labels", exact = TRUE))
+  var_lab <- lapply(df[cols], function(x) attr(x, "label", exact = TRUE))
+  has_v <- !vapply(vlab, is.null, logical(1))
+  has_l <- !vapply(var_lab, is.null, logical(1))
+  out <- list(data = df, conflict = FALSE, zap_var = FALSE, cols = character(0),
+              warning = NULL)
+  if (!any(has_v) && !any(has_l)) return(out)
+  same <- function(x) all(vapply(x, identical, logical(1), x[[1]]))
+  if (any(has_v) && !(all(has_v) && same(vlab))) {
+    out$conflict <- TRUE
+    out$cols <- cols[has_v]
+    df[cols[has_v]] <- lapply(df[cols[has_v]], haven::zap_labels)
+    sets <- unique(vlab[has_v])
+    first <- cols[has_v][match(sets, vlab[has_v])]
+    show <- function(lab) {
+      txt <- paste0(format(unname(lab), trim = TRUE, scientific = FALSE), "=", names(lab))
+      paste0(paste(utils::head(txt, 3), collapse = "、"), if (length(txt) > 3) "…")
+    }
+    examples <- paste0(utils::head(first, 2), "（", vapply(utils::head(sets, 2), show, ""), "）")
+    out$warning <- paste0(
+      "要轉的 ", length(cols), " 欄有 ", length(sets) + (!all(has_v)), " 種不同的數值標籤（例如 ",
+      paste(examples, collapse = "；"), if (!all(has_v)) "；有的欄沒有數值標籤", "）。",
+      "放進同一欄會把第一欄的標籤套到每一題，所以值欄不放數值標籤（值不變）。",
+      "需要標籤的話，請每次只轉標籤相同的欄。"
+    )
+  }
+  if (any(has_l) && !(all(has_l) && same(var_lab))) {
+    out$zap_var <- TRUE
+    out$cols <- union(out$cols, cols[has_l])
+    df[cols[has_l]] <- lapply(df[cols[has_l]], function(x) {
+      attr(x, "label") <- NULL
+      x
+    })
+  }
+  out$data <- df
+  out
 }
 
 #' 實際要轉的欄：cols_exclude = TRUE 時是 cols 以外的全部欄（依資料順序），
@@ -367,6 +429,30 @@ pivot_longer_problem <- function(df, cols, args) {
     return("names_to 有好幾個名稱時，要用 names_pattern 說明怎麼從欄名切出各部分。")
   }
   NULL
+}
+
+#' 寬轉長前拿掉標籤的程式碼（pivot_longer_labels() 有拿掉時；沒有時 NULL）
+#' @param labels pivot_longer_labels() 的結果
+#' @noRd
+pivot_longer_labels_code <- function(labels, data_name) {
+  if (is.null(labels) || length(labels$cols) == 0) return(NULL)
+  fun <- if (labels$conflict && labels$zap_var) {
+    "\\(x) haven::zap_label(haven::zap_labels(x))"
+  } else if (labels$conflict) {
+    "haven::zap_labels"
+  } else {
+    "haven::zap_label"
+  }
+  code_lines(
+    if (labels$conflict) {
+      "# 要轉的欄數值標籤不一樣：先拿掉，才不會把第一欄的標籤套到每一題（值不變）"
+    } else {
+      "# 要轉的欄變項標籤不一樣：先拿掉（值欄不是任何一題）"
+    },
+    paste0(data_name, " <- ", data_name, " |>"),
+    paste0("  mutate(across(", r_cols_vector(labels$cols, indent = "      "), ", ", fun, "))"),
+    ""
+  )
 }
 
 #' pivot_longer() 的程式碼：只寫和 tidyr 預設不同的參數（cols 一定寫）

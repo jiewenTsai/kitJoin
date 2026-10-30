@@ -91,9 +91,11 @@ code_wider <- function(args, data, data_name = "data_t1") {
 #'
 #' @param args mod_pivot_longer_server() 的參數 list（程式碼和 ⑥ 一樣由 pivot_longer_code() 產生）
 #' @param col_names NULL 或資料的全部欄名（選到整組欄時寫 starts_with()）
+#' @param labels NULL 或 pivot_longer_labels() 的結果（要先拿掉標籤時多寫一段）
 #' @return list(tidy = 字串, base = NULL)
 #' @noRd
-code_longer <- function(args, data_name = "data_t1", col_names = NULL) {
+code_longer <- function(args, data_name = "data_t1", col_names = NULL, labels = NULL) {
+  zap <- pivot_longer_labels_code(labels, data_name)
   cols_code <- pivot_cols_code(args, col_names)
   note <- if (startsWith(cols_code, "!")) {
     "# cols = !c(...)：括號裡的欄不轉，其餘全部轉"
@@ -103,8 +105,9 @@ code_longer <- function(args, data_name = "data_t1", col_names = NULL) {
   }
   list(
     tidy = code_lines(
-      "library(tidyr)", "",
+      if (!is.null(zap)) "library(dplyr)", "library(tidyr)", "",
       paste0("# ", data_name, "：「① 上傳檔案」讀進來的資料（讀檔方式見 ① 分頁）"),
+      zap,
       note,
       paste0("long <- ", pivot_longer_code(args, data_name, cols_code)),
       "",

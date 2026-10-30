@@ -350,7 +350,10 @@ reshape_longer <- function(data, args) {
       "請只選同一種型別的欄。"
     )
   }
+  labels <- pivot_longer_labels(data, cols)
   result <- pivot_longer_run(data, args)
+  tidyr_warn <- attr(result, "kit_warnings")
+  attr(result, "kit_warnings") <- NULL
   list(
     result = result,
     summary = c(
@@ -365,9 +368,16 @@ reshape_longer <- function(data, args) {
         } else {
           paste0("；原本每一列變成 ", nrow(result) %/% max(nrow(data), 1L), " 列。")
         }
-      )
+      ),
+      if (labels$zap_var) "要轉的欄變項標籤不一樣，值欄不放變項標籤。"
     ),
-    warnings = character(0)
+    warnings = c(
+      labels$warning,
+      if (length(tidyr_warn) > 0) {
+        paste0("tidyr 的提醒：", paste(utils::head(tidyr_warn, 3), collapse = "；"))
+      }
+    ),
+    labels = labels[c("conflict", "zap_var", "cols")]
   )
 }
 
