@@ -1,6 +1,6 @@
 # 各分頁共用的 UI 元件與狀態訊息
 
-#' 分頁說明框（目標 / 步驟 / 輸出，技術說明預設收起）
+#' 分頁說明框（預設收起：只看到「這一頁做什麼」一句；按「看步驟」才展開步驟、輸出、技術說明）
 #'
 #' @param goal 本分頁目標
 #' @param steps 操作步驟（字串或 tags$ol(...)）
@@ -9,18 +9,24 @@
 #' @param note 附注（可 NULL）
 #' @noRd
 kit_tab_guide <- function(goal, steps, output, technical = NULL, note = NULL) {
-  shiny::tags$div(
-    class = "kit-guide",
-    shiny::tags$p(shiny::tags$strong("這一頁做什麼："), goal),
-    shiny::tags$div(shiny::tags$strong("步驟："), steps),
-    shiny::tags$p(shiny::tags$strong("會得到："), output),
-    if (!is.null(note)) shiny::tags$p(class = "kit-guide-note", note),
-    if (!is.null(technical)) {
-      shiny::tags$details(
-        shiny::tags$summary("技術說明（給想了解原理的人）"),
-        shiny::tags$p(technical)
-      )
-    }
+  shiny::tags$details(
+    class = "kit-guide kit-guide-page",
+    shiny::tags$summary(
+      shiny::tags$strong("這一頁做什麼："), goal,
+      shiny::tags$span(class = "kit-guide-more")
+    ),
+    shiny::tags$div(
+      class = "kit-guide-body",
+      shiny::tags$div(shiny::tags$strong("步驟："), steps),
+      shiny::tags$p(shiny::tags$strong("會得到："), output),
+      if (!is.null(note)) shiny::tags$p(class = "kit-guide-note", note),
+      if (!is.null(technical)) {
+        shiny::tags$details(
+          shiny::tags$summary("技術說明（給想了解原理的人）"),
+          shiny::tags$p(technical)
+        )
+      }
+    )
   )
 }
 

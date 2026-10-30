@@ -1,0 +1,11 @@
+test_that("分頁說明框預設收起：只看到「這一頁做什麼」一句，步驟與技術說明在裡面", {
+  g <- as.character(kit_tab_guide("目的", "步驟一", "結果", technical = "原理", note = "補充"))
+  expect_match(g, '^<details class="kit-guide kit-guide-page">')
+  expect_false(grepl("<details[^>]*open", g))
+  expect_match(g, "<summary>\\s*<strong>這一頁做什麼：</strong>\\s*目的")
+  body <- sub("^.*kit-guide-body", "", g)
+  expect_match(body, "步驟一")
+  expect_match(body, "kit-guide-note")
+  expect_match(body, "技術說明")
+  expect_false(grepl("kit-guide-note", as.character(kit_tab_guide("目的", "一", "結果"))))
+})

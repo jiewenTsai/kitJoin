@@ -74,7 +74,7 @@ kit_colors <- function() {
 #' @export
 kit_css <- function() {
   cols <- kit_colors()
-  shiny::HTML(sprintf("
+  shiny::HTML(paste0(sprintf("
     .kit-header {
       background: linear-gradient(135deg, %1$s 0%%, %2$s 100%%);
       color: #fff;
@@ -296,7 +296,36 @@ kit_css <- function() {
       margin: -0.5rem 0 1rem;
     }
   ", cols$primary, cols$primary_light, cols$accent,
-     cols$subtitle, cols$text_muted, cols$border))
+     cols$subtitle, cols$text_muted, cols$border), kit_css_guide(cols$primary)))
+}
+
+#' 分頁說明框收合的樣式（kit_css() 的 sprintf() 格式字串有 8192 字元的上限，所以另外接上）
+#' @noRd
+kit_css_guide <- function(primary) {
+  sprintf("
+    /* 分頁說明框預設收起：只有一句「這一頁做什麼」，旁邊「看步驟 ▸」 */
+    .kit-guide-page > summary {
+      cursor: pointer;
+      list-style: none;
+    }
+    .kit-guide-page > summary::-webkit-details-marker {
+      display: none;
+    }
+    .kit-guide-more::before {
+      content: '看步驟 ▸';
+      margin-left: 0.6rem;
+      font-size: 0.85rem;
+      color: %s;
+      text-decoration: underline;
+      white-space: nowrap;
+    }
+    .kit-guide-page[open] .kit-guide-more::before {
+      content: '收起 ▴';
+    }
+    .kit-guide-body {
+      margin-top: 0.6rem;
+    }
+  ", primary)
 }
 
 #' 頁首版本與最後修改日期
