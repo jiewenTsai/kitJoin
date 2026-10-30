@@ -15,9 +15,9 @@ kit_theme <- function() {
     ),
     "sans-serif"
   )
-  # 程式碼與等寬字：M PLUS Code Latin（只有拉丁字母；中文註解退回 app 的中文字型）
+  # 程式碼與等寬字：JetBrains Mono（只有拉丁字母；中文註解退回 app 的中文字型）
   code_font <- bslib::font_collection(
-    bslib::font_google("M PLUS Code Latin", local = FALSE, wght = c(400, 700)),
+    bslib::font_google("JetBrains Mono", local = FALSE, wght = c(400, 700)),
     "Chiron GoRound TC", "Menlo", "Consolas", "monospace"
   )
 

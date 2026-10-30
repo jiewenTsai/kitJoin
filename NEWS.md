@@ -69,6 +69,8 @@ SPSS files whose ID column, item names and missing-value codes differ from KIT's
 * Other: empty or header-only files are errors; semicolon and tab separated CSV files are
   detected; uploading the same file twice is flagged; wave names that differ only in case
   are refused; ID detection also recognises `w3id`, 學號 and 編號.
+* Code and monospace text use JetBrains Mono (Google Fonts, loaded by the browser) instead
+  of M PLUS Code Latin.
 
 # kitJoin 0.4.3
 
