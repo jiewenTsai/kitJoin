@@ -202,7 +202,7 @@ kit_summary_ui <- function(sentences, title = "結果摘要") {
 #' 目前使用哪一份資料（原始 / 遺漏值處理後），以及檔案數不足的提醒
 #'
 #' @param n_files 已上傳檔案數
-#' @param source "raw" 或 "na"
+#' @param source "raw"、"na" 或 "stale"（② 的結果已清除、等待重新執行）
 #' @param code_cells 原始資料中等於遺漏值代碼的格數
 #' @param ns 模組的 namespace 函式（連結按鈕用）
 #' @noRd
@@ -220,10 +220,19 @@ kit_source_note_ui <- function(n_files, source, code_cells, ns) {
       "目前使用：「② 遺漏值轉 NA」處理後的資料。"
     ))
   }
+  if (identical(source, "stale")) {
+    return(shiny::tags$div(
+      class = "kit-callout kit-callout-warning",
+      "目前使用：原始資料。「② 遺漏值轉 NA」的代碼、設定或檔案改過了，舊的轉換結果已清除，",
+      shiny::actionLink(ns("goto_missing"), "請回 ② 重新按「執行轉換」"),
+      "；在那之前，這裡用的是還沒轉換的原始資料。"
+    ))
+  }
   if (code_cells > 0) {
     return(shiny::tags$div(
       class = "kit-callout kit-callout-warning",
-      "目前使用：原始資料。資料中有 ", code_cells, " 格是 7777、9999 等常見的遺漏值代碼，",
+      "目前使用：原始資料。資料中有 ", code_cells, " 格看起來是遺漏值代碼",
+      "（7777、9999 等，或 SPSS 數值標籤寫著「遺漏值」「跳答」的值），",
       "若它們代表遺漏，請先",
       shiny::actionLink(ns("goto_missing"), "到「② 遺漏值轉 NA」處理"),
       "，否則會被當成一般數值。"
@@ -276,12 +285,23 @@ kit_download_server <- function(session, output, data_fn, filename_fn, run_label
         session, id, label, filename_fn(ext), function(file) writer(df, file), class
       )
     }
+    # SAV 寫完讀不回來而修改了數值標籤時，下載當下跳出通知
+    write_sav_notify <- function(df, file) {
+      written <- write_kit_sav(df, file)
+      msg <- sav_fix_message(written)
+      if (!is.null(msg)) {
+        try(shiny::showNotification(
+          msg, type = "warning", duration = KIT_NOTIFY_ERROR_SECONDS, session = session
+        ), silent = TRUE)
+      }
+      invisible(written)
+    }
     shiny::tags$div(
       class = "kit-downloads",
       button("download_csv", "下載 CSV", "csv", write_kit_csv, "btn-primary me-2"),
       button("download_csvgz", "下載 CSV.GZ", "csv.gz", write_kit_csv_gz,
              "btn-outline-primary me-2"),
-      button("download_sav", "下載 SAV（SPSS）", "sav", write_kit_sav, "btn-outline-primary"),
+      button("download_sav", "下載 SAV（SPSS）", "sav", write_sav_notify, "btn-outline-primary"),
       shiny::tags$small(
         class = "kit-hint",
         "CSV 的遺漏值為空白儲存格，可直接用 Excel 開啟。",
@@ -313,6 +333,19 @@ timestamped_name <- function(prefix) {
   function(ext) {
     paste0(prefix, "_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".", ext)
   }
+}
+
+#' 小表格（直接放在 renderUI() 裡，不用另開 output）
+#' @noRd
+kit_static_table <- function(df) {
+  cells <- df_for_display(df)
+  shiny::tags$table(
+    class = "table table-sm table-striped",
+    shiny::tags$thead(shiny::tags$tr(lapply(names(cells), shiny::tags$th))),
+    shiny::tags$tbody(lapply(seq_len(nrow(cells)), function(i) {
+      shiny::tags$tr(lapply(cells[i, ], function(v) shiny::tags$td(v %||% "")))
+    }))
+  )
 }
 
 #' 預覽表（共用格式）

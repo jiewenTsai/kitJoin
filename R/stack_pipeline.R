@@ -21,8 +21,10 @@ stack_waves <- function(dfs, file_names, wave_labels) {
   harmonized <- harmonize_for_bind_rows(dfs)
   label_conflicts <- value_label_conflicts(harmonized$dfs)
 
-  tagged <- purrr::map2(harmonized$dfs, wave_labels, function(df, w) {
-    df <- dplyr::mutate(df, .kit_wave = w, .before = 1)
+  # 波次名稱用 .env 取函式內的值：資料裡剛好有名為 label、w 的欄（例如權數 w）時，
+  # data masking 會改拿那一欄的值
+  tagged <- purrr::map2(harmonized$dfs, wave_labels, function(df, label) {
+    df <- dplyr::mutate(df, .kit_wave = .env$label, .before = 1)
     names(df)[1] <- wave_col
     df
   })
@@ -39,12 +41,20 @@ stack_waves <- function(dfs, file_names, wave_labels) {
 
   names_shown <- file_display_name(wave_labels, file_names)
   stats <- stack_stats(dfs, wave_labels, result, wave_col)
+  audit_ok <- stats$nrow_out == stats$nrow_expected &&
+    stats$ncol_out == stats$ncol_expected && stats$wave_ok
   list(
     result = result,
     wave_col = wave_col,
     audit = stack_audit_tables(stats, names_shown),
     summary = stack_plain_summary(stats, names_shown, wave_col),
     warnings = c(
+      if (!audit_ok) {
+        paste0(
+          "核對結果不符（見下方「詳細核對」）：列數、欄位數或各波列數和預期不同。",
+          "請先確認結果再使用，並把這個情況回報給開發者。"
+        )
+      },
       if (wave_col != "wave") {
         paste0(
           "原始檔案已經有 wave 欄，為了不覆蓋原資料，",
@@ -117,7 +127,7 @@ to_text_keep_label <- function(x) {
   out <- if (haven::is.labelled(x)) {
     as.character(haven::as_factor(x))
   } else {
-    as.character(x)
+    num_to_text(x)
   }
   out <- fix_utf8_chr(out)
   attr(out, "label") <- label

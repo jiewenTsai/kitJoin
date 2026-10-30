@@ -37,6 +37,23 @@ mod_upload_ui <- function(id) {
         kit_max_upload_mb()
       )
     ),
+    shiny::tags$details(
+      class = "kit-example",
+      shiny::tags$summary("進階：SPSS 檔的中文編碼"),
+      shiny::radioButtons(
+        ns("sav_encoding"), NULL,
+        choices = c(
+          "自動判斷（建議）：依檔案標示；中文變成亂碼時改用 BIG5 重讀" = "auto",
+          "只依檔案標示" = "file",
+          "一律用 BIG5（CP950）：舊版 SPSS 在繁體中文 Windows 存的檔" = "CP950"
+        ),
+        selected = "auto", width = "100%"
+      ),
+      shiny::tags$small(
+        class = "kit-hint",
+        "只影響 SAV 檔。改了以後，請把檔案移除再重新加入才會套用。"
+      )
+    ),
     shiny::uiOutput(ns("file_list")),
     shiny::uiOutput(ns("label_check")),
     shiny::uiOutput(ns("next_step")),
@@ -100,10 +117,14 @@ mod_upload_server <- function(id, goto) {
       recs <- records()
       for (i in seq_len(nrow(uploads))) {
         name <- uploads$name[i]
-        read <- tryCatch(
-          read_data_file(uploads$datapath[i], name),
-          error = function(e) e
-        )
+        read <- tryCatch({
+          out <- read_data_file(
+            uploads$datapath[i], name,
+            sav_encoding = input$sav_encoding %||% "auto"
+          )
+          check_not_empty(out$data, name)
+          out
+        }, error = function(e) e)
         if (inherits(read, "error")) {
           msg <- conditionMessage(read)
           if (!inherits(read, "kit_user_error")) {
@@ -115,6 +136,20 @@ mod_upload_server <- function(id, goto) {
             duration = KIT_NOTIFY_ERROR_SECONDS
           )
           next
+        }
+        # 同一個檔案加兩次通常是不小心：照樣加入，但提醒
+        same <- purrr::detect(recs, function(r) {
+          r$name == name || identical(r$data, read$data)
+        })
+        if (!is.null(same)) {
+          shiny::showNotification(
+            paste0(
+              name, if (same$name == name) " 已經加入過了（檔名相同）" else paste0(" 的內容和已加入的 ", same$name, " 完全相同"),
+              "。如果是不小心重複加入，請在清單中按「移除」。"
+            ),
+            type = "warning",
+            duration = KIT_NOTIFY_ERROR_SECONDS
+          )
         }
         n_added <<- n_added + 1L
         key <- paste0("f", n_added)
@@ -227,9 +262,12 @@ mod_upload_server <- function(id, goto) {
         class = "kit-callout kit-next-step",
         shiny::tags$strong("下一步："),
         shiny::tags$ul(
-          if (count_code_cells(purrr::map(records(), "data")) > 0) {
+          if (count_code_cells(
+            purrr::map(records(), "data"),
+            keywords = parse_na_keywords(kit_na_label_keywords_default())
+          ) > 0) {
             shiny::tags$li(
-              "資料中有 9999 等遺漏值代碼 → 建議先到 ",
+              "資料中有遺漏值代碼（例如 9999，或數值標籤寫著「遺漏值」的值）→ 建議先到 ",
               link("goto_missing", "② 遺漏值轉 NA"), "（選用）"
             )
           },
@@ -313,14 +351,30 @@ mod_upload_server <- function(id, goto) {
 #' @noRd
 file_read_notes <- function(record) {
   enc <- record$encoding
+  is_sav <- tolower(tools::file_ext(record$name)) %in% c("sav", "zsav")
   shiny::tagList(
-    if (!is.na(enc) && enc == "Latin1") {
+    if (is_sav && identical(enc, "BIG5")) {
+      shiny::tags$div(
+        class = "text-muted small",
+        "　編碼：BIG5。這個 SPSS 檔沒有標明正確的編碼，中文原本會變成亂碼，",
+        "已改用 BIG5（CP950）讀取。請在下方預覽確認中文正常。"
+      )
+    } else if (!is.na(enc) && enc == "Latin1") {
       shiny::tags$div(
         class = "text-danger small",
         "⚠ 中文可能是亂碼：請用 Excel 另存為「CSV UTF-8」後重新上傳。"
       )
     } else if (!is.na(enc)) {
       shiny::tags$small(class = "text-muted", paste0("　編碼：", enc))
+    },
+    if (!is.null(record$delim) && record$delim != ",") {
+      shiny::tags$div(
+        class = "text-muted small",
+        paste0(
+          "　分隔符號：", if (record$delim == ";") "分號（;）" else "Tab",
+          "。這個檔案的欄位不是用逗號分隔，已自動改用", if (record$delim == ";") "分號" else " Tab", "讀取。"
+        )
+      )
     },
     if (record$n_problems > 0) {
       shiny::tags$div(

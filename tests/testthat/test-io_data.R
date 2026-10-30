@@ -62,3 +62,104 @@ test_that("預覽：整數不顯示小數、標籤欄顯示標籤、日期可讀
   expect_equal(out$sex, c("[1] 男", "[2] 女"))
   expect_equal(out$d[1], "2020-01-01")
 })
+
+test_that("BIG5 被當成 Latin1 讀進來的亂碼能被辨識出來（A7）", {
+  # 模擬舊版 SPSS：BIG5 位元組被當成 Latin1 文字
+  mojibake <- function(x) iconv(iconv(x, "UTF-8", "CP950"), "latin1", "UTF-8")
+  good <- c("樣本流水代碼", "您的性別是：", "id")
+  expect_true(looks_like_big5_mojibake(mojibake(good)))
+  expect_false(looks_like_big5_mojibake(good))
+  expect_true(looks_like_chinese(good))
+  expect_false(looks_like_chinese(mojibake(good)))
+})
+
+test_that("歐洲語言的 Latin1 文字不會被誤判成 BIG5", {
+  g <- tibble::tibble(name = c("Müller", "Bärbel", "Größe"), x = 1:3)
+  attr(g$x, "label") <- "Körpergröße in Zentimeter für Schüler"
+  path <- withr::local_tempfile(fileext = ".sav")
+  haven::write_sav(g, path)
+  expect_false(looks_like_big5_mojibake(sav_text_sample(haven::read_sav(path))))
+  expect_true(is.na(read_data_file(path, "de.sav")$encoding))
+})
+
+test_that("TDCYP w1_pq.sav（BIG5）讀成正確中文", {
+  path <- "/Users/jiewentsai/Documents/ClaudePlayMac/lab20261030_kitsui/lab1031/tdcyp_data/w1_pq.sav"
+  skip_if_not(file.exists(path))
+  out <- read_data_file(path, "w1_pq.sav")
+  expect_equal(out$encoding, "BIG5")
+  expect_equal(attr(out$data$w1_id, "label"), "W1:樣本流水代碼")
+  forced <- read_data_file(path, "w1_pq.sav", sav_encoding = "CP950")
+  expect_equal(attr(forced$data$w1_id, "label"), "W1:樣本流水代碼")
+  expect_match(code_read(code_files("w1_pq.sav", "t1", encodings = "BIG5"))$tidy,
+               'read_sav\\("w1_pq.sav", encoding = "CP950"\\)')
+})
+
+test_that("空檔、只有表頭的檔在 ① 給白話錯誤", {
+  expect_error(check_not_empty(tibble::tibble(), "empty.csv"), "空的", class = "kit_user_error")
+  expect_error(
+    check_not_empty(tibble::tibble(id = character()), "h.csv"), "0 列",
+    class = "kit_user_error"
+  )
+})
+
+test_that("SAV 寫完讀不回來時，清理文字欄的數值標籤再重寫並說明（B2）", {
+  # 中文值 + 很長、含控制字元的文字值標籤（TDCYP w1_jsq 的 w1a8_k）
+  bad <- haven::labelled(
+    c("我喜歡的", "外套"),
+    stats::setNames(paste0("99", strrep(" ", 78), "\v"), "遺漏值"),
+    label = "選項說明"
+  )
+  df <- tibble::tibble(id = 1:2, w1a8_k = bad, ok = haven::labelled(1:2, c(是 = 1L)))
+  path <- withr::local_tempfile(fileext = ".sav")
+  written <- write_kit_sav(df, path)
+  expect_equal(written$fixed, "w1a8_k")
+  expect_equal(written$step, 1L)
+  back <- haven::read_sav(path)
+  expect_equal(unname(attr(back$w1a8_k, "labels")), "99")
+  expect_equal(attr(back$w1a8_k, "label"), "選項說明")
+  expect_equal(attr(back$ok, "labels"), c(是 = 1))
+  expect_match(sav_fix_message(written), "w1a8_k")
+
+  # 正常的檔不修改
+  ok_path <- withr::local_tempfile(fileext = ".sav")
+  expect_length(write_kit_sav(df["ok"], ok_path)$fixed, 0)
+  expect_null(sav_fix_message(write_kit_sav(df["ok"], ok_path)))
+})
+
+test_that("TDCYP w1_jsq 的 SAV 匯出讀得回來", {
+  path <- "/Users/jiewentsai/Documents/ClaudePlayMac/lab20261030_kitsui/lab1031/tdcyp_data/w1_jsq.sav"
+  skip_if_not(file.exists(path))
+  df <- read_data_file(path, "w1_jsq.sav")$data
+  out <- withr::local_tempfile(fileext = ".sav")
+  written <- write_kit_sav(df, out)
+  expect_true("w1a8_k" %in% written$fixed)
+  expect_equal(dim(haven::read_sav(out)), dim(df))
+})
+
+test_that("只有英文的 SAV 也能讀（編碼判斷不會出錯）", {
+  path <- withr::local_tempfile(fileext = ".sav")
+  haven::write_sav(tibble::tibble(id = c("1", "2"), a = 1:2), path)
+  expect_true(is.na(read_data_file(path, "ascii.sav")$encoding))
+  expect_equal(count_matches(c("abc", "a"), "[\\x{3400}-\\x{9FFF}]"), 0)
+  expect_equal(count_matches(c("中文a", "字"), "[\\x{3400}-\\x{9FFF}]"), 3)
+})
+
+test_that("分號、Tab 分隔的 CSV 自動辨識（低：分隔符號）", {
+  semi <- withr::local_tempfile(fileext = ".csv")
+  writeLines(c("id;score", "1;2,5", "2;3"), semi)
+  out <- read_data_file(semi, "semi.csv")
+  expect_equal(out$delim, ";")
+  expect_named(out$data, c("id", "score"))
+  tab <- withr::local_tempfile(fileext = ".csv")
+  writeLines(c("id\tscore", "1\t2"), tab)
+  expect_named(read_data_file(tab, "tab.csv")$data, c("id", "score"))
+  comma <- withr::local_tempfile(fileext = ".csv")
+  writeLines(c("id,note", "1,a;b"), comma)
+  expect_equal(read_data_file(comma, "c.csv")$delim, ",")
+})
+
+test_that("CSV 欄位值的前後空白照樣去掉（和 read_csv() 相同）", {
+  path <- withr::local_tempfile(fileext = ".csv")
+  writeLines(c("id,txt", "1, 9999", "2,a"), path)
+  expect_equal(read_data_file(path, "a.csv")$data$txt, c("9999", "a"))
+})

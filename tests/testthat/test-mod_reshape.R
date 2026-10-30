@@ -141,7 +141,7 @@ test_that("選第二個檔案、② 處理後的資料也會被使用", {
     session$setInputs(run = 1)
     expect_equal(result()$result$a, NA_real_)
     expect_equal(result()$result$b, 2)
-    expect_match(output$code$html, "data_t2")
+    expect_match(output$code$html, "data_2")
   })
 })
 
