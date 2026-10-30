@@ -46,3 +46,19 @@ test_that("核對：列數與各波列數", {
   expect_equal(nrow(out$result), 5)
   expect_equal(out$audit$checks$核對, c("符合", "符合", "符合"))
 })
+
+test_that("資料裡有名為 w 的欄（例如權數）時，wave 欄仍是波次名稱（A4）", {
+  a <- tibble::tibble(id = 1:2, w = c(0.8, 1.2))
+  b <- tibble::tibble(id = 3:4, w = c(1.1, 0.9))
+  out <- stack_waves(list(a, b), c("a", "b"), c("t1", "t2"))
+  expect_equal(out$result$wave, c("t1", "t1", "t2", "t2"))
+  expect_equal(out$result$w, c(0.8, 1.2, 1.1, 0.9))
+  expect_length(out$warnings, 0)
+
+  # 只有部分檔案有 w、也有名為 label 的欄
+  c1 <- tibble::tibble(id = 1, label = "x", w = 2)
+  c2 <- tibble::tibble(id = 2)
+  out2 <- stack_waves(list(c1, c2), c("a", "b"), c("t1", "t2"))
+  expect_equal(out2$result$wave, c("t1", "t2"))
+  expect_equal(out2$audit$checks$核對, c("符合", "符合", "符合"))
+})
