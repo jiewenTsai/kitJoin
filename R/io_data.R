@@ -3,31 +3,51 @@
 #' 讀取 CSV 或 SAV
 #'
 #' CSV 自動判斷編碼（UTF-8 → CP950/BIG5 → Latin1）；SAV 保留變項與數值標籤。
+#' SAV 沒有標明編碼、中文讀成亂碼時（舊版 SPSS 存的 BIG5 檔），自動改用 CP950 重讀。
 #' 讀不了的檔案會以白話中文錯誤訊息 kit_abort()，由呼叫端顯示給使用者。
 #'
 #' @param path 檔案路徑
 #' @param name 原始檔名（用來判斷副檔名）
+#' @param sav_encoding SAV 的編碼："auto"（依檔案標示，亂碼時改用 BIG5）、
+#'   "file"（只依檔案標示）或 "CP950"（一律用 BIG5）
 #' @return list(data, encoding, n_problems)；encoding 為 "UTF-8"、"BIG5"、
-#'   "Latin1"（可能是亂碼）或 NA（SAV）
+#'   "Latin1"（可能是亂碼）或 NA（SAV 依檔案標示讀取）
 #' @noRd
-read_data_file <- function(path, name) {
+read_data_file <- function(path, name, sav_encoding = "auto") {
   ext <- tolower(tools::file_ext(name))
   if (ext == "csv") {
     return(read_csv_auto(path))
   }
   if (ext %in% c("sav", "zsav")) {
-    data <- tryCatch(
-      haven::read_sav(path),
-      error = function(e) {
-        kit_abort(
-          "無法讀取 ", name, "：檔案可能已損壞，或不是 SPSS 檔。",
-          "請用 SPSS 開啟確認後重新存檔再上傳。"
-        )
+    read_sav_as <- function(encoding) {
+      tryCatch(
+        haven::read_sav(path, encoding = encoding),
+        error = function(e) {
+          kit_abort(
+            "無法讀取 ", name, "：檔案可能已損壞，或不是 SPSS 檔。",
+            "請用 SPSS 開啟確認後重新存檔再上傳。"
+          )
+        }
+      )
+    }
+    encoding <- NA_character_
+    if (identical(sav_encoding, "CP950")) {
+      data <- read_sav_as("CP950")
+      encoding <- "BIG5"
+    } else {
+      data <- read_sav_as(NULL)
+      if (!identical(sav_encoding, "file") &&
+            looks_like_big5_mojibake(sav_text_sample(data))) {
+        alt <- tryCatch(haven::read_sav(path, encoding = "CP950"), error = function(e) NULL)
+        if (!is.null(alt) && looks_like_chinese(sav_text_sample(alt))) {
+          data <- alt
+          encoding <- "BIG5"
+        }
       }
-    )
+    }
     return(list(
       data = fix_utf8_df(data),
-      encoding = NA_character_,
+      encoding = encoding,
       n_problems = 0L
     ))
   }
@@ -39,6 +59,65 @@ read_data_file <- function(path, name) {
       "壓縮過的 CSV（.csv.gz）請先到「⑧ 檔案格式轉換」解壓縮成 .csv 再上傳。"
     }
   )
+}
+
+#' 空檔、只有表頭的檔給白話錯誤（① 上傳用；不要默默變成 0 列的資料）
+#' @noRd
+check_not_empty <- function(df, name) {
+  if (ncol(df) == 0) {
+    kit_abort("無法讀取 ", name, "：檔案是空的（沒有任何欄位）。請確認選對檔案。")
+  }
+  if (nrow(df) == 0) {
+    kit_abort(
+      "無法讀取 ", name, "：檔案只有欄名，沒有任何資料列（0 列）。",
+      "請確認匯出時有包含資料。"
+    )
+  }
+  invisible(TRUE)
+}
+
+#' SAV 中用來判斷編碼的文字：欄名、變項標籤、數值標籤、文字欄前 200 個值
+#' @noRd
+sav_text_sample <- function(df, n = 200L) {
+  text <- c(names(df), unlist(lapply(df, function(x) {
+    c(
+      attr(x, "label", exact = TRUE),
+      names(attr(x, "labels", exact = TRUE)),
+      if (is.character(x)) utils::head(x[!is.na(x)], n)
+    )
+  }), use.names = FALSE))
+  text[!is.na(text)]
+}
+
+count_matches <- function(text, pattern) {
+  sum(lengths(regmatches(text, gregexpr(pattern, text, perl = TRUE))))
+}
+
+#' 看起來是被當成 Latin1 解讀的 BIG5（例如「¼Ë¥»¬y¤ô¥N½X」）
+#'
+#' BIG5 每個中文字是 2 個位元組，被當成 Latin1 時會變成成串的 U+0080–U+00FF 字元；
+#' 歐洲語言的 ä、é 則是零星夾在英文字母中間。不是合法 UTF-8 的文字也算可疑。
+#' @noRd
+looks_like_big5_mojibake <- function(text) {
+  if (length(text) == 0) return(FALSE)
+  if (any(!validUTF8(text))) return(TRUE)
+  if (count_matches(text, "[\\x{3400}-\\x{9FFF}]") > 0) return(FALSE)
+  high <- count_matches(text, "[\\x{80}-\\x{FF}]")
+  if (high < 4) return(FALSE)
+  paired <- 2 * count_matches(text, "[\\x{80}-\\x{FF}]{2}")
+  letters <- count_matches(text, "[A-Za-z]")
+  paired / high >= 0.3 && high / (high + letters) >= 0.3
+}
+
+#' 非 ASCII 的字大多是中文字或全形標點
+#' @noRd
+looks_like_chinese <- function(text) {
+  text <- text[validUTF8(text)]
+  non_ascii <- count_matches(text, "[^\\x{00}-\\x{7F}]")
+  cjk <- count_matches(
+    text, "[\\x{3000}-\\x{303F}\\x{3400}-\\x{9FFF}\\x{FF00}-\\x{FFEF}]"
+  )
+  cjk >= 2 && cjk / non_ascii >= 0.8
 }
 
 #' 預覽用：轉成方便閱讀的文字

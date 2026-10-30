@@ -123,3 +123,21 @@ test_that("只有 1 個檔案：② 可以轉換並下載，⑦ 使用 ② 處�
     expect_match(output[["reshape-source_note"]]$html, "處理後")
   })
 })
+
+test_that("① 空檔與只有表頭的檔不會被加入（低：空檔）", {
+  dir <- withr::local_tempdir()
+  empty <- file.path(dir, "empty.csv")
+  file.create(empty)
+  header <- file.path(dir, "header.csv")
+  writeLines("id,score", header)
+  good <- write_wave(dir, "w1.csv", data.frame(id = 1:3, score = 1:3))
+  shiny::testServer(
+    mod_upload_server,
+    args = list(goto = function(tab) NULL),
+    {
+      session$setInputs(files = upload_df(c(empty, header, good)))
+      expect_equal(keys(), "f1")
+      expect_equal(files$names(), "w1.csv")
+    }
+  )
+})

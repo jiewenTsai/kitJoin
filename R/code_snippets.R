@@ -97,7 +97,10 @@ code_read <- function(f) {
       f$obj, ' <- read_csv("', f$file, '"',
       ifelse(is_big5, ', locale = locale(encoding = "CP950"))   # BIG5 編碼', ")")
     ),
-    paste0(f$obj, ' <- read_sav("', f$file, '")')
+    paste0(
+      f$obj, ' <- read_sav("', f$file, '"',
+      ifelse(is_big5, ', encoding = "CP950")   # 檔案沒有標明編碼，用 BIG5 讀', ")")
+    )
   )
   base_lines <- ifelse(
     is_csv,
@@ -106,8 +109,9 @@ code_read <- function(f) {
       ifelse(is_big5, ', fileEncoding = "CP950")   # BIG5 編碼', ")")
     ),
     paste0(
-      f$obj, ' <- haven::read_sav("', f$file,
-      '")   # base R 不能讀 SAV，借用 haven'
+      f$obj, ' <- haven::read_sav("', f$file, '"',
+      ifelse(is_big5, ', encoding = "CP950"', ""),
+      ')   # base R 不能讀 SAV，借用 haven'
     )
   )
   setwd_note <- c(

@@ -37,6 +37,23 @@ mod_upload_ui <- function(id) {
         kit_max_upload_mb()
       )
     ),
+    shiny::tags$details(
+      class = "kit-example",
+      shiny::tags$summary("進階：SPSS 檔的中文編碼"),
+      shiny::radioButtons(
+        ns("sav_encoding"), NULL,
+        choices = c(
+          "自動判斷（建議）：依檔案標示；中文變成亂碼時改用 BIG5 重讀" = "auto",
+          "只依檔案標示" = "file",
+          "一律用 BIG5（CP950）：舊版 SPSS 在繁體中文 Windows 存的檔" = "CP950"
+        ),
+        selected = "auto", width = "100%"
+      ),
+      shiny::tags$small(
+        class = "kit-hint",
+        "只影響 SAV 檔。改了以後，請把檔案移除再重新加入才會套用。"
+      )
+    ),
     shiny::uiOutput(ns("file_list")),
     shiny::uiOutput(ns("label_check")),
     shiny::uiOutput(ns("next_step")),
@@ -100,10 +117,14 @@ mod_upload_server <- function(id, goto) {
       recs <- records()
       for (i in seq_len(nrow(uploads))) {
         name <- uploads$name[i]
-        read <- tryCatch(
-          read_data_file(uploads$datapath[i], name),
-          error = function(e) e
-        )
+        read <- tryCatch({
+          out <- read_data_file(
+            uploads$datapath[i], name,
+            sav_encoding = input$sav_encoding %||% "auto"
+          )
+          check_not_empty(out$data, name)
+          out
+        }, error = function(e) e)
         if (inherits(read, "error")) {
           msg <- conditionMessage(read)
           if (!inherits(read, "kit_user_error")) {
@@ -313,8 +334,15 @@ mod_upload_server <- function(id, goto) {
 #' @noRd
 file_read_notes <- function(record) {
   enc <- record$encoding
+  is_sav <- tolower(tools::file_ext(record$name)) %in% c("sav", "zsav")
   shiny::tagList(
-    if (!is.na(enc) && enc == "Latin1") {
+    if (is_sav && identical(enc, "BIG5")) {
+      shiny::tags$div(
+        class = "text-muted small",
+        "　編碼：BIG5。這個 SPSS 檔沒有標明正確的編碼，中文原本會變成亂碼，",
+        "已改用 BIG5（CP950）讀取。請在下方預覽確認中文正常。"
+      )
+    } else if (!is.na(enc) && enc == "Latin1") {
       shiny::tags$div(
         class = "text-danger small",
         "⚠ 中文可能是亂碼：請用 Excel 另存為「CSV UTF-8」後重新上傳。"

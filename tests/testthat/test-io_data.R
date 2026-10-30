@@ -62,3 +62,42 @@ test_that("預覽：整數不顯示小數、標籤欄顯示標籤、日期可讀
   expect_equal(out$sex, c("[1] 男", "[2] 女"))
   expect_equal(out$d[1], "2020-01-01")
 })
+
+test_that("BIG5 被當成 Latin1 讀進來的亂碼能被辨識出來（A7）", {
+  # 模擬舊版 SPSS：BIG5 位元組被當成 Latin1 文字
+  mojibake <- function(x) iconv(iconv(x, "UTF-8", "CP950"), "latin1", "UTF-8")
+  good <- c("樣本流水代碼", "您的性別是：", "id")
+  expect_true(looks_like_big5_mojibake(mojibake(good)))
+  expect_false(looks_like_big5_mojibake(good))
+  expect_true(looks_like_chinese(good))
+  expect_false(looks_like_chinese(mojibake(good)))
+})
+
+test_that("歐洲語言的 Latin1 文字不會被誤判成 BIG5", {
+  g <- tibble::tibble(name = c("Müller", "Bärbel", "Größe"), x = 1:3)
+  attr(g$x, "label") <- "Körpergröße in Zentimeter für Schüler"
+  path <- withr::local_tempfile(fileext = ".sav")
+  haven::write_sav(g, path)
+  expect_false(looks_like_big5_mojibake(sav_text_sample(haven::read_sav(path))))
+  expect_true(is.na(read_data_file(path, "de.sav")$encoding))
+})
+
+test_that("TDCYP w1_pq.sav（BIG5）讀成正確中文", {
+  path <- "/Users/jiewentsai/Documents/ClaudePlayMac/lab20261030_kitsui/lab1031/tdcyp_data/w1_pq.sav"
+  skip_if_not(file.exists(path))
+  out <- read_data_file(path, "w1_pq.sav")
+  expect_equal(out$encoding, "BIG5")
+  expect_equal(attr(out$data$w1_id, "label"), "W1:樣本流水代碼")
+  forced <- read_data_file(path, "w1_pq.sav", sav_encoding = "CP950")
+  expect_equal(attr(forced$data$w1_id, "label"), "W1:樣本流水代碼")
+  expect_match(code_read(code_files("w1_pq.sav", "t1", encodings = "BIG5"))$tidy,
+               'read_sav\\("w1_pq.sav", encoding = "CP950"\\)')
+})
+
+test_that("空檔、只有表頭的檔在 ① 給白話錯誤", {
+  expect_error(check_not_empty(tibble::tibble(), "empty.csv"), "空的", class = "kit_user_error")
+  expect_error(
+    check_not_empty(tibble::tibble(id = character()), "h.csv"), "0 列",
+    class = "kit_user_error"
+  )
+})
