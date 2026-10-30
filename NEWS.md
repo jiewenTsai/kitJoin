@@ -1,3 +1,67 @@
+# kitJoin (development version)
+
+Generality fixes found by running every tab on another panel survey (TDCYP, five waves of
+SPSS files whose ID column, item names and missing-value codes differ from KIT's).
+
+## Wrong results that were reported as success
+
+* ⑥ no longer writes missing-value codes as scores. Values labelled 遺漏值 / 跳答 / 不適用 /
+  不知道 / 拒答 (and similar), ②'s code list, values of 7777 and above, and values clearly
+  apart from the item's range (e.g. 95–99 next to 1–5) are treated as unanswered. Each
+  item's codes are listed in 「3. 題目設定」 and can be overridden; the settings file gains a
+  `missing_codes` column. **Change for KIT:** values of 7777 and above used to be written
+  unchanged; now they are left out.
+* ⑦ wide → long no longer copies the first column's value labels onto every item. When
+  value or variable labels differ between the stacked columns they are dropped with a
+  visible note.
+* ⑤ stops when most baseline IDs are duplicated (e.g. a birth year chosen as the ID)
+  instead of reporting 「完成」; ③ asks for confirmation when a join would multiply the rows
+  and refuses joins that are far too large. ID choices show each column's share of unique
+  values.
+* ④ a column named `w` (e.g. a survey weight) no longer overwrites the wave column.
+* Numeric IDs of six or more digits are no longer turned into scientific notation
+  (`1e+05`) when compared with text IDs or written to `subj_id` / `visit_id`. Text IDs are
+  trimmed before matching.
+* ② can convert per variable from SPSS value labels: only values whose label says missing
+  (遺漏、跳答、不適用、不知道、拒答…) become NA, so a real weight of 99 kg stays. This mode is
+  chosen automatically when the KIT codes are absent but such labels exist; the code list
+  is still available.
+* ② results are cleared when the codes, excluded columns or text matching change, and
+  ③–⑦ say that ② must be run again instead of silently using the raw data.
+* SPSS files saved as Big5 without a proper encoding record are re-read as CP950 (①
+  can also be set by hand).
+
+## Crashes and broken files
+
+* SAV downloads are read back after writing; when haven cannot read them, problematic
+  text value labels are cleaned and the file is rewritten, and the affected columns are
+  named on screen (also in ⑧'s notes).
+* Columns whose value labels were all missing codes no longer break the preview in ②–⑤.
+* 「用 R 怎麼做？」 code uses `data_1`, `data_2`… and runs (and matches the app) with numeric
+  or Chinese wave names, quotes, blank or mixed-type IDs and column names with spaces;
+  this is now checked by tests that evaluate the generated code.
+
+## Data with other naming schemes
+
+* ③ ⑤ each file can use its own ID column(s) (e.g. `w1_id`, `w2_id`, `w3id`); they are
+  renamed to one key before matching. Files that share the ID name work as before.
+* ⑥ 「2. 對應欄位」: `subj_id`, the wave label, `wave_m`, `age_m` and `sex` can be chosen per
+  file.
+* ⑥ common output item IDs across waves: an `item_id_out` column in the item table or
+  settings file, or the rule 「欄名去掉 `^w[0-9]+`」. Two columns of one file mapping to the
+  same ID are refused; merged IDs are listed, with a warning when their variable labels
+  differ.
+* ⑥ reverse-item naming rule: trailing `r` (default, as before), leading `r`, or off.
+* ⑥ `wave_m` is called 「時間點」 with a selectable unit (months by default). Negative or
+  non-numeric values and `visit_id` collisions caused by `_` are refused.
+* ⑥ labelled cohort / sex columns can be written as codes or labels; missing codes in them
+  are flagged. An item that is text in one file is skipped only in that file. The item
+  table / settings parser accepts BOM, SAV label columns, Y/N and `1=0,2=1`, and stops with
+  an explanation when it cannot read a row; items with no answers need no domain.
+* Other: empty or header-only files are errors; semicolon and tab separated CSV files are
+  detected; uploading the same file twice is flagged; wave names that differ only in case
+  are refused; ID detection also recognises `w3id`, 學號 and 編號.
+
 # kitJoin 0.4.3
 
 * Downloads now always carry the file name and extension, including names with Chinese
