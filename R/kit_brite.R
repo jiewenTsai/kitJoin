@@ -130,6 +130,15 @@ a { color: var(--nb-green); text-decoration-thickness: 2px; text-underline-offse
   box-shadow: var(--nb-shadow);
   overflow: hidden;
 }
+/* 圖的下面留白：.kit-hint 預設有負的上邊距（貼近上面的輸入框），接在圖下面時會壓到 x 軸 */
+.html-widget-output,
+.shiny-plot-output {
+  margin-bottom: 1.2rem;
+}
+.html-widget-output + .kit-hint,
+.shiny-plot-output + .kit-hint {
+  margin-top: 0;
+}
 
 /* ── 表格：黑色表頭，細黑分隔線，沒有陰影 ─────────────────────── */
 .table {
