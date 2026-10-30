@@ -27,7 +27,8 @@ mod_reshape_ui <- function(id) {
         "長轉寬用 tidyr::pivot_wider()，寬轉長用 tidyr::pivot_longer()，預設值同 tidyr。",
         "長轉寬不做 values_fn：id_cols × names_from 有重複時停下並列出重複列，",
         "不會默默彙總，也不會產生 list 欄。"
-      )
+      ),
+      diagram = reshape_diagram()
     ),
     shiny::uiOutput(ns("source_note")),
     shiny::fluidRow(
@@ -558,4 +559,16 @@ reshape_source_note_ui <- function(n_files, source, code_cells, ns) {
     ))
   }
   kit_source_note_ui(max(n_files, 2L), source, code_cells, ns)
+}
+
+#' 頁首的圖解：長轉寬（預設的方向）
+#' @noRd
+reshape_diagram <- function() {
+  kit_diagram(
+    before = kit_dg_table(
+      data.frame(id = c(1, 1, 2), item = c("q1", "q2", "q1"), score = c(4, 5, 3)), "長格式"
+    ),
+    after = kit_dg_table(data.frame(id = c(1, 2), q1 = c(4, 3), q2 = c(5, NA)), "寬格式"),
+    caption = "長轉寬：每人每題一列，變成每人一列、各題並排（缺的組合是空白）；寬轉長則倒過來"
+  )
 }

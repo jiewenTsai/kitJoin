@@ -14,7 +14,8 @@ mod_attrition_ui <- function(id) {
       ),
       output = "前期的全部資料，加上一個 attrition 欄：0 = 留存，1 = 流失。列數等於前期樣本列數。",
       note = "後期樣本只用來比對 ID，後期的其他變項不會出現在結果中。",
-      technical = "前期的每一列，若其 ID 出現在後期樣本中則為留存；ID 空白的列無法比對，attrition 留空。"
+      technical = "前期的每一列，若其 ID 出現在後期樣本中則為留存；ID 空白的列無法比對，attrition 留空。",
+      diagram = attrition_diagram()
     ),
     shiny::uiOutput(ns("source_note")),
     shiny::fluidRow(
@@ -297,4 +298,20 @@ mod_attrition_server <- function(id, files, working, goto) {
     # 這一頁的狀態（步驟分頁打 ✓ 用）
     list(state = shiny::reactive(status()$state))
   })
+}
+
+#' 頁首的圖解：前期的每個人，後期還有沒有資料
+#' @noRd
+attrition_diagram <- function() {
+  kit_diagram(
+    before = list(
+      kit_dg_table(data.frame(id = c(1, 2, 3), score = c(5, 3, 4)), "前期（t1）"),
+      kit_dg_table(data.frame(id = c(1, 3), score = c(6, 2)), "後期（t2）")
+    ),
+    after = kit_dg_table(
+      data.frame(id = c(1, 2, 3), score = c(5, 3, 4), attrition = c("0 留存", "1 流失", "0 留存")),
+      "結果", added = "attrition"
+    ),
+    caption = "以前期的人為準：後期還有資料的是留存（0），沒有的是流失（1）"
+  )
 }

@@ -526,5 +526,46 @@ details > summary {
 .kit-items tr.kit-row-off td { color: #9a9a9a; }
 .kit-muted { color: #8a8a8a; }
 .kit-bulk { margin-top: .6rem; }
+
+/* ── 新元件：圖解（前 → 後） ── */
+/* 「這一頁做什麼」下面的小圖解（kit_diagram()）：幾張小表 → 結果，下面一行白話說明。
+   配角：不加框、表格跟著內容寬、1px 細線、淡色表頭（不是大資料表的黑表頭）；
+   新加的欄（wave、attrition）淡天藍底，欄名後面寫「（新）」，不只靠顏色；
+   空的格子寫灰色的「（空）」。窄螢幕時「前」在上、箭頭朝下、「後」在下。 */
+.kit-guide-wrap > .kit-guide-page { margin: 0; }
+/* 外層是 .kit-guide 時，「這一頁做什麼」那一行維持原本的小字灰色（不套用說明框裡收合標題的綠色） */
+.kit-guide-wrap > .kit-guide-page > summary { font-size: 0.9rem; color: #4d4d4d; }
+.kit-diagram { margin: 0.8rem 0 0.1rem; }
+.kit-dg-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.1rem; }
+.kit-dg-before { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.5rem 1.1rem; }
+.kit-dg-arrow { font-size: 1.35rem; line-height: 1; color: var(--nb-ink); }
+.kit-dg-table {
+  border-collapse: collapse; width: auto; margin: 0;
+  font-size: 0.82rem; line-height: 1.35; color: var(--nb-ink); background: var(--nb-card);
+}
+.kit-dg-table caption {
+  caption-side: top; padding: 0 0 0.2rem; text-align: left;
+  font-size: 0.82rem; color: #5a5a5a;
+}
+.kit-dg-table th, .kit-dg-table td {
+  border: 1px solid var(--nb-ink); padding: 0.12rem 0.55rem; white-space: nowrap; text-align: center;
+}
+.kit-dg-table thead th { background: var(--nb-page); font-weight: 700; }
+.kit-dg-table td { font-family: var(--bs-font-monospace); }
+.kit-dg-table .kit-dg-added { background: var(--nb-sky); }
+.kit-dg-new { font-weight: 400; }
+.kit-dg-empty { color: #5a5a5a; font-family: var(--bs-body-font-family); }
+.kit-dg-caption { margin: 0.45rem 0 0; font-size: 0.82rem; color: #5a5a5a; }
+/* 串接方式的小比較（放在「要保留哪些人？」下面）：文字欄靠左、可以換行 */
+.kit-dg-compare { margin: -0.3rem 0 1rem; }
+.kit-dg-compare .kit-dg-table th, .kit-dg-compare .kit-dg-table td {
+  white-space: normal; text-align: left; font-family: var(--bs-body-font-family);
+}
+.kit-dg-compare .kit-dg-table tbody th { font-weight: 400; }
+.kit-dg-compare .kit-dg-table td:nth-child(2) { white-space: nowrap; }
+@media (max-width: 576px) {
+  .kit-dg-flow { flex-direction: column; align-items: flex-start; }
+  .kit-dg-arrow { transform: rotate(90deg); margin-left: 1rem; }
+}
 )---"
 }

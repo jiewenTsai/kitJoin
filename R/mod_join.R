@@ -16,7 +16,8 @@ mod_join_ui <- function(id) {
       technical = paste0(
         "依序以 dplyr 的 left_join / inner_join / full_join 合併，ID 空白的列不互相配對；",
         "非 ID 欄位依波次名稱加後綴（t1 → _t1）避免同名衝突。"
-      )
+      ),
+      diagram = join_diagram()
     ),
     shiny::uiOutput(ns("source_note")),
     shiny::checkboxInput(
@@ -370,4 +371,19 @@ watch_goto_links <- function(input, goto) {
   shiny::observeEvent(input$goto_upload, goto("upload"))
   shiny::observeEvent(input$goto_upload_status, goto("upload"))
   shiny::observeEvent(input$goto_missing, goto("missing"))
+}
+
+#' 頁首的圖解：預設（向後追蹤樣本）怎麼左右接起來
+#' @noRd
+join_diagram <- function() {
+  kit_diagram(
+    before = list(
+      kit_dg_table(data.frame(id = c(1, 2), score = c(5, 3)), "第 1 波（t1）"),
+      kit_dg_table(data.frame(id = c(1, 3), score = c(6, 4)), "第 2 波（t2）")
+    ),
+    after = kit_dg_table(
+      data.frame(id = c(1, 2), score_t1 = c(5, 3), score_t2 = c(6, NA)), "結果"
+    ),
+    caption = "依 id 左右接起來：每人一列，各波的變項加上波次名稱；預設只留第 1 波有的人"
+  )
 }

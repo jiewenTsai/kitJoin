@@ -7,10 +7,11 @@
 #' @param output 輸出形式
 #' @param technical 技術說明（給想了解原理的人，預設收起；可 NULL）
 #' @param note 附注（可 NULL）
+#' @param diagram 圖解（`kit_diagram()`；可 NULL）：放在說明框外面、緊接在後面，收起時也看得到
 #' @noRd
-kit_tab_guide <- function(goal, steps, output, technical = NULL, note = NULL) {
-  shiny::tags$details(
-    class = "kit-guide kit-guide-page",
+kit_tab_guide <- function(goal, steps, output, technical = NULL, note = NULL, diagram = NULL) {
+  guide <- shiny::tags$details(
+    class = if (is.null(diagram)) "kit-guide kit-guide-page" else "kit-guide-page",
     shiny::tags$summary(
       shiny::tags$strong("這一頁做什麼："), goal,
       shiny::tags$span(class = "kit-guide-more")
@@ -28,6 +29,9 @@ kit_tab_guide <- function(goal, steps, output, technical = NULL, note = NULL) {
       }
     )
   )
+  if (is.null(diagram)) return(guide)
+  # 有圖解時：外層一個 .kit-guide（下緣的淡線），裡面是收合的說明，接著圖解
+  shiny::tags$div(class = "kit-guide kit-guide-wrap", guide, diagram)
 }
 
 #' 開啟 kitsUI 雲端版的按鈕（新分頁）
@@ -172,27 +176,20 @@ format_dims <- function(nrow, ncol, preview_cols = NULL) {
   }
 }
 
-#' 串接方法的小例子：第 1 波 A B C、第 2 波 B C D
+#' 串接方法的小比較：和頁首圖解同一個例子（第 1 波 1、2 號；第 2 波 1、3 號），三種方式各留下誰
 #' @noRd
 join_method_example <- function() {
-  row <- function(method, kept) {
-    shiny::tags$tr(shiny::tags$td(method), shiny::tags$td(kept))
-  }
-  shiny::tags$details(
-    class = "kit-example",
-    shiny::tags$summary("看例子：三種方法會留下誰？"),
-    shiny::tags$p("假設第 1 波有 A、B、C 三人，第 2 波有 B、C、D 三人："),
-    shiny::tags$table(
-      class = "table table-sm kit-example-table",
-      shiny::tags$thead(shiny::tags$tr(
-        shiny::tags$th("方法"),
-        shiny::tags$th("結果留下")
-      )),
-      shiny::tags$tbody(
-        row("向後追蹤樣本（left join）", "A、B、C（A 的第 2 波欄位是空白；D 不在第 1 波，不納入）"),
-        row("全勤樣本（inner join）", "B、C"),
-        row("全樣本（full join）", "A、B、C、D（缺席波次的欄位是空白）")
-      )
+  shiny::tags$div(
+    class = "kit-dg-compare",
+    kit_dg_table(
+      data.frame(
+        "方式" = c("向後追蹤樣本（預設）", "全勤樣本", "全樣本"),
+        "留下的人" = c("1、2 號", "1 號", "1、2、3 號"),
+        "空白的格子" = c("2 號的 t2", "沒有", "2 號的 t2、3 號的 t1"),
+        check.names = FALSE
+      ),
+      title = "三種方式各留下誰（第 1 波有 1、2 號，第 2 波有 1、3 號）",
+      row_header = TRUE
     )
   )
 }
@@ -620,4 +617,68 @@ kit_app_js <- function() {
   });
 })();
 "))
+}
+
+
+# ── 圖解：前 → 後 ────────────────────────────────────────────────────────────
+#
+# 「這一頁做什麼」下面的小圖解：兩三張只有幾列的小表，一個箭頭，下面一行白話說明。
+# 配角：不加框、表格跟著內容寬、淡色表頭；窄螢幕時「前」在上、「後」在下。
+
+#' 圖解用的小表格（2–3 欄、2–4 列）
+#'
+#' @param df data.frame（值會轉成文字）；NA 或 "" 顯示成灰色的「（空）」
+#' @param title 表名，放在 <caption>（例如「第 1 波（t1）」「結果」）
+#' @param added 這一步新加的欄名（例如 wave、attrition）：淡天藍底，欄名後面加「（新）」，不只靠顏色
+#' @param row_header 第 1 欄是列標題（<th scope="row">）
+#' @return <table class="kit-dg-table">
+#' @noRd
+kit_dg_table <- function(df, title, added = NULL, row_header = FALSE) {
+  df <- as.data.frame(df, stringsAsFactors = FALSE, check.names = FALSE)
+  cols <- names(df)
+  is_added <- cols %in% added
+  cell <- function(v, j) {
+    v <- as.character(v)
+    content <- if (is.na(v) || !nzchar(v)) shiny::tags$span(class = "kit-dg-empty", "（空）") else v
+    cls <- if (is_added[j]) "kit-dg-added"
+    if (row_header && j == 1L) shiny::tags$th(scope = "row", class = cls, content)
+    else shiny::tags$td(class = cls, content)
+  }
+  shiny::tags$table(
+    class = "kit-dg-table",
+    shiny::tags$caption(title),
+    shiny::tags$thead(shiny::tags$tr(lapply(seq_along(cols), function(j) {
+      shiny::tags$th(
+        scope = "col", class = if (is_added[j]) "kit-dg-added",
+        cols[j], if (is_added[j]) shiny::tags$span(class = "kit-dg-new", "（新）")
+      )
+    }))),
+    shiny::tags$tbody(lapply(seq_len(nrow(df)), function(i) {
+      shiny::tags$tr(lapply(seq_along(cols), function(j) cell(df[[j]][i], j)))
+    }))
+  )
+}
+
+#' 圖解：處理前的小表 → 處理後的小表，下面一行白話說明
+#'
+#' 放進 `kit_tab_guide(diagram = )`；kits 作答檔等其他分頁也可以用。
+#'
+#' @param before 處理前的小表：一個 `kit_dg_table()` 或它們的 list（並排）
+#' @param after 處理後的小表：一個 `kit_dg_table()`
+#' @param caption 一行白話說明（<figcaption>，也是整張圖解的名稱）
+#' @param arrow 中間的箭頭（窄螢幕時轉成向下）
+#' @return <figure class="kit-diagram">
+#' @noRd
+kit_diagram <- function(before, after, caption, arrow = "→") {
+  if (inherits(before, "shiny.tag")) before <- list(before)
+  shiny::tags$figure(
+    class = "kit-diagram",
+    shiny::tags$div(
+      class = "kit-dg-flow",
+      shiny::tags$div(class = "kit-dg-before", before),
+      shiny::tags$div(class = "kit-dg-arrow", `aria-hidden` = "true", arrow),
+      shiny::tags$div(class = "kit-dg-after", after)
+    ),
+    shiny::tags$figcaption(class = "kit-dg-caption", caption)
+  )
 }

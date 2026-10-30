@@ -15,7 +15,8 @@ mod_stack_ui <- function(id) {
       technical = paste0(
         "以 dplyr::bind_rows() 垂直合併：同名欄對齊，只出現在部分檔案的欄位在其他波填 NA；",
         "同名欄型別不一致（例如一波數字、一波文字）時統一轉成文字。"
-      )
+      ),
+      diagram = stack_diagram()
     ),
     shiny::uiOutput(ns("source_note")),
     shiny::uiOutput(ns("settings_line")),
@@ -159,4 +160,20 @@ mod_stack_server <- function(id, files, working, goto) {
     # 這一頁的狀態（步驟分頁打 ✓ 用）
     list(state = shiny::reactive(status()$state))
   })
+}
+
+#' 頁首的圖解：各波上下疊起來，加上 wave 欄
+#' @noRd
+stack_diagram <- function() {
+  kit_diagram(
+    before = list(
+      kit_dg_table(data.frame(id = c(1, 2), score = c(5, 3)), "第 1 波（t1）"),
+      kit_dg_table(data.frame(id = c(1, 3), score = c(6, 4)), "第 2 波（t2）")
+    ),
+    after = kit_dg_table(
+      data.frame(wave = c("t1", "t1", "t2", "t2"), id = c(1, 2, 1, 3), score = c(5, 3, 6, 4)),
+      "結果", added = "wave"
+    ),
+    caption = "上下疊起來：每人每一波一列，新的 wave 欄標示是哪一波"
+  )
 }

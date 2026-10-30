@@ -31,7 +31,8 @@ mod_missing_ui <- function(id) {
         "依數值標籤：每一欄只轉換自己的數值標籤含關鍵字（遺漏、跳答、不適用…）的值，",
         "而且代碼要是負數或大於其他選項的值（例如 1–5 分的 98、99），",
         "所以量表中間的「不清楚」或剛好等於 99 的真實數值（例如體重 99 公斤）不會被轉換。"
-      )
+      ),
+      diagram = missing_diagram()
     ),
     shiny::uiOutput(ns("source_note")),
     shiny::radioButtons(
@@ -512,5 +513,15 @@ na_summary_table <- function(file_names, dfs, converted) {
     替換為NA的格數 = purrr::map_int(converted, function(x) {
       if (is.null(x$detail)) 0L else as.integer(sum(x$detail$合計))
     })
+  )
+}
+
+#' 頁首的圖解：遺漏值代碼變成空白
+#' @noRd
+missing_diagram <- function() {
+  kit_diagram(
+    before = kit_dg_table(data.frame(id = c(1, 2), q1 = c(4, 9999), q2 = c(99, 3)), "處理前"),
+    after = kit_dg_table(data.frame(id = c(1, 2), q1 = c(4, NA), q2 = c(NA, 3)), "處理後"),
+    caption = "遺漏值代碼（例如 99、9999）改成空白（NA）；其他的值不變"
   )
 }
