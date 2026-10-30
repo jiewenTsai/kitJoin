@@ -13,22 +13,26 @@ mod_upload_ui <- function(id) {
         "在下方預覽確認中文、數字顯示正常"
       ),
       output = paste0(
-        "檔案只是載入，還沒有合併。1 個檔案可以用 ②、⑥、⑦；",
-        "③ ④ ⑤（串接、疊加、流失樣本）需要 2 個以上。"
+        "檔案只是載入，還沒有合併。1 個檔案可以用遺漏值轉 NA、kits 作答檔、長寬互轉；",
+        "寬格式串接、長格式疊加、流失樣本需要 2 個以上。"
       ),
       technical = paste0(
         "CSV 會依序嘗試 UTF-8 與 BIG5（CP950）編碼；都不符合時以 Latin1 讀入並提醒可能是亂碼。",
         "欄位型別以整個檔案判斷，SAV 檔保留變項標籤與數值標籤。"
       )
     ),
-    shiny::fileInput(
-      ns("files"),
-      "加入檔案（可一次選多個）",
-      multiple = TRUE,
-      accept = c(".csv", ".sav", ".zsav"),
-      buttonLabel = "選擇檔案…",
-      placeholder = "尚未選擇檔案",
-      width = "100%"
+    # 這一頁的主要動作是「選擇檔案…」：用 kit-file-primary 畫成主要按鈕
+    shiny::tags$div(
+      class = "kit-file-primary",
+      shiny::fileInput(
+        ns("files"),
+        "加入檔案（可一次選多個）",
+        multiple = TRUE,
+        accept = c(".csv", ".sav", ".zsav"),
+        buttonLabel = "選擇檔案…",
+        placeholder = "尚未選擇檔案",
+        width = "100%"
+      )
     ),
     shiny::tags$small(
       class = "kit-hint",
@@ -37,9 +41,8 @@ mod_upload_ui <- function(id) {
         kit_max_upload_mb()
       )
     ),
-    shiny::tags$details(
-      class = "kit-example",
-      shiny::tags$summary("進階：SPSS 檔的中文編碼"),
+    kit_advanced(
+      title = "進階設定：SPSS 檔的中文編碼",
       shiny::radioButtons(
         ns("sav_encoding"), NULL,
         choices = c(
@@ -54,11 +57,13 @@ mod_upload_ui <- function(id) {
         "只影響 SAV 檔。改了以後，請把檔案移除再重新加入才會套用。"
       )
     ),
+    shiny::uiOutput(ns("status")),
     shiny::uiOutput(ns("file_list")),
-    shiny::uiOutput(ns("label_check")),
-    shiny::uiOutput(ns("next_step")),
-    shiny::uiOutput(ns("preview")),
-    kit_code_panel(ns("code"))
+    kit_details_row(
+      kit_detail("預覽檔案內容（確認中文、數字顯示正常）", shiny::uiOutput(ns("preview"))),
+      kit_code_panel(ns("code"))
+    ),
+    shiny::uiOutput(ns("next_step"))
   )
 }
 
@@ -73,6 +78,8 @@ mod_upload_server <- function(id, goto) {
     # 波次名稱另外存，打字時才不會讓檔案清單重畫
     labels <- shiny::reactiveValues()
     n_added <- 0L
+    # 最近一次加入時讀不了的檔案（狀態框列出來；下次加入時清掉）
+    failed <- shiny::reactiveVal(character(0))
 
     keys <- shiny::reactive(purrr::map_chr(records(), "key"))
     current_labels <- shiny::reactive({
@@ -115,6 +122,7 @@ mod_upload_server <- function(id, goto) {
     shiny::observeEvent(input$files, {
       uploads <- input$files
       recs <- records()
+      bad <- character(0)
       for (i in seq_len(nrow(uploads))) {
         name <- uploads$name[i]
         read <- tryCatch({
@@ -135,6 +143,7 @@ mod_upload_server <- function(id, goto) {
             type = "error",
             duration = KIT_NOTIFY_ERROR_SECONDS
           )
+          bad <- c(bad, msg)
           next
         }
         # 同一個檔案加兩次通常是不小心：照樣加入，但提醒
@@ -160,6 +169,7 @@ mod_upload_server <- function(id, goto) {
         recs[[length(recs) + 1L]] <- c(list(key = key, name = name), read)
         watch_row(key)
       }
+      failed(bad)
       records(recs)
     })
 
@@ -170,10 +180,7 @@ mod_upload_server <- function(id, goto) {
       rows <- purrr::imap(recs, function(r, pos) {
         btn <- function(prefix, label, show) {
           if (!show) return(NULL)
-          shiny::actionButton(
-            ns(paste0(prefix, r$key)), label,
-            class = "btn-sm btn-outline-secondary"
-          )
+          kit_button(ns(paste0(prefix, r$key)), label)
         }
         shiny::tags$tr(
           shiny::tags$td(pos),
@@ -197,10 +204,7 @@ mod_upload_server <- function(id, goto) {
             btn("down_", "↓ 下移", pos < n)
           ),
           shiny::tags$td(
-            shiny::actionButton(
-              ns(paste0("remove_", r$key)), "移除",
-              class = "btn-sm btn-outline-danger"
-            )
+            kit_button(ns(paste0("remove_", r$key)), "移除", "danger")
           )
         )
       })
@@ -225,59 +229,95 @@ mod_upload_server <- function(id, goto) {
       )
     })
 
-    output$label_check <- shiny::renderUI({
+    # 狀態框：加入了幾個檔案；讀不了的檔案、亂碼、格式異常要注意；波次名稱有問題時停下來
+    status <- shiny::reactive({
       recs <- records()
-      if (length(recs) == 0) return(NULL)
-      problem <- check_wave_labels(
-        current_labels(),
-        purrr::map_chr(recs, "name")
+      bad <- failed()
+      if (length(recs) == 0) {
+        if (length(bad) == 0) return(kit_status())
+        return(kit_status("error", "沒有加入任何檔案：檔案讀不了。", warnings = bad))
+      }
+      problem <- check_wave_labels(current_labels(), purrr::map_chr(recs, "name"))
+      if (!is.null(problem)) {
+        return(kit_status("error", "波次名稱要修改，改好以後才能串接或疊加。", warnings = problem))
+      }
+      n_rows <- sum(purrr::map_int(recs, function(r) nrow(r$data)))
+      warns <- c(
+        bad,
+        purrr::map_chr(purrr::keep(recs, function(r) identical(r$encoding, "Latin1")), function(r) {
+          paste0(r$name, "：中文可能是亂碼，請用 Excel 另存為「CSV UTF-8」後重新加入。")
+        }),
+        purrr::map_chr(purrr::keep(recs, function(r) r$n_problems > 0), function(r) {
+          paste0(r$name, "：有 ", kit_num(r$n_problems), " 處資料格式異常（例如欄位數不對）。")
+        })
       )
-      if (is.null(problem)) return(NULL)
-      shiny::tags$div(class = "alert alert-danger kit-label-check", problem)
+      kit_done_status(
+        paste0("已加入 ", length(recs), " 個檔案，共 ", kit_num(n_rows), " 列。"),
+        warnings = warns
+      )
     })
+    output$status <- shiny::renderUI(make_status_ui(status()))
 
+    # 最下面的「下一步」：資料裡有遺漏值代碼時建議先到 ②；2 個以上的檔案時到 ③；
+    # 下面列出每一頁適合做什麼
+    has_codes <- shiny::reactive({
+      count_code_cells(
+        purrr::map(records(), "data"),
+        keywords = parse_na_keywords(kit_na_label_keywords_default())
+      ) > 0
+    })
+    next_target <- shiny::reactive({
+      n <- length(records())
+      if (n == 0) NULL else if (has_codes()) "missing" else if (n >= 2) "join"
+    })
     output$next_step <- shiny::renderUI({
       n <- length(records())
       if (n == 0) return(NULL)
-      if (n == 1) {
-        link1 <- function(id, text) shiny::actionLink(ns(id), text)
-        return(shiny::tags$div(
-          class = "kit-callout kit-next-step",
+      link <- function(id, text) shiny::actionLink(ns(id), text)
+      uses <- if (n == 1) {
+        shiny::tagList(
           shiny::tags$strong("已加入 1 個檔案。可以用："),
           shiny::tags$ul(
-            shiny::tags$li("只改遺漏值代碼 → 到 ", link1("goto_missing", "② 遺漏值轉 NA"),
+            shiny::tags$li("只改遺漏值代碼 → 到 ", link("goto_missing", "遺漏值轉 NA"),
                            "，處理後直接下載"),
             shiny::tags$li("要做 kits 或 kitsUI 的作答檔 → 到 ",
-                           link1("goto_kitsdata", "⑥ 轉成 kits 作答檔")),
-            shiny::tags$li("要長轉寬或寬轉長 → 到 ", link1("goto_reshape", "⑦ 長寬互轉"))
+                           link("goto_kitsdata", "kits 作答檔")),
+            shiny::tags$li("要長轉寬或寬轉長 → 到 ", link("goto_reshape", "長寬互轉"))
           ),
-          shiny::tags$small(
-            class = "kit-hint",
-            "串接、疊加與流失樣本（③ ④ ⑤）需要至少 2 個波次的檔案。"
-          )
-        ))
-      }
-      link <- function(id, text) shiny::actionLink(ns(id), text)
-      shiny::tags$div(
-        class = "kit-callout kit-next-step",
-        shiny::tags$strong("下一步："),
-        shiny::tags$ul(
-          if (count_code_cells(
-            purrr::map(records(), "data"),
-            keywords = parse_na_keywords(kit_na_label_keywords_default())
-          ) > 0) {
-            shiny::tags$li(
-              "資料中有遺漏值代碼（例如 9999，或數值標籤寫著「遺漏值」的值）→ 建議先到 ",
-              link("goto_missing", "② 遺漏值轉 NA"), "（選用）"
-            )
-          },
-          shiny::tags$li("要「每人一列、各波變項並排」→ 到 ", link("goto_join", "③ 寬格式串接")),
-          shiny::tags$li("要「每人每波一列」→ 到 ", link("goto_stack", "④ 長格式疊加")),
-          shiny::tags$li("要標記誰在後期沒有繼續參加 → 到 ", link("goto_attrition", "⑤ 流失樣本")),
-          shiny::tags$li("要做 kits 或 kitsUI 的作答檔 → 到 ", link("goto_kitsdata", "⑥ 轉成 kits 作答檔")),
-          shiny::tags$li("要長轉寬或寬轉長 → 到 ", link("goto_reshape", "⑦ 長寬互轉"))
+          "寬格式串接、長格式疊加與流失樣本需要至少 2 個波次的檔案。"
         )
+      } else {
+        shiny::tagList(
+          shiny::tags$strong("接下來可以："),
+          shiny::tags$ul(
+            if (has_codes()) {
+              shiny::tags$li(
+                "資料中有遺漏值代碼（例如 9999，或數值標籤寫著「遺漏值」的值）→ 建議先到 ",
+                link("goto_missing", "遺漏值轉 NA"), "（選用）"
+              )
+            },
+            shiny::tags$li("要「每人一列、各波變項並排」→ 到 ", link("goto_join", "寬格式串接")),
+            shiny::tags$li("要「每人每波一列」→ 到 ", link("goto_stack", "長格式疊加")),
+            shiny::tags$li("要標記誰在後期沒有繼續參加 → 到 ", link("goto_attrition", "流失樣本")),
+            shiny::tags$li("要做 kits 或 kitsUI 的作答檔 → 到 ", link("goto_kitsdata", "kits 作答檔")),
+            shiny::tags$li("要長轉寬或寬轉長 → 到 ", link("goto_reshape", "長寬互轉"))
+          )
+        )
+      }
+      if (n == 1 && has_codes()) {
+        uses <- shiny::tagList(uses, " 資料中有遺漏值代碼，建議先到「遺漏值轉 NA」。")
+      }
+      target <- next_target()
+      kit_next_step(
+        text = uses,
+        button_id = if (!is.null(target)) ns("go_next"),
+        label = switch(target %||% "", missing = "下一步：遺漏值轉 NA",
+                       join = "下一步：寬格式串接", NULL)
       )
+    })
+    shiny::observeEvent(input$go_next, {
+      target <- next_target()
+      if (!is.null(target)) goto(target)
     })
     for (tab in c("missing", "join", "stack", "attrition", "kitsdata", "reshape")) {
       local({
@@ -288,7 +328,7 @@ mod_upload_server <- function(id, goto) {
 
     output$preview <- shiny::renderUI({
       recs <- records()
-      if (length(recs) == 0) return(NULL)
+      if (length(recs) == 0) return(shiny::tags$p(class = "kit-hint", "還沒有加入檔案。"))
       choices <- stats::setNames(
         purrr::map_chr(recs, "key"),
         purrr::map_chr(recs, "name")
@@ -296,15 +336,13 @@ mod_upload_server <- function(id, goto) {
       selected <- shiny::isolate(input$preview_key)
       if (is.null(selected) || !selected %in% choices) selected <- choices[[1]]
       shiny::tagList(
-        shiny::hr(),
-        shiny::h4("預覽"),
         shiny::selectInput(
           ns("preview_key"),
           "要預覽的檔案",
           choices = choices,
           selected = selected
         ),
-        shiny::textOutput(ns("preview_meta")),
+        shiny::tags$p(class = "kit-hint", shiny::textOutput(ns("preview_meta"), inline = TRUE)),
         shiny::tags$div(
           class = "kit-table-scroll",
           shiny::tableOutput(ns("preview_table"))
@@ -321,10 +359,7 @@ mod_upload_server <- function(id, goto) {
     })
     output$preview_meta <- shiny::renderText({
       df <- preview_record()$data
-      paste0(
-        format_dims(nrow(df), ncol(df), KIT_PREVIEW_COLS),
-        "；以下為前 ", KIT_PREVIEW_ROWS, " 列。"
-      )
+      kit_rows_note(nrow(df), ncol(df), KIT_PREVIEW_ROWS, KIT_PREVIEW_COLS)
     })
     output$preview_table <- shiny::renderTable(
       kit_preview_table(preview_record()$data),
@@ -343,6 +378,8 @@ mod_upload_server <- function(id, goto) {
       kit_code_blocks(code_read(code_files_from(files)))
     )
 
+    # 這一頁的狀態（步驟分頁打 ✓ 用）
+    files$state <- shiny::reactive(status()$state)
     files
   })
 }

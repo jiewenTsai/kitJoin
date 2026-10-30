@@ -109,7 +109,7 @@ mod_kitsdata_ui <- function(id) {
     shiny::actionButton(ns("run"), "執行轉換", class = "btn-primary"),
     shiny::uiOutput(ns("status")),
     shiny::uiOutput(ns("result")),
-    kit_code_panel(ns("code"), title = "用 R 怎麼做？（tidyverse 版）")
+    kit_code_panel(ns("code"))
   )
 }
 
@@ -268,7 +268,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       n <- length(files$keys())
       if (n == 0) {
         return(shiny::tags$div(
-          class = "kit-callout kit-callout-warning",
+          class = "kit-callout kit-callout-warn",
           "請先到「① 上傳檔案」加入寬格式的資料檔（一個或多個）。"
         ))
       }
@@ -283,7 +283,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         # ② 的設定或檔案改過、還沒重新執行（fix-io 分支的 source = "stale"）
         if (identical(src, "stale")) {
           shiny::tags$div(
-            class = "kit-callout kit-callout-warning",
+            class = "kit-callout kit-callout-warn",
             "② 的設定改過了，請",
             shiny::actionLink(ns("goto_missing_stale"), "重新執行「② 遺漏值轉 NA」"),
             "，這一頁才會用到新的結果。"
@@ -295,6 +295,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     # 疑似遺漏值代碼還在資料裡：⑥ 不改、照原樣輸出；提醒先到 ② 改成 NA 再回來（不擋轉換）
     shiny::observeEvent(input$goto_missing, goto("missing"))
     shiny::observeEvent(input$goto_missing_stale, goto("missing"))
+    shiny::observeEvent(input$goto_upload_status, goto("upload"))
     output$codes_note <- shiny::renderUI({
       if (length(working$data()) == 0) return(NULL)
       s <- settings()
@@ -304,7 +305,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       n <- n_items + n_side
       if (n == 0) return(NULL)
       shiny::tags$div(
-        class = "kit-callout kit-callout-warning",
+        class = "kit-callout kit-callout-warn",
         paste0(
           "題目、性別、wave_m 或 age_m 有 ", format(n, big.mark = ","), " 格疑似遺漏值代碼",
           "（值標籤是「遺漏值」「跳答」「不適用」這類、② 的代碼、7777 以上，",
@@ -488,7 +489,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     output$wave_unit_note <- shiny::renderUI({
       if (identical(wave_unit(), "month")) return(NULL)
       shiny::tags$div(
-        class = "kit-callout kit-callout-warning",
+        class = "kit-callout kit-callout-warn",
         "作答檔的 wave_m 只放數字，單位不會寫進去。kitsUI 目前把 wave_m 當成月：",
         "圖的時間軸、依 wave_m 借題庫參數的規則、age50 這類以月計算的結果，",
         "用年或波次序號時要自己換算或解讀。"
@@ -503,7 +504,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       example <- kitsdata_visit_example(first$dfs[[1]], cohorts()[[1]],
                                         kits_file_map(first$spec$map, per_file(), 1))
       cls <- if (is.null(rule$parts) || rule$parts[3] != "wave_m") "kit-source-note" else
-        "kit-callout kit-callout-warning"
+        "kit-callout kit-callout-warn"
       shiny::tags$div(
         class = cls, rule$note,
         if (!is.null(example)) shiny::tags$span("例子：", shiny::tags$code(example))
@@ -734,7 +735,10 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           if (length(out$problems) > 0) {
             kit_status(
               "error",
-              paste0("有 ", length(out$problems), " 個問題要先處理，處理後再按一次「執行轉換」："),
+              paste0(
+                "還不能轉換：有 ", length(out$problems), " 個問題要先處理，",
+                "處理後再按一次「執行轉換」。"
+              ),
               warnings = out$problems, notes = out$notes
             )
           } else {
@@ -742,15 +746,16 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
             result(out)
             kit_done_status(
               paste0(
-                "檢查完成！作答檔會有 ", format(out$n_rows, big.mark = ","), " 列、",
-                format(out$n_visits, big.mark = ","), " 個列次、", out$n_items, " 題。",
-                "請按下方按鈕下載。"
+                "檢查完成：作答檔會有 ", kit_num(out$n_rows), " 列、",
+                kit_num(out$n_visits), " 個列次、", kit_num(out$n_items), " 題。"
               ),
               warnings = out$warnings, notes = out$notes
             )
           }
         }),
-        error = function(e) kit_error_status(e, "轉換")
+        error = function(e) {
+          kit_error_status(e, "轉換", kit_upload_todo(ns, length(files$keys())))
+        }
       )
       status(st)
       kit_notify(st)
@@ -805,6 +810,9 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         text_fix = text_fix
       ), base = NULL))
     })
+
+    # 這一頁的狀態（步驟分頁打 ✓ 用）
+    list(state = shiny::reactive(status()$state))
   })
 }
 

@@ -12,7 +12,7 @@
 #' @noRd
 stack_waves <- function(dfs, file_names, wave_labels) {
   if (length(dfs) < 2) {
-    kit_abort("需要至少 2 個檔案才能疊加。請到「① 上傳檔案」再加入一個波次的檔案。")
+    kit_abort("需要至少 2 個檔案才能疊加。請到「上傳檔案」再加入一個波次的檔案。")
   }
   problem <- check_wave_labels(wave_labels, file_names, purpose = "stack")
   if (!is.null(problem)) kit_abort(problem)

@@ -54,12 +54,16 @@ mod_reshape_ui <- function(id) {
       mod_pivot_longer_ui(ns("longer"))
     ),
     shiny::uiOutput(ns("direction_note")),
-    shiny::actionButton(ns("run"), "執行轉換", class = "btn-primary"),
+    shiny::uiOutput(ns("settings_line")),
+    kit_button(ns("run"), "執行轉換", "primary"),
     shiny::uiOutput(ns("status")),
     shiny::uiOutput(ns("blocked")),
-    kit_download_ui(ns),
     shiny::uiOutput(ns("result")),
-    kit_code_panel(ns("code"), title = "用 R 怎麼做？（tidyverse 版）")
+    kit_download_ui(ns),
+    kit_details_row(
+      shiny::uiOutput(ns("result_details"), inline = TRUE),
+      kit_code_panel(ns("code"))
+    )
   )
 }
 
@@ -99,18 +103,10 @@ wider_controls_ui <- function(ns) {
       )
     ),
     shiny::uiOutput(ns("id_note")),
-    shiny::tags$div(
-      class = "kit-code-panel",
-      bslib::accordion(
-        id = ns("advanced"),
-        open = FALSE,
-        bslib::accordion_panel(
-          title = "進階：欄名格式、欄位排列、缺的格子",
-          value = "advanced",
-          icon = shiny::icon("sliders"),
-          wider_advanced_ui(ns)
-        )
-      )
+    kit_advanced(
+      id = ns("advanced"),
+      title = "進階設定：欄名格式（分隔符號）、欄位排列、缺的格子",
+      wider_advanced_ui(ns)
     )
   )
 }
@@ -271,8 +267,7 @@ mod_reshape_server <- function(id, files, working, goto) {
     output$guess <- shiny::renderUI({
       all <- cols()
       if (length(all) == 0) return(NULL)
-      shiny::tags$div(
-        class = "kit-callout",
+      kit_callout(
         shiny::uiOutput(ns("guess_text")),
         shiny::tags$div(
           class = "d-flex flex-wrap align-items-end gap-3 mt-2",
@@ -293,10 +288,7 @@ mod_reshape_server <- function(id, files, working, goto) {
       to <- guess()$suggest
       if (is.null(to) || identical(to, input$direction)) return(NULL)
       label <- c(wider = "長轉寬", longer = "寬轉長")[[to]]
-      shiny::actionButton(
-        ns("guess_flip_btn"), paste0("改選「", label, "」"),
-        class = "btn-sm btn-outline-primary"
-      )
+      kit_button(ns("guess_flip_btn"), paste0("改選「", label, "」"))
     })
     shiny::observeEvent(input$guess_flip_btn, {
       to <- guess()$suggest
@@ -306,7 +298,7 @@ mod_reshape_server <- function(id, files, working, goto) {
     output$direction_note <- shiny::renderUI({
       note <- reshape_direction_note(guess()$format, input$direction)
       if (is.null(note)) return(NULL)
-      shiny::tags$div(class = "kit-callout kit-callout-warning", note)
+      kit_callout(warn = TRUE, note)
     })
 
     output$id_note <- shiny::renderUI({
@@ -327,15 +319,11 @@ mod_reshape_server <- function(id, files, working, goto) {
     # kitsUI 分數表：顯示套用預設的按鈕（只填控制項，不自動執行）
     output$preset <- shiny::renderUI({
       if (!is_kitsui_score_table(cols())) return(NULL)
-      shiny::tags$div(
-        class = "kit-callout",
+      kit_callout(
         "這個檔案看起來是 kitsUI 的分數表（一列 = 一次施測 × 一個領域）。",
-        shiny::actionButton(
-          ns("apply_preset"), "套用 kitsUI 分數表預設",
-          class = "btn-sm btn-outline-primary ms-2"
-        ),
+        kit_button(ns("apply_preset"), "套用 kitsUI 分數表預設"),
         shiny::tags$div(
-          class = "small text-muted mt-1",
+          class = "kit-hint",
           "只會填好下方設定，不會自動執行；values_from 多放 scale，",
           "d_score 空白時才分得出是沒測這個領域，還是有測但還沒放上 D 量尺。"
         )
@@ -352,11 +340,36 @@ mod_reshape_server <- function(id, files, working, goto) {
       shiny::updateRadioButtons(session, "name_mode", selected = "glue")
       shiny::updateTextInput(session, "names_glue", value = p$names_glue)
       shiny::updateRadioButtons(session, "names_vary", selected = p$names_vary)
-      bslib::accordion_panel_open("advanced", values = "advanced", session = session)
+      session$sendCustomMessage("kit-open-details", ns("advanced"))
       shiny::showNotification(
         "已填入 kitsUI 分數表預設。請確認後按「執行轉換」。",
         type = "message", duration = KIT_NOTIFY_SECONDS
       )
+    })
+
+    # 設定摘要：「本次：t1（scores.csv） · 長轉寬 · names_from：domain · values_from：d_score」
+    output$settings_line <- shiny::renderUI({
+      p <- picked()
+      if (is.null(p)) return(NULL)
+      shown <- file_display_name(files$labels(), files$names())
+      pos <- match(input$file %||% "", files$keys())
+      args <- if (identical(input$direction, "longer")) {
+        a <- longer()
+        n <- length(a$cols)
+        c("寬轉長", if (n > 0) {
+          paste0(if (isTRUE(a$cols_exclude)) "不轉 " else "轉 ", n, " 欄")
+        } else {
+          "還沒選要轉的欄"
+        })
+      } else {
+        w <- wider()
+        c("長轉寬",
+          if (length(w$names_from) > 0) paste0("names_from：", paste(w$names_from, collapse = "、")),
+          if (length(w$values_from) > 0) {
+            paste0("values_from：", paste(w$values_from, collapse = "、"))
+          })
+      }
+      kit_settings_line(c(shown[pos], args))
     })
 
     # 檔案或設定變動後，舊結果失效
@@ -378,7 +391,7 @@ mod_reshape_server <- function(id, files, working, goto) {
       st <- tryCatch(
         shiny::withProgress(message = "正在轉換資料…", value = 0.3, {
           df <- src()
-          if (is.null(df)) kit_abort("請先到「① 上傳檔案」加入檔案。")
+          if (is.null(df)) kit_abort("請先到「上傳檔案」加入檔案。")
           out <- if (identical(input$direction, "longer")) {
             reshape_longer(df, longer())
           } else {
@@ -389,13 +402,15 @@ mod_reshape_server <- function(id, files, working, goto) {
           result(out)
           kit_done_status(
             paste0(
-              "轉換完成！結果共 ",
+              "轉換完成：結果共 ",
               format_dims(nrow(out$result), ncol(out$result)), "。"
             ),
             warnings = out$warnings
           )
         }),
-        error = function(e) kit_error_status(e, "轉換")
+        error = function(e) {
+          kit_error_status(e, "轉換", kit_upload_todo(ns, length(files$keys())))
+        }
       )
       status(st)
       kit_notify(st)
@@ -406,7 +421,7 @@ mod_reshape_server <- function(id, files, working, goto) {
       dup <- blocked()
       if (is.null(dup)) return(NULL)
       shiny::tagList(
-        shiny::h5(paste0("重複的列（共 ", nrow(dup$rows), " 列，以下最多列 50 列）")),
+        shiny::h5(paste0("重複的列（", kit_rows_note(nrow(dup$rows), NULL, 50), "）")),
         shiny::tags$div(
           class = "kit-table-scroll",
           shiny::tableOutput(ns("blocked_rows"))
@@ -428,45 +443,47 @@ mod_reshape_server <- function(id, files, working, goto) {
       run_label = "執行轉換"
     )
 
+    # 重點：結果摘要；空白格、預覽、id 欄不一致的列收在下面一排細節裡
     output$result <- shiny::renderUI({
+      res <- result()
+      if (is.null(res)) return(NULL)
+      kit_summary_ui(res$summary)
+    })
+    output$result_details <- shiny::renderUI({
       res <- result()
       if (is.null(res)) return(NULL)
       is_wider <- identical(res$direction, "wider")
       shiny::tagList(
-        kit_summary_ui(res$summary),
+        kit_detail(
+          "結果預覽",
+          shiny::tags$p(class = "kit-hint", shiny::textOutput(ns("preview_meta"), inline = TRUE)),
+          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
+        ),
         if (is_wider) {
-          shiny::tagList(
-            shiny::h4("空白格從哪裡來？"),
+          kit_detail(
+            "空白格從哪裡來？",
             shiny::tags$p(
-              class = "text-muted small",
+              class = "kit-hint",
               "轉成寬格式後，下面兩種情況都會是空白：",
               "「沒有這一列」＝原檔沒有這組 id 欄 × ", names(res$empty)[1], " 的列；",
               "「有列但空白」＝有這一列，但值本來就是空的。"
             ),
-            shiny::tags$div(
-              class = "kit-table-scroll",
-              shiny::tableOutput(ns("empty_table"))
-            )
+            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("empty_table")))
           )
         },
-        shiny::h4("結果預覽"),
-        shiny::textOutput(ns("preview_meta")),
-        shiny::tags$div(
-          class = "kit-table-scroll",
-          shiny::tableOutput(ns("preview"))
-        ),
         if (is_wider && !res$id_check$ok) {
-          kit_audit_accordion(
-            shiny::h6("id 欄不一致的列（最多列 50 列）"),
-            shiny::tags$div(
-              class = "kit-table-scroll",
-              shiny::tableOutput(ns("id_rows"))
-            )
+          kit_audit_detail(
+            shiny::h6(paste0(
+              "id 欄不一致的列（", kit_rows_note(nrow(res$id_check$rows), NULL, 50), "）"
+            )),
+            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("id_rows")))
           )
         }
       )
     })
-    output$empty_table <- shiny::renderTable(result()$empty, digits = 0)
+    output$empty_table <- shiny::renderTable(
+      result()$empty, digits = 0, format.args = list(big.mark = ",")
+    )
     output$id_rows <- shiny::renderTable(
       df_for_display(result()$id_check$rows, 50),
       striped = TRUE, spacing = "s"
@@ -474,9 +491,10 @@ mod_reshape_server <- function(id, files, working, goto) {
     output$preview_meta <- shiny::renderText({
       res <- shiny::req(result())
       paste0(
-        "轉換前 ", format_dims(res$before[1], res$before[2]), "；轉換後 ",
-        format_dims(nrow(res$result), ncol(res$result), KIT_PREVIEW_COLS),
-        "；以下為前 ", KIT_RESHAPE_PREVIEW_ROWS, " 列。"
+        "轉換前 ", format_dims(res$before[1], res$before[2]), "；轉換後",
+        kit_rows_note(
+          nrow(res$result), ncol(res$result), KIT_RESHAPE_PREVIEW_ROWS, KIT_PREVIEW_COLS
+        )
       )
     })
     output$preview <- shiny::renderTable({
@@ -500,6 +518,9 @@ mod_reshape_server <- function(id, files, working, goto) {
       }
       kit_code_blocks(snips)
     })
+
+    # 這一頁的狀態（步驟分頁打 ✓ 用）
+    list(state = shiny::reactive(status()$state))
   })
 }
 
@@ -530,10 +551,10 @@ reshape_direction_note <- function(format, direction) {
 #' @noRd
 reshape_source_note_ui <- function(n_files, source, code_cells, ns) {
   if (n_files == 0) {
-    return(shiny::tags$div(
-      class = "kit-callout kit-callout-warning",
+    return(kit_callout(
+      warn = TRUE,
       "還沒有檔案。",
-      shiny::actionLink(ns("goto_upload"), "到「① 上傳檔案」加入檔案")
+      shiny::actionLink(ns("goto_upload"), "到「上傳檔案」加入檔案")
     ))
   }
   kit_source_note_ui(max(n_files, 2L), source, code_cells, ns)

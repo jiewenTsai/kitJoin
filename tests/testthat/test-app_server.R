@@ -68,7 +68,7 @@ test_that("改了波次名稱後，舊結果失效並提示重新執行", {
     session$setInputs(`stack-run` = 1)
     expect_match(output[["stack-downloads"]]$html, "download_csv")
     session$setInputs(`upload-label_f2` = "w2")
-    expect_match(output[["stack-status"]]$html, "需要重新執行")
+    expect_match(output[["stack-status"]]$html, "要重新執行")
     expect_match(output[["stack-downloads"]]$html, "disabled")
   })
 })
@@ -109,8 +109,8 @@ test_that("只有 1 個檔案：② 可以轉換並下載，⑦ 使用 ② 處�
     session$setInputs(`upload-files` = data.frame(
       name = "one.csv", size = file.size(path), type = "text/csv", datapath = path
     ))
-    expect_match(output[["upload-next_step"]]$html, "② 遺漏值轉 NA")
-    expect_match(output[["upload-next_step"]]$html, "⑦ 長寬互轉")
+    expect_match(output[["upload-next_step"]]$html, "遺漏值轉 NA")
+    expect_match(output[["upload-next_step"]]$html, "長寬互轉")
     session$setInputs(`missing-codes` = "9999", `missing-use_downstream` = TRUE,
                       `missing-match_text` = TRUE, `missing-run` = 1)
     expect_match(output[["missing-result"]]$html, "下載處理後的檔案")
@@ -201,7 +201,7 @@ test_that("⑤ 選到出生年這種重複很多的欄，不會顯示完成（A3
     session$setInputs(`attrition-baseline` = "f1", `attrition-followup` = "f2",
                       `attrition-id_vars` = "birth")
     session$setInputs(`attrition-run` = 1)
-    expect_match(output[["attrition-status"]]$html, "沒有完成")
+    expect_match(output[["attrition-status"]]$html, "停下來")
     expect_match(output[["attrition-status"]]$html, "不是用來辨識")
   })
 })
@@ -310,17 +310,17 @@ test_that("② 改了代碼、排除欄或文字比對後，舊結果失效，�
     expect_match(output[["join-source_note"]]$html, "處理後的資料")
 
     session$setInputs(`missing-codes` = "9999, 8888")
-    expect_match(output[["missing-status"]]$html, "需要重新執行")
-    expect_match(output[["join-source_note"]]$html, "請回 ② 重新按")
+    expect_match(output[["missing-status"]]$html, "要重新執行")
+    expect_match(output[["join-source_note"]]$html, "請回「遺漏值轉 NA」重新按")
 
     session$setInputs(`missing-run` = 2)
     expect_match(output[["join-source_note"]]$html, "處理後的資料")
     session$setInputs(`missing-exclude_cols` = c("release_id", "score"))
-    expect_match(output[["join-source_note"]]$html, "請回 ② 重新按")
+    expect_match(output[["join-source_note"]]$html, "請回「遺漏值轉 NA」重新按")
 
     session$setInputs(`missing-exclude_cols` = "release_id", `missing-run` = 3)
     session$setInputs(`missing-match_text` = FALSE)
-    expect_match(output[["missing-status"]]$html, "需要重新執行")
+    expect_match(output[["missing-status"]]$html, "要重新執行")
   })
 })
 
@@ -342,8 +342,8 @@ test_that("在 ① 移除檔案：其他檔案的 ② 結果保留；加入新�
     expect_match(output[["join-source_note"]]$html, "處理後的資料")
 
     session$setInputs(`upload-files` = upload_df(w1))
-    expect_match(output[["missing-status"]]$html, "需要重新執行")
-    expect_match(output[["stack-source_note"]]$html, "請回 ② 重新按")
+    expect_match(output[["missing-status"]]$html, "要重新執行")
+    expect_match(output[["stack-source_note"]]$html, "請回「遺漏值轉 NA」重新按")
   })
 })
 

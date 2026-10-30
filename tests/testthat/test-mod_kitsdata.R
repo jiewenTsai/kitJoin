@@ -114,7 +114,7 @@ test_that("⑥：世代空白時不轉換；改設定後舊結果失效", {
     session$setInputs(`kitsdata-run` = 2)
     expect_match(output[["kitsdata-status"]]$html, "完成")
     session$setInputs(`kitsdata-map_wave` = "")
-    expect_match(output[["kitsdata-status"]]$html, "需要重新執行")
+    expect_match(output[["kitsdata-status"]]$html, "要重新執行")
     expect_match(output[["kitsdata-visit_note"]]$html, "wave_m")
   })
 })

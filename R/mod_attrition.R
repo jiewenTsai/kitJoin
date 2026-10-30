@@ -60,12 +60,15 @@ mod_attrition_ui <- function(id) {
       "沒有勾選上面的選項時，只列出前期與後期樣本都有的欄位。",
       "括號裡是「不重複的比例」，ID 應該接近 100%。"
     ),
-    shiny::br(),
-    shiny::actionButton(ns("run"), "建立流失樣本", class = "btn-primary"),
+    shiny::uiOutput(ns("settings_line")),
+    kit_button(ns("run"), "建立流失樣本", "primary"),
     shiny::uiOutput(ns("status")),
-    kit_download_ui(ns),
     shiny::uiOutput(ns("result")),
-    kit_code_panel(ns("code"))
+    kit_download_ui(ns),
+    kit_details_row(
+      shiny::uiOutput(ns("result_details"), inline = TRUE),
+      kit_code_panel(ns("code"))
+    )
   )
 }
 
@@ -169,6 +172,27 @@ mod_attrition_server <- function(id, files, working, goto) {
       if (isTRUE(input$id_per_file)) input$follow_id_vars %||% character(0) else input$id_vars
     })
 
+    # 設定摘要：「本次：前期 t1（w1.sav）→ 後期 t2（w2.sav） · ID：w1_id → w2_id」
+    output$settings_line <- shiny::renderUI({
+      if (length(files$keys()) < 2) return(NULL)
+      shown <- file_display_name(files$labels(), files$names())
+      pos <- picked()$pos
+      if (anyNA(pos)) return(NULL)
+      ids <- input$id_vars %||% character(0)
+      follow <- follow_ids() %||% character(0)
+      id_text <- if (length(ids) == 0) {
+        "ID：還沒選"
+      } else if (isTRUE(input$id_per_file) && !identical(ids, follow)) {
+        paste0("ID：", paste(ids, collapse = "＋"), " → ", paste(follow, collapse = "＋"))
+      } else {
+        paste0("ID：", paste(ids, collapse = "＋"))
+      }
+      kit_settings_line(c(
+        paste0("前期 ", shown[pos[1]], " → 後期 ", shown[pos[2]]),
+        id_text, kit_source_short(working$source())
+      ))
+    })
+
     shiny::observeEvent(
       list(working$data(), input$baseline, input$followup, input$id_vars, follow_ids()),
       {
@@ -184,7 +208,7 @@ mod_attrition_server <- function(id, files, working, goto) {
       result(NULL)
       st <- tryCatch({
         if (length(files$keys()) < 2) {
-          kit_abort("需要至少 2 個檔案。請到「① 上傳檔案」再加入一個波次的檔案。")
+          kit_abort("需要至少 2 個檔案。請到「上傳檔案」再加入一個波次的檔案。")
         }
         p <- picked()
         if (anyNA(p$pos)) kit_abort("請選擇前期與後期樣本。")
@@ -200,13 +224,15 @@ mod_attrition_server <- function(id, files, working, goto) {
         n_lost <- sum(out$result[[out$flag_col]] == 1L, na.rm = TRUE)
         kit_done_status(
           paste0(
-            "完成！前期 ", nrow(out$result), " 人中，留存 ",
-            sum(out$result[[out$flag_col]] == 0L, na.rm = TRUE),
-            " 人、流失 ", n_lost, " 人。"
+            "流失樣本建立好了：前期 ", kit_num(nrow(out$result)), " 人中，留存 ",
+            kit_num(sum(out$result[[out$flag_col]] == 0L, na.rm = TRUE)),
+            " 人、流失 ", kit_num(n_lost), " 人。"
           ),
           warnings = out$warnings, notes = out$notes
         )
-      }, error = function(e) kit_error_status(e, "建立流失樣本"))
+      }, error = function(e) {
+        kit_error_status(e, "建立流失樣本", kit_upload_todo(ns, length(files$keys()), 2L))
+      })
       status(st)
       kit_notify(st)
     })
@@ -223,20 +249,30 @@ mod_attrition_server <- function(id, files, working, goto) {
       run_label = "建立流失樣本"
     )
 
+    # 重點：摘要表；預覽收在下面一排細節裡
     output$result <- shiny::renderUI({
       res <- result()
       if (is.null(res)) return(NULL)
       shiny::tagList(
         shiny::h4("摘要"),
-        shiny::tableOutput(ns("summary")),
-        shiny::h4("結果預覽"),
-        shiny::tags$div(
-          class = "kit-table-scroll",
-          shiny::tableOutput(ns("preview"))
-        )
+        shiny::tableOutput(ns("summary"))
       )
     })
-    output$summary <- shiny::renderTable(result()$summary, digits = 0)
+    output$result_details <- shiny::renderUI({
+      res <- result()
+      if (is.null(res)) return(NULL)
+      kit_detail(
+        "結果預覽",
+        shiny::tags$p(
+          class = "kit-hint",
+          kit_rows_note(nrow(res$result), ncol(res$result), KIT_PREVIEW_ROWS, KIT_PREVIEW_COLS)
+        ),
+        shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
+      )
+    })
+    output$summary <- shiny::renderTable(
+      result()$summary, digits = 0, format.args = list(big.mark = ",")
+    )
     output$preview <- shiny::renderTable({
       res <- result()
       kit_preview_table(
@@ -257,5 +293,8 @@ mod_attrition_server <- function(id, files, working, goto) {
         follow_ids() %||% input$id_vars
       ))
     })
+
+    # 這一頁的狀態（步驟分頁打 ✓ 用）
+    list(state = shiny::reactive(status()$state))
   })
 }
