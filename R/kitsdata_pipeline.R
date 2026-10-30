@@ -16,7 +16,8 @@ KITS_COLUMNS <- tibble::tribble(
   "subj_id", "c", FALSE, "map", "孩子編號：同一個孩子的各波次相同。",
   "cohort", "c", TRUE, "cohort", "世代，例如 M03、M36（「1. 世代」）。",
   "sex", "c", FALSE, "map", "性別，例如 boy、girl。",
-  "wave_m", "d", TRUE, "map", "波次（施測月齡），例如 3、6、12。",
+  "wave_m", "d", TRUE, "map",
+  "時間點（波次）的數字，例如 3、6、12；單位在「2.」選（KIT 是施測月齡）。",
   "age_m", "d", FALSE, "map", "實際月齡。題目表的通過年齡要用它。",
   "item_id", "c", TRUE, "items", "題號，例如 lana01（題目欄的欄名）。",
   "item_score", "i", TRUE, "items", "得分：0、1、2…（題目欄的值；沒有作答的題不放）。",
@@ -40,11 +41,17 @@ KITS_MAP_ROWS <- dplyr::bind_rows(
     typed = .data$field %in% c("sex", "wave", "wave_m", "age_m"),
     per_file = .data$field %in% c("subj_id", "sex", "wave", "wave_m", "age_m"),
     label = unname(c(visit_id = "列次編號", subj_id = "孩子編號", sex = "性別",
-                     wave_m = "波次（月齡）", age_m = "實際月齡", wave = "波次標籤")[.data$field])
+                     wave_m = "時間點", age_m = "實際月齡", wave = "波次標籤")[.data$field])
   ) |>
   dplyr::slice(match(c("visit_id", "subj_id", "sex", "wave", "wave_m", "age_m"), .data$field))
 
 KITS_MAP_FIELDS <- stats::setNames(KITS_MAP_ROWS$meaning, KITS_MAP_ROWS$field)
+
+# wave_m 的單位（只影響畫面上的說明；作答檔只有數字）。KIT 是施測月齡
+KITS_WAVE_UNITS <- c(
+  "月（KIT：施測月齡）" = "month", "年" = "year", "波次序號（1、2、3…）" = "index",
+  "其他" = "other"
+)
 
 # 下載的題目設定檔名（「用 R 怎麼做？」也讀這個檔）
 KITS_SETTINGS_FILE <- "kits_item_settings.csv"
@@ -1055,6 +1062,9 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   side <- kits_apply_side_codes(dfs, kits_side_cols(map, per_file), spec$na_codes)
   dfs <- side$dfs
   warnings <- c(warnings, side$warning)
+  num <- kits_number_problems(dfs, file_names, map, per_file)
+  if (length(num$problems) > 0) return(list(problems = num$problems))
+  warnings <- c(warnings, num$warnings)
 
   # 計分對照：原分數 → 計分（每一題自己的對照；沒有改的題不動）
   mapped <- kits_apply_maps(dfs, spec$items)
@@ -1175,6 +1185,36 @@ kits_apply_side_codes <- function(dfs, cols, na_codes = NULL) {
   list(dfs = dfs, warning = if (length(out) > 0) paste(out, collapse = ""))
 }
 
+#' wave_m、age_m 對應到文字欄、裡面有不是數字的值（例如 12m）：wave_m 擋下，age_m 提醒
+#' （那些格當成空白）
+#' @return list(problems, warnings)
+#' @noRd
+kits_number_problems <- function(dfs, file_names, map, per_file = list()) {
+  problems <- character(0)
+  warnings <- character(0)
+  for (field in c("wave_m", "age_m")) {
+    for (i in seq_along(dfs)) {
+      col <- kits_file_map(map, per_file, i)[[field]] %||% ""
+      if (is.na(col) || !nzchar(col) || !col %in% names(dfs[[i]])) next
+      x <- dfs[[i]][[col]]
+      if (is.numeric(x) || all(is.na(x))) next
+      txt <- trimws(as.character(x))
+      bad <- unique(txt[!is.na(txt) & nzchar(txt) & is.na(kits_as_num(txt))])
+      if (length(bad) == 0) next
+      msg <- paste0(
+        file_names[i], "：", field, " 的欄 ", col, " 有不是數字的值（例如「",
+        paste(utils::head(bad, 3), collapse = "」「"), "」）"
+      )
+      if (field == "wave_m") {
+        problems <- c(problems, paste0(msg, "。時間點要是數字，請回原檔改，或改用「自己填」。"))
+      } else {
+        warnings <- c(warnings, paste0(msg, "，這些格的 age_m 會是空白。"))
+      }
+    }
+  }
+  list(problems = problems, warnings = warnings)
+}
+
 #' 輸出題號的對照：欄名 → 輸出的題號（只列有改的題）
 #' @noRd
 kits_item_rename <- function(items) {
@@ -1264,9 +1304,12 @@ kits_prepare_file <- function(df, cohort, map, items) {
     rep(cohort$value, n)
   persons <- tibble::tibble(
     subj_id = kits_id_text(pick("subj_id")), cohort = co, sex = kits_id_text(pick("sex")),
-    wave_m = as.numeric(unclass(pick("wave_m"))), age_m = as.numeric(unclass(pick("age_m")))
+    wave_m = kits_as_num(pick("wave_m")), age_m = kits_as_num(pick("age_m"))
   )
   persons$visit_id <- kits_visit_ids(persons, df, map)
+  # 組成 visit_id 的波次那一段（檢查撞號用）；直接用 visit_id 欄時是 NA
+  persons$.wave <- if (nzchar(map$visit_id %||% "")) NA_character_ else
+    kits_wave_part(persons, df, map)
   have <- intersect(items, names(df))
   scores <- purrr::map(df[have], function(x) as.numeric(unclass(x)))
   n_resp <- Reduce(`+`, lapply(scores, function(x) !is.na(x)), integer(n))
@@ -1411,17 +1454,18 @@ kits_visit_rule <- function(map, per_file = list()) {
 # visit_id：有對應欄時直接用，否則照 kits_visit_rule() 組成（任一部分缺漏時 NA）
 kits_visit_ids <- function(persons, df, map) {
   if (nzchar(map$visit_id %||% "")) return(kits_id_text(df[[map$visit_id]]))
-  wave <- if (nzchar(map$wave %||% "")) {
-    kits_id_text(df[[map$wave]])
-  } else {
-    kits_id_text(persons$wave_m)
-  }
-  wave[is.na(persons$wave_m) & !nzchar(map$wave %||% "")] <- NA
+  wave <- kits_wave_part(persons, df, map)
   parts <- list(persons$cohort, persons$subj_id, wave)
   out <- do.call(paste, c(parts, sep = "_"))
   bad <- Reduce(`|`, lapply(parts, function(p) is.na(p) | !nzchar(trimws(p))))
   out[bad] <- NA_character_
   out
+}
+
+# visit_id 的波次那一段：波次標籤欄，沒有時用 wave_m
+kits_wave_part <- function(persons, df, map) {
+  if (nzchar(map$wave %||% "")) return(kits_id_text(df[[map$wave]]))
+  kits_id_text(persons$wave_m)
 }
 
 #' 編號、世代、波次標籤轉成文字：數字不寫成科學記號（100000 → "100000"，as.character()
@@ -1558,10 +1602,21 @@ kits_wide_checks <- function(prep, spec) {
     }
   }
   ok <- persons[!blank(persons$visit_id), ]
+  neg <- ok$wave_m[!is.na(ok$wave_m) & ok$wave_m < 0]
+  if (length(neg) > 0) {
+    problems <- c(problems, paste0(
+      length(neg), " 個列次的 wave_m 是負的（例如 ", kits_id_text(neg[1]), "）。",
+      "時間點要是 0 以上的數字；如果負數是遺漏值代碼，請先到「② 遺漏值轉 NA」處理。"
+    ))
+  }
+
+  # visit_id 用底線串接：不同的世代／孩子編號／波次可能組成同一個 visit_id
+  collide <- kits_visit_collisions(ok)
+  if (!is.null(collide)) problems <- c(problems, collide)
 
   # 同一個 visit_id 在好幾列寬資料 → 同一列次同一題會有好幾列
   twice <- vctrs::vec_duplicate_detect(ok$visit_id)
-  if (any(twice)) {
+  if (any(twice) && is.null(collide)) {
     problems <- c(problems, paste0(
       "同一列次同一題有好幾列：", sum(twice), " 列寬資料的 visit_id 重複（例如 ",
       ok$visit_id[which(twice)[1]], "）。原檔可能有重複的孩子，或 visit_id 沒有分開不同波次。"
@@ -1590,10 +1645,57 @@ kits_wide_checks <- function(prep, spec) {
 
   list(
     problems = problems,
-    warnings = kits_score_warnings(stats, ok, spec),
+    warnings = c(kits_score_warnings(stats, ok, spec), kits_person_warnings(ok)),
     n_visits = length(unique(ok$visit_id)),
     n_items = length(unique(answered$item_id))
   )
+}
+
+#' visit_id 撞號：不同的（世代、孩子編號、波次）組成同一個 visit_id（值裡有底線「_」時會發生，
+#' 例如 A_B + 1 和 A + B_1 都是 A_B_1）；沒有撞號時 NULL
+#' @noRd
+kits_visit_collisions <- function(persons) {
+  if (nrow(persons) == 0 || all(is.na(persons$.wave %||% NA))) return(NULL)
+  parts <- dplyr::distinct(persons, .data$visit_id, .data$cohort, .data$subj_id, .data$.wave)
+  dup <- unique(parts$visit_id[duplicated(parts$visit_id)])
+  if (length(dup) == 0) return(NULL)
+  ex <- parts[parts$visit_id == dup[1], ]
+  shown <- paste0(ex$cohort, " + ", ex$subj_id, " + ", ex$.wave)
+  paste0(
+    length(dup), " 個 visit_id 撞號：不同的世代、孩子編號、波次組成了同一個 visit_id（例如 ",
+    dup[1], " 可以是 ", paste(utils::head(shown, 2), collapse = "，也可以是 "), "），",
+    "因為這些值裡有底線「_」。請把世代或波次標籤裡的底線改掉，或在「2.」選 visit_id 欄。"
+  )
+}
+
+#' 孩子欄的提醒：世代只差空白或大小寫、值裡有底線、age_m 是負的
+#' @noRd
+kits_person_warnings <- function(persons) {
+  out <- character(0)
+  co <- unique(stats::na.omit(persons$cohort))
+  key <- tolower(gsub("[[:space:]]+", "", co))
+  same <- split(co, key)
+  same <- same[lengths(same) > 1]
+  if (length(same) > 0) {
+    shown <- vapply(same, function(x) paste0("「", x, "」", collapse = ""), character(1))
+    out <- c(out, paste0(
+      "這些世代只差空白或大小寫，會被當成不同的世代：", paste(utils::head(shown, 3), collapse = "；"),
+      "。如果是同一個世代，請回原檔統一寫法。"
+    ))
+  }
+  under <- unique(c(
+    co[grepl("_", co, fixed = TRUE)],
+    utils::head(unique(stats::na.omit(persons$.wave[grepl("_", persons$.wave, fixed = TRUE)])), 3)
+  ))
+  if (length(under) > 0) {
+    out <- c(out, paste0(
+      "世代或波次標籤裡有底線「_」（例如 ", paste(utils::head(under, 3), collapse = "、"), "）。",
+      "visit_id 用底線串接，之後要拆開 visit_id 時會分不清楚；建議改用其他符號。"
+    ))
+  }
+  neg <- sum(!is.na(persons$age_m) & persons$age_m < 0)
+  if (neg > 0) out <- c(out, paste0(neg, " 個列次的 age_m 是負的，請確認。"))
+  out
 }
 
 # 分數與其他提醒（橘色）

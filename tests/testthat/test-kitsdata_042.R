@@ -78,9 +78,9 @@ test_that("自己填的 wave_m 不是數字、或沒填：擋下並說是哪個�
   spec <- typed_spec(dfs, list(wave_m = c("十八", "")))
   out <- kits_build(dfs, c("w18.csv", "w24.csv"), spec)
   expect_null(out$prep)
-  expect_match(out$problems, "w18.csv：波次（月齡）（wave_m）要填數字（例如 18），現在是「十八」",
+  expect_match(out$problems, "w18.csv：時間點（wave_m）要填數字（例如 18），現在是「十八」",
                all = FALSE)
-  expect_match(out$problems, "w24.csv：還沒有填波次（月齡）", all = FALSE)
+  expect_match(out$problems, "w24.csv：還沒有填時間點", all = FALSE)
   spec <- typed_spec(dfs, list())
   expect_match(kits_build(dfs, c("a", "b"), spec)$problems, "請對應 wave_m", all = FALSE)
 })
@@ -241,9 +241,9 @@ test_that("⑥ 模組：自己填的波次標籤預設是 ① 的波次名稱；
     expect_match(html, "波次標籤")
     expect_match(html, 'id="kitsdata-typed_wave_f1"[^>]*value="m018"')
     expect_match(html, 'id="kitsdata-typed_wave_f2"[^>]*value="t2"')
-    expect_match(output[["kitsdata-typed_note"]]$html, "還沒有填波次（月齡）")
+    expect_match(output[["kitsdata-typed_note"]]$html, "還沒有填時間點")
     session$setInputs(`kitsdata-typed_wave_m_f1` = "18", `kitsdata-typed_wave_m_f2` = "abc")
-    expect_match(output[["kitsdata-typed_note"]]$html, "w24.csv：波次（月齡）（wave_m）要填數字")
+    expect_match(output[["kitsdata-typed_note"]]$html, "w24.csv：時間點（wave_m）要填數字")
     session$setInputs(`kitsdata-typed_wave_m_f2` = "24", `kitsdata-typed_wave_f2` = "m024")
     expect_null(output[["kitsdata-typed_note"]])
     expect_match(output[["kitsdata-visit_note"]]$html, "M03_K1_m018")

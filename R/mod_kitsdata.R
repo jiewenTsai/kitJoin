@@ -55,6 +55,11 @@ mod_kitsdata_ui <- function(id) {
       "再到上面「1.」的表裡替每個檔案選一欄。"
     ),
     shiny::tags$div(class = "kit-table-scroll", kitsdata_map_ui(ns)),
+    shiny::selectInput(
+      ns("wave_unit"), "wave_m（時間點）的單位", choices = KITS_WAVE_UNITS, selected = "month",
+      width = "16rem"
+    ),
+    shiny::uiOutput(ns("wave_unit_note")),
     shiny::uiOutput(ns("visit_note")),
 
     shiny::h4("3. 題目設定"),
@@ -347,7 +352,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
             shiny::tags$td(shiny::textInput(
               ns(id), NULL, width = "9rem",
               value = shiny::isolate(input[[id]]) %||% typed_default(field, wl),
-              placeholder = if (field %in% c("wave_m", "age_m")) "例如 18" else NULL
+              placeholder = if (field == "wave_m") kitsdata_wave_example(wave_unit()) else
+                if (field == "age_m") "例如 18"
             ))
           })
         )
@@ -459,6 +465,17 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           trimws(input[[typed_id(field, key)]] %||% typed_default(field, wl))
         })
       }), fields)
+    })
+
+    wave_unit <- shiny::reactive(input$wave_unit %||% "month")
+    output$wave_unit_note <- shiny::renderUI({
+      if (identical(wave_unit(), "month")) return(NULL)
+      shiny::tags$div(
+        class = "kit-callout kit-callout-warning",
+        "作答檔的 wave_m 只放數字，單位不會寫進去。kitsUI 目前把 wave_m 當成月：",
+        "圖的時間軸、依 wave_m 借題庫參數的規則、age50 這類以月計算的結果，",
+        "用年或波次序號時要自己換算或解讀。"
+      )
     })
 
     output$visit_note <- shiny::renderUI({
@@ -842,6 +859,11 @@ typed_id <- function(field, key) paste0("typed_", field, "_", key)
 
 # 各檔各選一欄的選單 id：pf_<欄>_<檔案>
 pf_id <- function(field, key) paste0("pf_", field, "_", key)
+
+# wave_m 自己填的例子（依單位）
+kitsdata_wave_example <- function(unit) {
+  switch(unit, year = "例如 1", index = "例如 2", other = "例如 0", "例如 18")
+}
 
 # 自己填的預設值：波次標籤用 ① 的波次名稱（t1、t2…），其他空白
 typed_default <- function(field, wave_label) {

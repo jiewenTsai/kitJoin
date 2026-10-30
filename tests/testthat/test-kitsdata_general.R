@@ -477,3 +477,72 @@ test_that("C8：app 裡換反向題規則，領域跟著換", {
     expect_no_match(html, "原題 w1st_hou")
   })
 })
+
+# ── C4（⑥）與發現 10：wave_m 用語、時間點與 visit_id 的檢查 ───────────────────
+
+kg_one <- function(...) {
+  df <- tibble::tibble(id = c("1", "2"), wave_m = c(0, 12), q1 = c(0, 1), ...)
+  map <- kits_guess_map(names(df))
+  map$subj_id <- "id"
+  s <- kits_item_settings(list(df), "q1") |> kits_bulk_domain("q1", "a")
+  list(df = df, map = map, s = s)
+}
+
+test_that("C4：wave_m 不寫死「施測月齡」；單位可以選，預設是月", {
+  expect_match(KITS_COLUMNS$meaning[KITS_COLUMNS$column == "wave_m"], "時間點")
+  expect_no_match(KITS_COLUMNS$meaning[KITS_COLUMNS$column == "wave_m"], "^波次（施測月齡）")
+  expect_equal(KITS_MAP_ROWS$label[KITS_MAP_ROWS$field == "wave_m"], "時間點")
+  ui <- as.character(mod_kitsdata_ui("kitsdata"))
+  expect_match(ui, "wave_m（時間點）的單位")
+  expect_match(ui, '<option value="month" selected>')
+  shiny::testServer(kit_server, {
+    expect_null(output[["kitsdata-wave_unit_note"]])
+    session$setInputs(`kitsdata-wave_unit` = "year")
+    expect_match(output[["kitsdata-wave_unit_note"]]$html, "kitsUI 目前把 wave_m 當成月")
+  })
+})
+
+test_that("發現 10：wave_m 是負的、不是數字時擋下（說是哪一欄、哪個值）；age_m 只提醒", {
+  x <- kg_one()
+  x$df$wave_m <- c(-12, 0)
+  out <- kits_build(list(x$df), "a.csv", kg_spec(x$s, x$map, "B1"))
+  expect_match(out$problems, "wave_m 是負的（例如 -12）", all = FALSE)
+
+  x <- kg_one(age = c("150", "12m"))
+  x$df$wave_m <- c("12m", "0")
+  x$map$age_m <- "age"
+  out <- expect_no_warning(kits_build(list(x$df), "a.csv", kg_spec(x$s, x$map, "B1")))
+  expect_match(out$problems, "a.csv：wave_m 的欄 wave_m 有不是數字的值（例如「12m」）",
+               all = FALSE)
+  x$df$wave_m <- c("12", "0")
+  out <- expect_no_warning(kits_build(list(x$df), "a.csv", kg_spec(x$s, x$map, "B1")))
+  expect_length(out$problems, 0)
+  expect_match(out$warnings, "age 有不是數字的值（例如「12m」），這些格的 age_m 會是空白",
+               all = FALSE)
+  expect_equal(sort(kits_long_of(out)$wave_m), c(0, 12))
+})
+
+test_that("發現 10：底線造成的 visit_id 撞號擋下；世代只差空白或大小寫時提醒", {
+  x <- kg_one()
+  x$df$id <- c("B_1", "1")
+  x$df$wave_m <- c(3, 3)
+  x$df$co <- c("A", "A_B")
+  x$map$wave <- ""
+  spec <- kg_spec(x$s, x$map, "x")
+  spec$cohort <- list(list(type = "column", value = "co"))
+  out <- kits_build(list(x$df), "a.csv", spec)
+  expect_match(out$problems, "visit_id 撞號.*A_B_1_3.*底線", all = FALSE)
+  expect_no_match(paste(out$problems, collapse = ""), "同一列次同一題有好幾列")
+
+  x <- kg_one()
+  x$df$co <- c("G7 ", "g7")
+  spec <- kg_spec(x$s, x$map, "x")
+  spec$cohort <- list(list(type = "column", value = "co"))
+  out <- kits_build(list(x$df), "a.csv", spec)
+  expect_length(out$problems, 0)
+  expect_match(out$warnings, "只差空白或大小寫.*「G7 」「g7」", all = FALSE)
+
+  x <- kg_one(wave = c("W_1", "W_2"))
+  out <- kits_build(list(x$df), "a.csv", kg_spec(x$s, x$map, "B1"))
+  expect_match(out$warnings, "底線「_」（例如 W_1", all = FALSE)
+})
