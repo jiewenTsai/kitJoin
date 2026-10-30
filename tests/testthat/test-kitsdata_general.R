@@ -155,7 +155,9 @@ test_that("A1：wave_m、age_m 的遺漏值代碼當成空白；程式碼也一�
   side <- kits_side_codes(dfs, map[c("wave_m", "age_m")])
   expect_named(side, "age_m")
   got <- kg_run_code(dfs, spec, s)
-  expect_no_match(got$code, "9999")   # 沒給 side_codes 時不寫
+  kg_same_long(got$long, long)
+  code <- code_kitsdata(code_files("w1.csv", "t1"), spec)
+  expect_no_match(code, "9999")   # 沒給 side_codes 時不寫
   code <- code_kitsdata(code_files("w1.csv", "t1"), spec, side_codes = side)
   expect_match(code, 'any_of(c("age_m")), \\(x) replace(x, x %in% 9999, NA)', fixed = TRUE)
 })
@@ -545,4 +547,73 @@ test_that("發現 10：底線造成的 visit_id 撞號擋下；世代只差空�
   x <- kg_one(wave = c("W_1", "W_2"))
   out <- kits_build(list(x$df), "a.csv", kg_spec(x$s, x$map, "B1"))
   expect_match(out$warnings, "底線「_」（例如 W_1", all = FALSE)
+})
+
+# ── 發現 7：世代欄、性別欄是帶標籤的欄 ──────────────────────────────────────
+
+kg_grade <- function() {
+  tibble::tibble(
+    id = 1:5, wave_m = 0,
+    grade = haven::labelled(c(7, 8, 98, 7, 99), c("國一" = 7, "國二" = 8, "跳答" = 98,
+                                                  "遺漏值" = 99)),
+    gender = haven::labelled(c(1, 2, 1, 9, 2), c("男" = 1, "女" = 2, "拒答" = 9)),
+    q1 = c(0, 1, 1, 0, 1)
+  )
+}
+
+kg_grade_spec <- function(df, value_labels = "code") {
+  map <- kits_guess_map(names(df))
+  map$subj_id <- "id"
+  map$sex <- "gender"
+  s <- kits_item_settings(list(df), "q1") |> kits_bulk_domain("q1", "a")
+  spec <- kg_spec(s, map, "x")
+  spec$cohort <- list(list(type = "column", value = "grade"))
+  spec$value_labels <- value_labels
+  list(spec = spec, s = s)
+}
+
+test_that("發現 7：世代、性別可以輸出代碼（預設）或標籤；性別的代碼變空白；世代的代碼提醒", {
+  df <- kg_grade()
+  x <- kg_grade_spec(df)
+  out <- kits_build(list(df), "w1.sav", x$spec)
+  expect_length(out$problems, 0)
+  long <- kits_long_of(out)
+  expect_setequal(unique(long$cohort), c("7", "8", "98", "99"))
+  expect_equal(sort(unique(stats::na.omit(long$sex))), c("1", "2"))
+  expect_true(is.na(long$sex[long$subj_id == "4"]))       # 9 拒答 → 空白
+  w <- paste(out$warnings, collapse = "\n")
+  expect_match(w, "w1.sav：世代欄 grade 有遺漏值代碼 98（值標籤「跳答」）、99（值標籤「遺漏值」），共 2 列")
+  expect_match(w, "sex（gender）有 1 格是遺漏值代碼 9（值標籤「拒答」）")
+  got <- kg_run_code(list(df), x$spec, x$s, sav = TRUE)
+  kg_same_long(got$long, long)
+
+  x <- kg_grade_spec(df, "label")
+  long <- kits_long_of(kits_build(list(df), "w1.sav", x$spec))
+  expect_setequal(unique(long$cohort), c("國一", "國二", "跳答", "遺漏值"))
+  expect_setequal(unique(stats::na.omit(long$sex)), c("男", "女"))
+  expect_equal(kits_label_text(df$gender), c("男", "女", "男", "拒答", "女"))
+  got <- kg_run_code(list(df), x$spec, x$s, sav = TRUE)
+  expect_match(got$code, "cohort = as_label(grade)", fixed = TRUE)
+  expect_match(got$code, "sex = as_label(gender)", fixed = TRUE)
+  kg_same_long(got$long, long)
+})
+
+test_that("發現 7：app 裡選「標籤」", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "w1.sav")
+  df <- kg_grade()
+  df$grade <- haven::labelled(c(7, 8, 8, 7, 7), c("國一" = 7, "國二" = 8))
+  haven::write_sav(df, path)
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kg_upload(path))
+    session$setInputs(`kitsdata-map_subj_id` = "id", `kitsdata-map_wave_m` = "wave_m",
+                      `kitsdata-map_sex` = "gender", `kitsdata-cohort_src_f1` = "grade",
+                      `kitsdata-value_labels` = "label")
+    session$setInputs(`kitsdata-sel` = "q1", `kitsdata-bulk_domain` = "a",
+                      `kitsdata-do_domain` = 1)
+    session$setInputs(`kitsdata-run` = 1)
+    expect_match(output[["kitsdata-status"]]$html, "檢查完成")
+    expect_match(output[["kitsdata-summary"]], "國一")
+    expect_match(output[["kitsdata-code"]]$html, "as_label(grade)", fixed = TRUE)
+  })
 })

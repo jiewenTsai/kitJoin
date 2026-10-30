@@ -12,7 +12,10 @@ kg_run_code <- function(dfs, spec, settings, sav = FALSE, labels = NULL) {
   }
   readr::write_excel_csv(kits_settings_export(settings), file.path(dir, KITS_SETTINGS_FILE),
                          na = "")
-  code <- code_kitsdata(code_files(names, labels %||% paste0("t", seq_along(dfs))), spec)
+  # 和 ⑥ 的畫面一樣：性別、wave_m、age_m 欄的遺漏值代碼由資料算出來
+  side <- kits_side_codes(dfs, kits_side_cols(spec$map, spec$per_file %||% list()), spec$na_codes)
+  code <- code_kitsdata(code_files(names, labels %||% paste0("t", seq_along(dfs))), spec,
+                        side_codes = side)
   env <- new.env()
   withr::with_dir(dir, suppressMessages(eval(parse(text = code), envir = env)))
   list(long = env$kits_long, code = code)

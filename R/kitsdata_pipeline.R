@@ -928,11 +928,12 @@ kits_spec_problems <- function(dfs, file_names, spec) {
 #'   age_m）
 #' @param per_file 具名 list：各檔各選一欄的對應欄位（欄 → 每個檔案一個欄名）；
 #'   這些欄在 map 裡是 ""
+#' @param value_labels 世代欄、性別欄有值標籤時輸出 "code"（代碼，預設）或 "label"（標籤）
 #' @noRd
 kits_spec <- function(cohort, map, items, undecided = character(0), typed = list(),
-                      na_codes = NULL, per_file = list()) {
+                      na_codes = NULL, per_file = list(), value_labels = "code") {
   list(cohort = cohort, map = map, items = items, undecided = undecided, typed = typed,
-       na_codes = na_codes, per_file = per_file)
+       na_codes = na_codes, per_file = per_file, value_labels = value_labels)
 }
 
 #' 「各檔各選一欄」有沒有問題：選的欄要在那個檔案裡；wave_m 每個檔案都要選；
@@ -1078,9 +1079,12 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   if (length(clash) > 0) return(list(problems = clash))
   warnings <- c(warnings, kits_rename_warning(dfs, spec$items, rename))
 
+  warnings <- c(warnings, kits_cohort_codes(dfs, file_names, spec$cohort, spec$na_codes))
+  use_labels <- identical(spec$value_labels, "label")
   visit_rule <- kits_visit_rule(map, per_file)
   files <- purrr::map(seq_along(dfs), function(i) {
-    kits_prepare_file(dfs[[i]], spec$cohort[[i]], kits_file_map(map, per_file, i), items)
+    kits_prepare_file(dfs[[i]], spec$cohort[[i]], kits_file_map(map, per_file, i), items,
+                      use_labels)
   })
   out_ids <- kits_out_ids(items, rename)
   list(
@@ -1154,10 +1158,11 @@ kits_side_codes <- function(dfs, cols, na_codes = NULL) {
   out
 }
 
-#' wave_m、age_m 對應的欄（各檔各選一欄時是每個檔案選的欄）：具名 list，給 kits_side_codes()
+#' sex、wave_m、age_m 對應的欄（各檔各選一欄時是每個檔案選的欄）：具名 list，給
+#' kits_side_codes()
 #' @noRd
 kits_side_cols <- function(map, per_file = list()) {
-  purrr::map(c(wave_m = "wave_m", age_m = "age_m"), function(field) {
+  purrr::map(c(sex = "sex", wave_m = "wave_m", age_m = "age_m"), function(field) {
     unique(c(map[[field]] %||% "", per_file[[field]]))
   })
 }
@@ -1293,17 +1298,55 @@ kits_out_ids <- function(ids, rename) {
   dplyr::coalesce(unname(rename[ids]), ids)
 }
 
+#' 世代欄裡的遺漏值代碼（例如年級欄的 98 跳答、99 遺漏值）：提醒（不改，世代空白不能轉換）
+#' @noRd
+kits_cohort_codes <- function(dfs, file_names, cohorts, na_codes = NULL) {
+  out <- character(0)
+  for (i in seq_along(dfs)) {
+    co <- cohorts[[i]]
+    if (!identical(co$type, "column") || !co$value %in% names(dfs[[i]])) next
+    x <- dfs[[i]][[co$value]]
+    if (!is.numeric(x)) next
+    vals <- kits_as_num(x)
+    codes <- kits_value_codes(unique(vals[!is.na(vals)]), kits_value_labels(dfs[i], co$value),
+                              na_codes)
+    if (nrow(codes) == 0) next
+    out <- c(out, paste0(
+      file_names[i], "：世代欄 ", co$value, " 有遺漏值代碼 ", kits_codes_text(codes), "，共 ",
+      sum(vals %in% codes$value), " 列，這些列的世代會是「",
+      paste(kits_id_text(codes$value), collapse = "」「"), "」。",
+      "請先到「② 遺漏值轉 NA」把它們改成 NA（世代空白的列不能轉換），或換一個世代欄。"
+    ))
+  }
+  out
+}
+
+#' 帶值標籤的欄轉成文字：有標籤的值用標籤，沒有標籤的值用代碼（kits_id_text()）
+#'
+#' 「用 R 怎麼做？」裡的 as_label() 和這個函式相同。
+#' @noRd
+kits_label_text <- function(x) {
+  out <- kits_id_text(x)
+  labels <- attr(x, "labels", exact = TRUE)
+  if (is.null(labels)) return(out)
+  m <- match(as.vector(unclass(x)), as.vector(unclass(labels)))
+  out[!is.na(m)] <- names(labels)[m[!is.na(m)]]
+  out
+}
+
 # 一個檔案：每一列的孩子欄（含 visit_id）、題目欄、每一列有作答的題數
-kits_prepare_file <- function(df, cohort, map, items) {
+# use_labels：世代欄、性別欄有值標籤時用標籤
+kits_prepare_file <- function(df, cohort, map, items, use_labels = FALSE) {
   n <- nrow(df)
   pick <- function(field) {
     col <- map[[field]] %||% ""
     if (nzchar(col)) df[[col]] else rep(NA, n)
   }
-  co <- if (identical(cohort$type, "column")) kits_id_text(df[[cohort$value]]) else
+  as_text <- if (use_labels) kits_label_text else kits_id_text
+  co <- if (identical(cohort$type, "column")) as_text(df[[cohort$value]]) else
     rep(cohort$value, n)
   persons <- tibble::tibble(
-    subj_id = kits_id_text(pick("subj_id")), cohort = co, sex = kits_id_text(pick("sex")),
+    subj_id = kits_id_text(pick("subj_id")), cohort = co, sex = as_text(pick("sex")),
     wave_m = kits_as_num(pick("wave_m")), age_m = kits_as_num(pick("age_m"))
   )
   persons$visit_id <- kits_visit_ids(persons, df, map)

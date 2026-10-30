@@ -294,7 +294,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       shiny::tags$div(
         class = "kit-callout kit-callout-warning",
         paste0(
-          "題目、wave_m 或 age_m 有 ", format(n, big.mark = ","), " 格是遺漏值代碼",
+          "題目、性別、wave_m 或 age_m 有 ", format(n, big.mark = ","), " 格是遺漏值代碼",
           "（值標籤是「遺漏值」「跳答」「不適用」這類、② 的代碼、7777 以上，",
           "或和分數明顯分開的值，例如 1–5 分以外的 95–99）。",
           "這一頁把它們當成沒有作答，不會寫進作答檔；每一題的代碼列在「3. 題目設定」的提醒欄，",
@@ -382,6 +382,11 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           "世代一定要給（例如 M03、M36）；空白時不能轉換。這一頁不會從檔名猜世代。",
           if (length(fields) > 0) "「2. 對應欄位」選「自己填」的欄，每個檔案都要填一個值。",
           if (length(pf) > 0) "「2. 對應欄位」選「各檔各選一欄」的欄，每個檔案選自己的欄。"
+        ),
+        shiny::radioButtons(
+          ns("value_labels"), "世代欄、性別欄有值標籤時（SPSS 檔），作答檔寫：",
+          choices = c("代碼（例如 1、2）" = "code", "標籤（例如 男、女）" = "label"),
+          selected = shiny::isolate(input$value_labels) %||% "code", inline = TRUE
         ),
         shiny::uiOutput(ns("typed_note"))
       )
@@ -699,7 +704,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
 
     spec <- shiny::reactive({
       kits_spec(cohorts(), map(), items(), kits_settings_undecided(settings()), typed(),
-                codes_2(), per_file())
+                codes_2(), per_file(), input$value_labels %||% "code")
     })
 
     # 設定或資料變動後，舊結果失效

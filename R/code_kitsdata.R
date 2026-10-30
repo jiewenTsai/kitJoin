@@ -31,7 +31,7 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, side_codes = list()) {
   code_lines(
     "library(dplyr)", "library(readr)", "library(tidyr)",
     if (any(tolower(tools::file_ext(f$file)) == "sav")) "library(haven)   # 讀 SAV", "",
-    code_kitsdata_helpers(), "",
+    code_kitsdata_helpers(labels = identical(spec$value_labels, "label")), "",
     grep("^data_.* <- read_", strsplit(code_read(f)$tidy, "\n")[[1]], value = TRUE),
     if (na_applied) {
       c("# 「② 遺漏值轉 NA」已經把遺漏值代碼改成 NA；",
@@ -50,7 +50,7 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, side_codes = list()) {
     "# 轉成長格式：一列一個孩子的一個波次的一題",
     per_file_code(function(i) {
       code_kitsdata_long(f$obj[i], long[i], spec$cohort[[i]], kits_file_map(map, per_file, i),
-                         purrr::map(typed, i), per_file)
+                         purrr::map(typed, i), identical(spec$value_labels, "label"))
     }),
     "",
     if (renamed) "# 合併各檔，接上領域；有 item_id_out 的題改成輸出的題號" else "# 合併各檔，接上領域",
@@ -142,9 +142,10 @@ code_map_expr <- function(raw, score) {
 # 一個檔案：做出 kits 的欄（世代、孩子編號、性別、wave_m、age_m、visit_id），
 # 只留這些欄和題目欄，再 pivot_longer()
 # map 是這個檔案的對應欄位（各檔各選一欄時已換成這個檔案選的欄）
-code_kitsdata_long <- function(obj, long, cohort, map, typed = list(), per_file = list()) {
+code_kitsdata_long <- function(obj, long, cohort, map, typed = list(), labels = FALSE) {
+  as_text <- if (labels) "as_label(" else "as_id("
   co <- if (identical(cohort$type, "column")) {
-    paste0("cohort = as_id(", r_col(cohort$value), ")")
+    paste0("cohort = ", as_text, r_col(cohort$value), ")")
   } else if (nzchar(cohort$value %||% "")) {
     paste0("cohort = ", r_str(cohort$value))
   } else {
@@ -158,7 +159,8 @@ code_kitsdata_long <- function(obj, long, cohort, map, typed = list(), per_file 
     made <- c(made, field)
     num <- KITS_MAP_ROWS$type[KITS_MAP_ROWS$field == field] == "d"
     if (num && col == field) next
-    sets <- c(sets, paste0(field, " = ", if (num) "as.numeric(" else "as_id(", r_col(col), ")"))
+    fun <- if (num) "as.numeric(" else if (field == "sex") as_text else "as_id("
+    sets <- c(sets, paste0(field, " = ", fun, r_col(col), ")"))
   }
   rule <- kits_visit_rule(map)
   visit <- if (is.null(rule$parts)) {
@@ -198,8 +200,9 @@ code_kitsdata_call <- function(fun, parts) {
   c(paste0("  ", fun, "("), paste0("    ", c(lines, line)), "  ) |>")
 }
 
-# 小工具：編號轉成文字（和 app 的 kits_id_text() 相同）
-code_kitsdata_helpers <- function() {
+# 小工具：編號轉成文字（和 app 的 kits_id_text() 相同）；labels = TRUE 時再加 as_label()
+# （和 kits_label_text() 相同）
+code_kitsdata_helpers <- function(labels = FALSE) {
   c(
     "# 編號轉成文字：數字不寫成科學記號（100000 不會變成 1e+05），空白保持 NA",
     "as_id <- function(x) {",
@@ -208,7 +211,20 @@ code_kitsdata_helpers <- function() {
     "  out <- trimws(formatC(x, format = \"fg\", digits = 15))",
     "  out[is.na(x)] <- NA",
     "  out",
-    "}"
+    "}",
+    if (labels) {
+      c(
+        "# 有值標籤的欄（世代、性別）用標籤；沒有標籤的值用代碼",
+        "as_label <- function(x) {",
+        "  out <- as_id(x)",
+        "  labels <- attr(x, \"labels\", exact = TRUE)",
+        "  if (is.null(labels)) return(out)",
+        "  m <- match(as.vector(unclass(x)), as.vector(unclass(labels)))",
+        "  out[!is.na(m)] <- names(labels)[m[!is.na(m)]]",
+        "  out",
+        "}"
+      )
+    }
   )
 }
 
