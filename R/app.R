@@ -43,48 +43,57 @@ kit_ui <- function(request) {
     shiny::tags$head(shiny::tags$style(kit_css())),
     kit_header(),
     if (kit_is_cloud()) kit_cloud_banner(),
+    # 分頁列：三組、不編號（kit_navgroups()）；下面是真的 Shiny 分頁，只是把它自己的分頁列藏起來，
+    # 所以 input$tabs 與 updateTabsetPanel() 照常可以用
+    kit_navgroups("tabs", selected = "upload"),
     shiny::tabsetPanel(
       id = "tabs",
-      shiny::tabPanel("① 上傳檔案", value = "upload", mod_upload_ui("upload")),
-      shiny::tabPanel(
-        "②（選用）遺漏值轉 NA",
-        value = "missing",
-        mod_missing_ui("missing")
-      ),
-      shiny::tabPanel("③ 寬格式串接", value = "join", mod_join_ui("join")),
-      shiny::tabPanel("④ 長格式疊加", value = "stack", mod_stack_ui("stack")),
-      shiny::tabPanel(
-        "⑤ 流失樣本",
-        value = "attrition",
-        mod_attrition_ui("attrition")
-      ),
-      shiny::tabPanel("⑥ 轉成 kits 作答檔", value = "kitsdata", mod_kitsdata_ui("kitsdata")),
-      shiny::tabPanel("⑦ 長寬互轉", value = "reshape", mod_reshape_ui("reshape")),
-      shiny::tabPanel("⑧ 檔案格式轉換", value = "convert", mod_convert_ui("convert"))
+      type = "hidden",
+      shiny::tabPanel("上傳檔案", value = "upload", mod_upload_ui("upload")),
+      shiny::tabPanel("遺漏值轉 NA", value = "missing", mod_missing_ui("missing")),
+      shiny::tabPanel("寬格式串接", value = "join", mod_join_ui("join")),
+      shiny::tabPanel("長格式疊加", value = "stack", mod_stack_ui("stack")),
+      shiny::tabPanel("流失樣本", value = "attrition", mod_attrition_ui("attrition")),
+      shiny::tabPanel("kits 作答檔", value = "kitsdata", mod_kitsdata_ui("kitsdata")),
+      shiny::tabPanel("長寬互轉", value = "reshape", mod_reshape_ui("reshape")),
+      shiny::tabPanel("檔案格式轉換", value = "convert", mod_convert_ui("convert"))
     ),
-    if (kit_is_cloud()) kit_cloud_footer()
+    if (kit_is_cloud()) kit_cloud_footer(),
+    kit_app_js()
   )
 }
 
 #' 伺服器邏輯：各分頁模組之間只透過 files / working 兩組 reactive 傳資料
+#'
+#' 每個模組回傳自己的狀態（state）：步驟分頁依它打 ✓、變灰（kit_tab_states()）。
 #' @noRd
 kit_server <- function(input, output, session) {
   goto <- function(tab) {
     shiny::updateTabsetPanel(session, "tabs", selected = tab)
   }
   files <- mod_upload_server("upload", goto)
-  working <- mod_missing_server("missing", files)
-  mod_join_server("join", files, working, goto)
-  mod_stack_server("stack", files, working, goto)
-  mod_attrition_server("attrition", files, working, goto)
+  working <- mod_missing_server("missing", files, goto)
+  join <- mod_join_server("join", files, working, goto)
+  stack <- mod_stack_server("stack", files, working, goto)
+  attrition <- mod_attrition_server("attrition", files, working, goto)
   # ⑥ 也用 ② 的代碼清單找疑似遺漏值代碼（只提醒、不改資料；不必先按 ② 的執行）
-  mod_kitsdata_server(
+  kitsdata <- mod_kitsdata_server(
     "kitsdata", files, working, goto,
     na_codes = shiny::reactive(
       parse_na_codes(input[["missing-codes"]] %||% kit_na_codes_default())$codes
     )
   )
-  mod_reshape_server("reshape", files, working, goto)
+  reshape <- mod_reshape_server("reshape", files, working, goto)
   # ⑧ 和其他分頁無關：不收 files / working
-  mod_convert_server("convert")
+  convert <- mod_convert_server("convert")
+
+  tab_states <- shiny::reactive(kit_tab_states(
+    n_files = length(files$keys()),
+    states = list(
+      upload = files$state(), missing = working$state(), join = join$state(),
+      stack = stack$state(), attrition = attrition$state(), kitsdata = kitsdata$state(),
+      reshape = reshape$state(), convert = convert$state()
+    )
+  ))
+  kit_watch_tab_states(session, tab_states)
 }
