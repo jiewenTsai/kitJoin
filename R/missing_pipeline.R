@@ -75,14 +75,15 @@ replace_na_codes <- function(
     } else {
       next
     }
-    if (!any(hit)) next
+    # 代碼的數值標籤一律移除（資料裡沒有這個代碼也一樣）
+    old_labels <- attr(x, "labels", exact = TRUE)
+    x <- drop_value_labels(x, if (is.numeric(x)) codes else code_text)
+    if (!any(hit)) {
+      if (!identical(attr(x, "labels", exact = TRUE), old_labels)) df[[col]] <- x
+      next
+    }
 
     x[hit] <- NA
-    labels <- attr(x, "labels", exact = TRUE)
-    if (!is.null(labels) && is.numeric(labels)) {
-      keep <- labels[!(as.numeric(labels) %in% codes)]
-      attr(x, "labels") <- if (length(keep) > 0) keep else NULL
-    }
     df[[col]] <- x
     rows[[col]] <- c(stats::setNames(counts, code_text), 合計 = sum(hit))
   }
@@ -94,6 +95,24 @@ replace_na_codes <- function(
                       rownames = "欄位")
   }
   list(data = df, detail = detail)
+}
+
+#' 移除指定值的數值標籤；標籤全部移除時不再是 labelled（保留變項標籤）
+#'
+#' labelled 卻沒有 labels 的欄，預覽（haven::as_factor()）會出錯。
+#' @noRd
+drop_value_labels <- function(x, values) {
+  labels <- attr(x, "labels", exact = TRUE)
+  if (is.null(labels) || length(values) == 0) return(x)
+  keep <- labels[!(unclass(labels) %in% values)]
+  if (length(keep) == length(labels)) return(x)
+  if (length(keep) > 0) {
+    attr(x, "labels") <- keep
+    return(x)
+  }
+  if (haven::is.labelled(x)) return(haven::zap_labels(x))
+  attr(x, "labels") <- NULL
+  x
 }
 
 #' 匯出檔名：原檔名加 _na

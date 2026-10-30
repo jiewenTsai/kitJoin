@@ -48,9 +48,10 @@ read_data_file <- function(path, name) {
 df_for_display <- function(df, n = NULL) {
   if (!is.null(n)) df <- utils::head(df, n)
   out <- lapply(df, function(x) {
-    if (haven::is.labelled(x)) {
+    if (haven::is.labelled(x) && length(attr(x, "labels", exact = TRUE)) > 0) {
       return(as.character(haven::as_factor(x, levels = "both")))
     }
+    if (haven::is.labelled(x)) x <- as.vector(unclass(x))
     if (inherits(x, c("Date", "POSIXt", "hms"))) return(format(x))
     if (is.numeric(x)) return(as.character(round(x, 4)))
     as.character(x)
