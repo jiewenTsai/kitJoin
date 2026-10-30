@@ -113,7 +113,7 @@ test_that("題目設定由資料建立：原分數不含 NA 與 7777 以上的�
   expect_true(st$has_codes[2])
   expect_true(all(st$include))
   expect_true(all(is.na(st$domain)))
-  expect_match(kits_settings_alerts(st)[2], "有 7777 以上的值")
+  expect_match(kits_settings_alerts(st)[2], "遺漏值代碼 9999（7777 以上）：不輸出")
   expect_equal(kits_settings_undecided(st), c("a1", "b2", "weight"))
   st <- kits_bulk_include(st, "weight", FALSE)
   expect_equal(kits_settings_undecided(st), c("a1", "b2"))
@@ -152,7 +152,7 @@ test_that("題目設定下載再上傳：納入、領域、計分對照都回來
   path <- withr::local_tempfile(fileext = ".csv")
   readr::write_excel_csv(kits_settings_export(st), path, na = "")
   back <- readr::read_csv(path, show_col_types = FALSE)
-  expect_named(back, c("item_id", "include", "domain", "map_raw_to_score"))
+  expect_named(back, c("item_id", "include", "domain", "map_raw_to_score", "missing_codes"))
   expect_match(back$map_raw_to_score[1], "^[0-9]+=[0-9]+(;[0-9]+=[0-9]+)*$")
 
   up <- kits_settings_import(back)

@@ -77,7 +77,13 @@ kit_server <- function(input, output, session) {
   mod_join_server("join", files, working, goto)
   mod_stack_server("stack", files, working, goto)
   mod_attrition_server("attrition", files, working, goto)
-  mod_kitsdata_server("kitsdata", files, working, goto)
+  # ⑥ 也把 ② 的代碼清單當成遺漏值代碼（不必先按 ② 的執行）
+  mod_kitsdata_server(
+    "kitsdata", files, working, goto,
+    na_codes = shiny::reactive(
+      parse_na_codes(input[["missing-codes"]] %||% kit_na_codes_default())$codes
+    )
+  )
   mod_reshape_server("reshape", files, working, goto)
   # ⑧ 和其他分頁無關：不收 files / working
   mod_convert_server("convert")

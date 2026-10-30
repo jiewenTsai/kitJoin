@@ -8,9 +8,10 @@
 #' @param f code_files_from(files)
 #' @param spec kits_spec()
 #' @param na_applied TRUE 時資料已經過「② 遺漏值轉 NA」（加一行註解）
+#' @param side_codes kits_side_codes()：wave_m、age_m 欄裡的遺漏值代碼
 #' @return 字串
 #' @noRd
-code_kitsdata <- function(f, spec, na_applied = FALSE) {
+code_kitsdata <- function(f, spec, na_applied = FALSE, side_codes = list()) {
   # 自己填的值：每個檔案先 mutate() 成一欄（欄名就是 kits 的欄名），後面當成那一欄
   typed <- spec$typed %||% list()
   map <- spec$map
@@ -20,7 +21,8 @@ code_kitsdata <- function(f, spec, na_applied = FALSE) {
   per_file <- function(fun) paste(vapply(idx, fun, character(1)), collapse = "\n")
 
   code_lines(
-    "library(dplyr)", "library(readr)", "library(tidyr)", "",
+    "library(dplyr)", "library(readr)", "library(tidyr)",
+    if (any(tolower(tools::file_ext(f$file)) == "sav")) "library(haven)   # 讀 SAV", "",
     code_kitsdata_helpers(), "",
     grep("^data_.* <- read_", strsplit(code_read(f)$tidy, "\n")[[1]], value = TRUE),
     if (na_applied) {
@@ -32,6 +34,7 @@ code_kitsdata <- function(f, spec, na_applied = FALSE) {
     "# map_raw_to_score = 計分對照，寫成「原分數=計分」）",
     paste0("item_settings <- read_csv(", r_str(KITS_SETTINGS_FILE), ")"),
     "items <- item_settings$item_id[item_settings$include]",
+    code_kitsdata_codes(f, spec$items, side_codes),
     code_kitsdata_maps(f, spec$items),
     "",
     "# 轉成長格式：一列一個孩子的一個波次的一題",
@@ -51,6 +54,31 @@ code_kitsdata <- function(f, spec, na_applied = FALSE) {
     "# app 為了省記憶體，是一段一段（每 5,000 列寬資料）轉換、寫進 .csv.gz；結果和這裡相同",
     'write_csv(kits_long, "kits_long.csv.gz")   # 副檔名 .gz 會自動壓縮'
   )
+}
+
+# 遺漏值代碼改成 NA：一樣的代碼寫在一起（題目設定的 missing_codes；wave_m、age_m 另外寫）
+code_kitsdata_codes <- function(f, items, side_codes = list()) {
+  codes <- items[["codes"]] %||% list()
+  key <- purrr::map_chr(codes, function(x) {
+    v <- (x %||% kits_no_codes())$value
+    if (length(v) == 0) NA_character_ else paste(kits_id_text(sort(v)), collapse = ", ")
+  })
+  cols <- c(items$column[!is.na(key)], names(side_codes))
+  key <- c(key[!is.na(key)], purrr::map_chr(side_codes, function(x) {
+    paste(kits_id_text(sort(x$value)), collapse = ", ")
+  }))
+  if (length(cols) == 0) return(NULL)
+  groups <- split(cols, factor(key, levels = unique(key)))
+  lines <- purrr::imap_chr(groups, function(cols, vals) {
+    vec <- if (grepl(",", vals, fixed = TRUE)) paste0("c(", vals, ")") else vals
+    paste0("  mutate(across(any_of(", r_cols_vector(cols, indent = "      ", quote = TRUE),
+           "), \\(x) replace(x, x %in% ", vec, ", NA)))")
+  })
+  per_file <- vapply(f$obj, function(obj) {
+    code_lines(paste0(obj, " <- ", obj, " |>"),
+               paste0(lines, c(rep(" |>", length(lines) - 1), "")))
+  }, character(1))
+  c("", "# 遺漏值代碼改成 NA（不寫進作答檔；題目設定的 missing_codes）", per_file)
 }
 
 # 計分對照：只寫有改的題；一樣的對照寫在一起

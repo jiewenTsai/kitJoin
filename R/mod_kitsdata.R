@@ -28,7 +28,8 @@ mod_kitsdata_ui <- function(id) {
         "多個檔案時，每個檔案可以是不同世代、各有好幾個波次。"
       ),
       technical = paste0(
-        "每個檔案先把每一題的原分數換成計分（計分對照；遺漏值代碼由 ② 處理），",
+        "每個檔案先把遺漏值代碼改成 NA（值標籤是「遺漏值」「跳答」這類、② 的代碼、7777 以上、",
+        "和分數明顯分開的值），再把每一題的原分數換成計分（計分對照），",
         "再用 tidyr::pivot_longer() 把題目欄轉成 item_id、item_score，最後接上領域並合併。",
         "檢查都在寬資料上做；長格式在下載時每 5,000 列寬資料轉一段、寫進 .csv.gz，不會整張放進記憶體。",
         "visit_id 由 {cohort}_{subj_id}_{波次標籤} 組成；沒有波次標籤欄時改用 wave_m。"
@@ -189,6 +190,8 @@ kitsdata_bulk_ui <- function(ns) {
       shiny::tags$span("→ 計分"),
       shiny::numericInput(ns("merge_to"), NULL, value = NA, step = 1, width = "5.5rem"),
       btn("do_merge", "合併"),
+      btn("do_code", "當成遺漏值（不輸出）"),
+      btn("do_uncode", "不是遺漏值代碼"),
       shiny::tags$span("｜"),
       btn("do_restore", "還原（計分＝原分數）"),
       btn("do_exclude", "排除", "btn-outline-danger"),
@@ -196,7 +199,9 @@ kitsdata_bulk_ui <- function(ns) {
     ),
     shiny::tags$small(
       class = "text-muted",
-      "平移、反向都在目前的計分上做（例如先合併再平移）；合併是把指定的原分數都改成同一個計分。"
+      "平移、反向都在目前的計分上做（例如先合併再平移）；合併是把指定的原分數都改成同一個計分。",
+      "「當成遺漏值」把填的原分數改成遺漏值代碼（例如 98、99），不會寫進作答檔；",
+      "「不是遺漏值代碼」把自動找到的代碼放回原分數。"
     )
   )
 }
@@ -228,12 +233,14 @@ kitsdata_filter_js <- function(ns) {
 #' @param files mod_upload_server() 的回傳值
 #' @param working mod_missing_server() 的回傳值
 #' @param goto function(tab) 切換分頁（到 ② 處理遺漏值代碼）
+#' @param na_codes NULL 或 reactive：② 的代碼清單（數字向量），也當成遺漏值代碼
 #' @noRd
-mod_kitsdata_server <- function(id, files, working, goto) {
+mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
     result <- shiny::reactiveVal(NULL)
     status <- shiny::reactiveVal(kit_status())
+    codes_2 <- shiny::reactive(if (is.null(na_codes)) NULL else na_codes())
 
     output$source_note <- shiny::renderUI({
       n <- length(files$keys())
@@ -251,19 +258,26 @@ mod_kitsdata_server <- function(id, files, working, goto) {
       )
     })
 
-    # 疑似遺漏值代碼（7777 以上）還在資料裡、也沒用 ②：提醒先到 ② 處理（不擋轉換）
+    # 遺漏值代碼還在資料裡：⑥ 當成沒有作答；提醒其他分頁要用的話先到 ② 處理（不擋轉換）
     shiny::observeEvent(input$goto_missing, goto("missing"))
     output$codes_note <- shiny::renderUI({
-      if (identical(working$source(), "na") || length(working$data()) == 0) return(NULL)
-      cols <- c(items()$column, map()$wave_m, map()$age_m)
-      n <- kits_code_cells(working$data(), cols)
+      if (length(working$data()) == 0) return(NULL)
+      s <- settings()
+      n_items <- sum(s$n_codes[s$include] %||% 0)
+      n_side <- kits_code_cells(working$data(), c(map()$wave_m, map()$age_m), codes_2())
+      n <- n_items + n_side
       if (n == 0) return(NULL)
       shiny::tags$div(
         class = "kit-callout kit-callout-warning",
-        "題目、wave_m 或 age_m 有 ", format(n, big.mark = ","), " 格是 7777 以上的值，",
-        "可能是遺漏值代碼。這一頁不處理遺漏值代碼，請先",
+        paste0(
+          "題目、wave_m 或 age_m 有 ", format(n, big.mark = ","), " 格是遺漏值代碼",
+          "（值標籤是「遺漏值」「跳答」「不適用」這類、② 的代碼、7777 以上，",
+          "或和分數明顯分開的值，例如 1–5 分以外的 95–99）。",
+          "這一頁把它們當成沒有作答，不會寫進作答檔；每一題的代碼列在「3. 題目設定」的提醒欄，",
+          "不對的話可以改。其他分頁也要用的話，請先"
+        ),
         shiny::actionLink(ns("goto_missing"), "到「② 遺漏值轉 NA」"),
-        "把它們改成 NA，再回來轉換。"
+        "把它們改成 NA。"
       )
     })
 
@@ -419,7 +433,7 @@ mod_kitsdata_server <- function(id, files, working, goto) {
       kits_candidate_cols(working$data(), c(kits_mapped_cols(map()), cohort_cols()))
     })
     shiny::observe({
-      new <- kits_item_settings(working$data(), candidates()$numeric)
+      new <- kits_item_settings(working$data(), candidates()$numeric, codes_2())
       up <- shiny::isolate(upload())
       if (inherits(up, "error")) up <- NULL
       settings(kits_settings_sync(shiny::isolate(settings()), new, up))
@@ -537,6 +551,12 @@ mod_kitsdata_server <- function(id, files, working, goto) {
       kits_bulk_merge(s, rows, from, to)
     }))
     shiny::observeEvent(input$do_restore, act(kits_bulk_restore))
+    shiny::observeEvent(input$do_code, act(function(s, rows) {
+      from <- kits_parse_values(input$merge_from)
+      if (length(from) == 0) kit_abort("請在「合併：原分數」填要當成遺漏值的值，例如 98、99。")
+      kits_bulk_codes(s, rows, from)
+    }))
+    shiny::observeEvent(input$do_uncode, act(kits_bulk_uncode))
     shiny::observeEvent(input$do_exclude, act(function(s, rows) kits_bulk_include(s, rows, FALSE)))
     shiny::observeEvent(input$do_include, act(function(s, rows) kits_bulk_include(s, rows, TRUE)))
 
@@ -579,7 +599,8 @@ mod_kitsdata_server <- function(id, files, working, goto) {
     )
 
     spec <- shiny::reactive({
-      kits_spec(cohorts(), map(), items(), kits_settings_undecided(settings()), typed())
+      kits_spec(cohorts(), map(), items(), kits_settings_undecided(settings()), typed(),
+                codes_2())
     })
 
     # 設定或資料變動後，舊結果失效
@@ -663,8 +684,10 @@ mod_kitsdata_server <- function(id, files, working, goto) {
     )
 
     output$code <- shiny::renderUI({
+      side <- kits_side_codes(working$data(), map()[c("wave_m", "age_m")], codes_2())
       kit_code_blocks(list(tidy = code_kitsdata(
-        code_files_from(files), spec(), na_applied = identical(working$source(), "na")
+        code_files_from(files), spec(), na_applied = identical(working$source(), "na"),
+        side_codes = side
       ), base = NULL))
     })
   })
