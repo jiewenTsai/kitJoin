@@ -98,3 +98,25 @@ test_that("逐步合併的步驟名稱從第 1 步開始", {
   expect_match(out$audit$steps$步驟[1], "^第 1 步：t1")
   expect_match(out$audit$steps$步驟[2], "前面的合併結果")
 })
+
+test_that("6 位數以上的數字 ID 轉文字不會變成科學記號（A5）", {
+  expect_equal(num_to_text(c(100000, 200000, 1234567, NA, 1.5)),
+               c("100000", "200000", "1234567", NA, "1.5"))
+  a <- tibble::tibble(id = c(100000, 200000, 1234567), x = 1:3)
+  b <- tibble::tibble(id = c("100000", "200000", "1234567"), y = 4:6)
+  out <- join_waves(list(a, b), c("a", "b"), c("t1", "t2"), "id", "inner_join")
+  expect_equal(nrow(out$result), 3)
+  expect_equal(out$result$id, c("100000", "200000", "1234567"))
+  att <- build_attrition(a, b, "id")
+  expect_equal(att$result$attrition, c(0L, 0L, 0L))
+  expect_equal(key_strings(a, "id"), c("100000", "200000", "1234567"))
+})
+
+test_that("文字 ID 前後空白一律去掉，只有空白的 ID 不配對", {
+  a <- tibble::tibble(id = c(" 1", "2", " "), x = 1:3)
+  b <- tibble::tibble(id = c("1", "2 ", ""), y = 4:6)
+  out <- join_waves(list(a, b), c("a", "b"), c("t1", "t2"), "id", "inner_join")
+  expect_equal(out$result$id, c("1", "2"))
+  att <- build_attrition(a, b, "id")
+  expect_equal(att$result$attrition, c(0L, 0L, NA))
+})

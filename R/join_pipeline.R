@@ -17,6 +17,7 @@ join_waves <- function(dfs, file_names, wave_labels, by_vars,
   names_shown <- file_display_name(wave_labels, file_names)
 
   notes <- character(0)
+  dfs <- clean_keys(dfs, by_vars)
   conflict <- key_type_conflict(dfs, by_vars, names_shown)
   if (!is.null(conflict)) {
     if (!keys_as_text) {
@@ -163,11 +164,36 @@ key_type_conflict <- function(dfs, by_vars, names_shown) {
   NULL
 }
 
-#' 把各檔的 ID 欄位轉成文字（去掉前後空白）
+#' 把各檔的 ID 欄位轉成文字（去掉前後空白；數字不用科學記號）
 #' @noRd
 keys_to_text <- function(dfs, by_vars) {
   purrr::map(dfs, function(df) {
-    for (col in by_vars) df[[col]] <- trimws(as.character(unclass(df[[col]])))
+    for (col in by_vars) {
+      label <- attr(df[[col]], "label", exact = TRUE)
+      df[[col]] <- clean_key(num_to_text(unclass(df[[col]])))
+      attr(df[[col]], "label") <- label
+    }
+    df
+  })
+}
+
+#' 文字 ID 去掉前後空白，只有空白的 ID 當成缺漏（NA）
+#'
+#' 兩檔都是文字時也一樣處理，" 1" 和 "1" 才配得到；數字 ID 不變。
+#' @noRd
+clean_key <- function(x) {
+  if (!is.character(x)) return(x)
+  v <- trimws(as.vector(unclass(x)))
+  v[!is.na(v) & !nzchar(v)] <- NA_character_
+  attributes(v) <- attributes(x)
+  v
+}
+
+#' 各檔的 ID 欄位都套用 clean_key()
+#' @noRd
+clean_keys <- function(dfs, by_vars) {
+  purrr::map(dfs, function(df) {
+    for (col in intersect(by_vars, names(df))) df[[col]] <- clean_key(df[[col]])
     df
   })
 }

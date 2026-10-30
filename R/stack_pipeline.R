@@ -127,7 +127,7 @@ to_text_keep_label <- function(x) {
   out <- if (haven::is.labelled(x)) {
     as.character(haven::as_factor(x))
   } else {
-    as.character(x)
+    num_to_text(x)
   }
   out <- fix_utf8_chr(out)
   attr(out, "label") <- label

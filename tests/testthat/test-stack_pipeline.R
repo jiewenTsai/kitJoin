@@ -62,3 +62,10 @@ test_that("資料裡有名為 w 的欄（例如權數）時，wave 欄仍是波�
   expect_equal(out2$result$wave, c("t1", "t2"))
   expect_equal(out2$audit$checks$核對, c("符合", "符合", "符合"))
 })
+
+test_that("疊加時數字欄轉文字不會變成科學記號（A5）", {
+  a <- tibble::tibble(id = c(100000, 200000))
+  b <- tibble::tibble(id = c("A1", "A2"))
+  out <- stack_waves(list(a, b), c("a", "b"), c("t1", "t2"))
+  expect_equal(out$result$id, c("100000", "200000", "A1", "A2"))
+})

@@ -15,6 +15,9 @@ build_attrition <- function(baseline_df, followup_df, id_vars) {
     kit_abort("請先選擇用來辨識同一個人的 ID 欄位（例如 release_id）。")
   }
   notes <- character(0)
+  cleaned <- clean_keys(list(baseline_df, followup_df), id_vars)
+  baseline_df <- cleaned[[1]]
+  followup_df <- cleaned[[2]]
   conflict <- key_type_conflict(
     list(baseline_df, followup_df),
     id_vars,
