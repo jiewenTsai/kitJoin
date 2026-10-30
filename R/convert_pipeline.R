@@ -212,11 +212,13 @@ convert_df <- function(path, name, kind, out, target, labels_as_text = FALSE) {
       ))
     }
   }
-  switch(target,
+  written <- switch(target,
     csv = write_kit_csv(data, out),
     csv.gz = write_kit_csv_gz(data, out),
     sav = write_kit_sav(data, out)
   )
+  # SAV 寫完讀不回來而修改了數值標籤時，寫進說明
+  if (target == "sav") notes <- c(notes, sav_fix_message(written))
   list(nrow = nrow(data), ncol = ncol(data), notes = notes)
 }
 
