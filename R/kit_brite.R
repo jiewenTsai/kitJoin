@@ -165,11 +165,12 @@ a { color: var(--nb-green); text-decoration-thickness: 2px; text-underline-offse
   box-shadow: var(--nb-shadow-sm);
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
-.btn-primary, .btn-success { background: var(--nb-lime); color: var(--nb-ink); border-color: var(--nb-ink); }
+/* shiny 的 actionButton() 一律帶 .btn-default，所以白底寫在前面，萊姆色寫在後面才蓋得過 */
 .btn-default, .btn-secondary, .btn-outline-primary, .btn-outline-secondary,
 .btn-light, .btn-file {
   background: var(--nb-card); color: var(--nb-ink); border-color: var(--nb-ink);
 }
+.btn-primary, .btn-success { background: var(--nb-lime); color: var(--nb-ink); border-color: var(--nb-ink); }
 .btn-danger { background: var(--nb-salmon); color: var(--nb-ink); border-color: var(--nb-ink); }
 .btn:hover {
   transform: translate(1px, 1px);
