@@ -50,7 +50,7 @@ test_that("A1：遺漏值代碼來自值標籤、② 的代碼、7777 以上、�
                                                     "99" = "遺漏值"))
   expect_equal(codes$value, c(98, 99))
   expect_match(codes$why, "值標籤「跳答」", all = FALSE)
-  expect_equal(kits_value_codes(c(0, 1, 2, 9), na_codes = 9)$why, "遺漏值處理 的代碼")
+  expect_equal(kits_value_codes(c(0, 1, 2, 9), na_codes = 9)$why, "「遺漏值處理」的代碼")
   expect_equal(kits_value_codes(c(0, 1, 9999))$why, "7777 以上")
   expect_equal(kits_value_codes(c(1:5, 95, 97, 98, 99))$value, c(95, 97, 98, 99))
   expect_equal(kits_value_codes(c(1:5, 95, 99, 999))$value, c(95, 99, 999))
@@ -319,7 +319,7 @@ test_that("C1：各檔各選一欄沒選、選錯；一個欄名套到沒有這�
   spec <- kg_three_spec(dfs, list(wave_m = c("w1_mon", "w2_mon", "w3_mon")))
   spec$map$subj_id <- "w1_id"
   p <- kits_build(dfs, c("w1", "w2", "w3"), spec)$problems
-  expect_match(p, "w2：沒有對應的欄 w1_id。各檔欄名不同時，請在「2. 對應欄位」選「各檔各選一欄」",
+  expect_match(p, "w2：沒有對應的欄 w1_id。各檔欄名不同時，請在第 1 步的表裡替每個檔案各選一欄",
                all = FALSE)
 })
 

@@ -14,14 +14,14 @@ KITS_COLUMNS <- tibble::tribble(
   ~column, ~type, ~required, ~from, ~meaning,
   "visit_id", "c", TRUE, "map", "列次編號：一個孩子的一個波次一個編號。兩個世代不能重複。",
   "subj_id", "c", FALSE, "map", "孩子編號：同一個孩子的各波次相同。",
-  "cohort", "c", TRUE, "cohort", "世代，例如 M03、M36（「1. 世代」）。",
+  "cohort", "c", TRUE, "cohort", "世代，例如 M03、M36（第 1 步）。",
   "sex", "c", FALSE, "map", "性別，例如 boy、girl。",
   "wave_m", "d", TRUE, "map",
-  "時間點（波次）的數字，例如 3、6、12；單位在「2.」選（KIT 是施測月齡）。",
+  "時間點（波次）的數字，例如 3、6、12；單位在第 1 步選（KIT 是施測月齡）。",
   "age_m", "d", FALSE, "map", "實際月齡。題目表的通過年齡要用它。",
   "item_id", "c", TRUE, "items", "題號，例如 lana01（題目欄的欄名）。",
   "item_score", "i", TRUE, "items", "得分：0、1、2…（題目欄的值；沒有作答的題不放）。",
-  "domain", "c", TRUE, "items", "領域，例如 lan、motor、cog（「3. 題目與領域」）。"
+  "domain", "c", TRUE, "items", "領域，例如 lan、motor、cog（第 2 步）。"
 )
 
 # 「2. 對應欄位」的列：kits 的欄（from = map）加上波次標籤（wave，不會輸出，只用來組 visit_id）
@@ -421,7 +421,7 @@ kits_value_codes <- function(vals, labels = NULL, na_codes = NULL) {
     hit <- !is.na(lab) & grepl(KITS_CODE_LABEL_PATTERN, lab, ignore.case = TRUE)
     why[hit] <- paste0("值標籤「", lab[hit], "」")
   }
-  why[is.na(why) & vals %in% na_codes] <- "遺漏值處理 的代碼"
+  why[is.na(why) & vals %in% na_codes] <- "「遺漏值處理」的代碼"
   why[is.na(why) & vals >= KITS_CODE_MIN] <- paste0(KITS_CODE_MIN, " 以上")
   sep <- kits_separated_codes(vals[is.na(why)])
   why[is.na(why) & vals %in% sep] <- "和分數分開"
@@ -893,7 +893,7 @@ kits_apply_maps <- function(dfs, items) {
     if (length(miss) > 0) {
       problems <- c(problems, paste0(
         col, "：原分數 ", paste(sort(miss), collapse = "、"), " 沒有計分。",
-        "請在「3. 題目設定」用「合併」或「還原」給它計分。"
+        "請在第 3 步的「逐題看、逐題改」用「合併」或「還原」給它計分。"
       ))
       next
     }
@@ -954,7 +954,7 @@ kits_spec_problems <- function(dfs, file_names, spec) {
     if (length(miss) > 0) {
       out <- c(out, paste0(
         file_names[i], "：沒有對應的欄 ", paste(miss, collapse = "、"), "。",
-        "各檔欄名不同時，請在「2. 對應欄位」選「各檔各選一欄」。"
+        "各檔欄名不同時，請在第 1 步的表裡替每個檔案各選一欄。"
       ))
     }
   }
@@ -966,7 +966,7 @@ kits_spec_problems <- function(dfs, file_names, spec) {
     ))
   }
   if (nrow(spec$items) == 0) {
-    out <- c(out, "沒有題目。請在「3. 題目設定」納入題目並給領域。")
+    out <- c(out, "沒有題目。請在第 2 步勾選題目並給領域。")
   }
   out
 }
@@ -1627,7 +1627,7 @@ kits_score_problems <- function(dfs, items) {
     out <- c(out, paste0(
       "這些題有負分：", paste(utils::head(neg, 8), collapse = "、"),
       "。如果負數（例如 -1）代表遺漏，請先到「遺漏值處理」處理；",
-      "如果是計分對照造成的，請在「3. 題目設定」修改。"
+      "如果是計分對照造成的，請在第 3 步的「逐題看、逐題改」修改。"
     ))
   }
   out
@@ -1775,7 +1775,7 @@ kits_visit_collisions <- function(persons) {
   paste0(
     length(dup), " 個 visit_id 撞號：不同的世代、孩子編號、波次組成了同一個 visit_id（例如 ",
     dup[1], " 可以是 ", paste(utils::head(shown, 2), collapse = "，也可以是 "), "），",
-    "因為這些值裡有底線「_」。請把世代或波次標籤裡的底線改掉，或在「2.」選 visit_id 欄。"
+    "因為這些值裡有底線「_」。請把世代或波次標籤裡的底線改掉，或在第 1 步的「還有…」選列次編號的欄。"
   )
 }
 
@@ -1818,7 +1818,7 @@ kits_score_warnings <- function(stats, persons, spec) {
   if (length(no_zero) > 0) {
     out <- c(out, paste0(
       length(no_zero), " 題沒有 0 分（例如 ", some(no_zero),
-      "）。kits 要有 0 分才能自由校準；分數如果是從 1 開始，請在「3. 題目設定」選取這些題、平移 −1。"
+      "）。kits 要有 0 分才能自由校準；分數如果是從 1 開始，請在第 3 步按「全部減 1」，或在「逐題看、逐題改」勾選這些題、減 1。"
     ))
   }
   gap <- per_item$item_id[per_item$gap]
@@ -1835,7 +1835,7 @@ kits_score_warnings <- function(stats, persons, spec) {
   if (length(gap) > 0) {
     out <- c(out, paste0(
       length(gap), " 題的分數中間有缺（例如 ", some(gap), "）。kits 校準時會停下來，",
-      "請在「3. 題目設定」用「合併」把分數接起來。"
+      "請在第 3 步的「逐題看、逐題改」用「合併」把分數接起來。"
     ))
   }
   # 7777 以上的值一定是疑似遺漏值代碼，已經由 kits_codes_warning() 提醒（這裡不重複）

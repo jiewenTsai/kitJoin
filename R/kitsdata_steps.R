@@ -169,10 +169,11 @@ kits_pick_cols <- function(cols, text) {
 #' @param ack list(codes = 使用者說「它們是真的分數」時的格數, shift = 「不用改」時的最低分,
 #'   shifted = 已經減掉的分數)
 #' @param reverse_used TRUE 時用了題目表（反向題才有意義）
+#' @param side_codes kits_side_codes()：性別、wave_m、age_m 裡的代碼（欄名 → tibble(value, why)）
 #' @return list：每一列 list(id, state, title, text)
 #' @noRd
 kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack = list(),
-                              reverse_used = FALSE) {
+                              reverse_used = FALSE, side_codes = list()) {
   inc <- settings[settings$include & lengths(settings$raw) > 0, ]
   if (nrow(inc) == 0) return(list())
   row <- function(id, state, title, text = "") list(id = id, state = state, title = title, text = text)
@@ -181,8 +182,9 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   # 遺漏值代碼
   codes <- inc[["codes"]] %||% rep(list(kits_no_codes()), nrow(inc))
   n_cells <- sum(inc$n_codes %||% 0) + side_cells
-  n_cols <- sum((inc$n_codes %||% 0) > 0)
-  vals <- sort(unique(unlist(purrr::map(codes, function(x) x$value))))
+  n_cols <- sum((inc$n_codes %||% 0) > 0) + length(side_codes)
+  vals <- sort(unique(c(unlist(purrr::map(codes, function(x) x$value)),
+                        unlist(purrr::map(side_codes, function(x) x$value)))))
   val_txt <- paste(kits_id_text(utils::head(vals, 6)), collapse = "、")
   if (length(vals) > 6) val_txt <- paste0(val_txt, "…")
   if (n_cells == 0) {

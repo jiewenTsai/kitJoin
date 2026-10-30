@@ -526,7 +526,9 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           if (!nzchar(v)) next
           cols <- g$cols[[i]]
           hit <- match(cols, s$column)
-          if (!all(s$domain[hit] %in% v)) s <- kits_bulk_domain(s, cols, v)
+          # 只有領域真的改了才算「要這一組」：換頁、找組時選單重畫、值沒變，不會把取消勾選的組又納入
+          if (all(s$domain[hit] %in% v)) next
+          s <- kits_bulk_domain(s, cols, v)
           if (!all(s$include[hit])) {
             s <- kits_bulk_include(s, cols, TRUE)
             turned_on <- c(turned_on, g$stem[i])
@@ -642,11 +644,16 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       s <- step1()
       kits_code_cells(dfs(), unlist(kits_side_cols(s$map, s$per_file)), codes_2())
     })
+    side_codes <- shiny::reactive({
+      s <- step1()
+      kits_side_codes(dfs(), kits_side_cols(s$map, s$per_file), codes_2())
+    })
     checks <- shiny::reactive({
       kits_step3_checks(
         settings(), side_cells(), na_applied = identical(working$source(), "na"),
         ack = list(codes = ack$codes, shift = ack$shift, shifted = ack$shifted),
-        reverse_used = !is.null(upload()) && !inherits(upload(), "error")
+        reverse_used = !is.null(upload()) && !inherits(upload(), "error"),
+        side_codes = side_codes()
       )
     })
     n_todo <- shiny::reactive(sum(vapply(checks(), function(x) x$state == "todo", logical(1))))
