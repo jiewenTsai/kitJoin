@@ -47,7 +47,7 @@ mod_kitsdata_ui <- function(id) {
         class = "kit-stepcard",
         shiny::uiOutput(ns("head1")),
         shiny::conditionalPanel(
-          open_is(1), ns = ns, class = "kit-stepbody",
+          open_is(1), ns = ns, shiny::tags$div(class = "kit-stepbody",
           shiny::tags$p("已經照欄名猜好了（淡黃色），請看一遍，不對就改。",
                         "每一格可以選檔案裡的一欄，也可以直接打字填一個值（例如 2009）。"),
           shiny::uiOutput(ns("files_table")),
@@ -69,7 +69,7 @@ mod_kitsdata_ui <- function(id) {
           ),
           shiny::uiOutput(ns("step1_problems")),
           shiny::actionButton(ns("ok1"), "對，下一步", class = "btn-default")
-        )
+        ))
       ),
 
       # 第 2 步 ----
@@ -77,7 +77,7 @@ mod_kitsdata_ui <- function(id) {
         class = "kit-stepcard",
         shiny::uiOutput(ns("head2")),
         shiny::conditionalPanel(
-          open_is(2), ns = ns, class = "kit-stepbody",
+          open_is(2), ns = ns, shiny::tags$div(class = "kit-stepbody",
           shiny::uiOutput(ns("intro2")),
           shiny::fileInput(
             ns("item_file"), "上傳題目表（item_id、domain）或之前下載的題目設定",
@@ -114,7 +114,7 @@ mod_kitsdata_ui <- function(id) {
             kit_detail("不能當題目的欄", shiny::uiOutput(ns("text_cols")))
           ),
           shiny::actionButton(ns("ok2"), "對，下一步", class = "btn-default")
-        )
+        ))
       ),
 
       # 第 3 步 ----
@@ -122,7 +122,7 @@ mod_kitsdata_ui <- function(id) {
         class = "kit-stepcard",
         shiny::uiOutput(ns("head3")),
         shiny::conditionalPanel(
-          open_is(3), ns = ns, class = "kit-stepbody",
+          open_is(3), ns = ns, shiny::tags$div(class = "kit-stepbody",
           shiny::tags$p("kits 要的分數是 0、1、2…。轉換前，看下面每一件事："),
           shiny::uiOutput(ns("checks")),
           kit_details_row(kit_detail(
@@ -131,7 +131,7 @@ mod_kitsdata_ui <- function(id) {
             shiny::uiOutput(ns("items_table")),
             kitsdata_bulk_tools(ns)
           ))
-        )
+        ))
       ),
 
       shiny::uiOutput(ns("ready")),
@@ -227,9 +227,11 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       ok$s2 <- FALSE
       open(1L)
     }, ignoreInit = TRUE)
-    shiny::observeEvent(input$edit1, open(1L))
-    shiny::observeEvent(input$edit2, if (ok$s1) open(2L))
-    shiny::observeEvent(input$edit3, if (ok$s1 && ok$s2) open(3L))
+    # 「改」連結在標頭裡，標頭重畫時連結也重畫（值從 0 開始）：只有真的按了（> 0）才打開
+    clicked <- function(x) isTRUE(x > 0)
+    shiny::observeEvent(input$edit1, if (clicked(input$edit1)) open(1L))
+    shiny::observeEvent(input$edit2, if (clicked(input$edit2) && ok$s1) open(2L))
+    shiny::observeEvent(input$edit3, if (clicked(input$edit3) && ok$s1 && ok$s2) open(3L))
 
     output$source_note <- shiny::renderUI({
       if (!has_files()) {
@@ -237,6 +239,9 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           class = "kit-callout kit-callout-warn",
           "請先到「檔案上傳」加入寬格式的資料檔（一個或多個）。"
         ))
+      }
+      if (identical(working$source(), "na")) {
+        return(shiny::tags$p(class = "kit-hint", "用的是「遺漏值處理」處理後的資料。"))
       }
       # 「遺漏值處理」的設定或檔案改過、還沒重新執行
       if (identical(working$source(), "stale")) {
@@ -282,6 +287,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         ns(id), NULL, choices = choices, selected = value, width = width,
         options = list(
           create = TRUE, createOnBlur = TRUE, persist = FALSE,
+          # 選單掛在整頁上：表格外框會左右捲動（overflow），選單放在裡面會被切掉
+          dropdownParent = "body",
           placeholder = if (field == "cohort") "例如 M03" else "選一欄或打字",
           render = I("{option_create: function(d, esc) {
             return '<div class=\"create\">填入「' + esc(d.input) + '」</div>'; }}")
@@ -674,7 +681,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     }
     output$head1 <- shiny::renderUI(head_ui(
       1, "每個檔案是哪個世代、哪個波次",
-      kits_step1_summary(cells(), length(files$keys()), wave_unit())
+      kits_step1_summary(cells(), length(files$keys()), wave_unit(), step1())
     ))
     output$head2 <- shiny::renderUI(head_ui(2, "哪些欄是題目", counts()$text))
     output$head3 <- shiny::renderUI(head_ui(3, "計分檢查", kits_step3_summary(checks())))
@@ -686,7 +693,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
                 codes_2(), s$per_file, input$value_labels %||% "code")
     })
     missing_steps <- shiny::reactive({
-      c(if (!ok$s1) "第 1 步確認", if (!ok$s2) "第 2 步挑題目",
+      c(if (!ok$s1) "第 1 步確認",
+        if (!ok$s2) (if (counts()$n_cols > 0) "第 2 步確認" else "第 2 步挑題目"),
         if (ok$s1 && ok$s2 && n_todo() > 0) paste0("第 3 步有 ", n_todo(), " 件事要決定"))
     })
     output$ready <- shiny::renderUI({
@@ -741,7 +749,11 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
                 "作答檔 ", kit_num(out$n_rows), " 列：",
                 kit_num(out$n_visits), " 個列次、", out$n_items, " 題。"
               ),
-              warnings = out$warnings, notes = out$notes
+              # 第 3 步已經按了「它們是真的分數」：遺漏值代碼不用再提醒一次
+              warnings = if (!is.null(ack$codes)) {
+                out$warnings[!grepl("題有疑似遺漏值代碼", out$warnings, fixed = TRUE)]
+              } else out$warnings,
+              notes = out$notes
             )
           }
         }),
@@ -802,7 +814,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         )
       )
     })
-    output$summary <- shiny::renderTable(result()$summary, digits = 0)
+    output$summary <- shiny::renderTable(result()$summary, digits = 0, format.args = list(big.mark = ","))
     output$preview <- shiny::renderTable(
       kit_preview_table(result()$preview, n = KIT_PREVIEW_ROWS * 2),
       striped = TRUE, spacing = "s"
@@ -837,7 +849,7 @@ kitsdata_check <- function(state, title, text = "", actions = NULL) {
     shiny::tags$div(
       class = "kit-check-text",
       shiny::tags$strong(title),
-      if (nzchar(text %||% "")) shiny::tags$span(text),
+      if (length(text) > 0 && any(nzchar(text))) shiny::tags$span(paste(text, collapse = "")),
       if (length(actions) > 0) shiny::tags$div(class = "kit-check-actions", actions)
     )
   )

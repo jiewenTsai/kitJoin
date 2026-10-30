@@ -234,16 +234,31 @@ summary:focus-visible {
 /* 上傳進度條：細的平塗條 */
 .progress,
 .shiny-file-input-progress {
-  border: 2px solid var(--nb-ink);
+  border: 1px solid var(--nb-ink);
   border-radius: 3px;
   box-shadow: none;
   background: var(--nb-card);
-  height: 0.7rem;
+  height: 0.5rem;
 }
+/* 檔案輸入：不拉滿整頁（最寬約一個長檔名） */
+.shiny-input-container:has(.btn-file) { max-width: 34rem; }
 .progress-bar { background: var(--nb-green); border-radius: 0; }
+/* 檔案上傳的進度條：Shiny 設的寬度換算後只剩幾 px，看起來像沒在跑。
+   改成：上傳中（.active）是流動的斜紋條；傳完整條填滿 */
+.shiny-file-input-progress { height: 1.1rem; }
+.shiny-file-input-progress .progress-bar {
+  width: 100% !important; font-size: 0.75rem; color: #fff; font-weight: 700;
+}
+.shiny-file-input-progress.active .progress-bar {
+  background: repeating-linear-gradient(-45deg, var(--nb-green) 0 10px, var(--nb-mint) 10px 20px);
+  background-size: 28px 28px;
+  animation: kit-upload 0.8s linear infinite;
+}
+@keyframes kit-upload { to { background-position: 28px 0; } }
 
 @media (prefers-reduced-motion: reduce) {
   .btn, .nav-tabs .nav-link { transition: none; }
+  .shiny-file-input-progress.active .progress-bar { animation: none; }
 }
 
 /* ── 字級與版面寬度 ────────────────────────────────────────────────
@@ -297,6 +312,12 @@ body { font-size: 1rem; line-height: 1.65; }
   box-shadow: none;
   background: #f1eee4;
 }
+/* 下載是這一頁的主角時（例如作答檔）：和主要按鈕一樣 */
+.kit-download.btn-primary {
+  font-size: 1.1rem; font-weight: 700; padding: 0.55rem 1.4rem; border-width: 2px;
+  background: var(--nb-lime); box-shadow: var(--nb-shadow);
+}
+.kit-download.btn-primary:hover { background: var(--nb-lime); transform: translate(1px, 1px); box-shadow: 1px 1px 0 0 var(--nb-ink); }
 
 /* 「這一頁做什麼」：退成配角，沒有卡片框，小字、淡色，用一條細線和內容分開 */
 .kit-guide {
@@ -467,7 +488,7 @@ details > summary {
 .kit-stepbody .table { border: 0; margin-bottom: .4rem; }
 .kit-stepbody .table td { vertical-align: middle; }
 .kit-stepbody .kit-table-scroll { border: 0; box-shadow: none; }
-td.kit-guess .selectize-input { background: #fffbe6; }
+.kit-file-table td.kit-guess .selectize-control .selectize-input { background: #fffbe6; }
 
 /* 檢查清單：一列一件事；! 要決定、✓ 沒問題、· 提醒；按鈕在說明下面 */
 .kit-checklist { list-style: none; padding: 0; margin: 0 0 .6rem; }

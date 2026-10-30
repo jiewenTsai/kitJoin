@@ -31,7 +31,7 @@ mod_upload_ui <- function(id) {
         accept = c(".csv", ".sav", ".zsav"),
         buttonLabel = "選擇檔案…",
         placeholder = "尚未選擇檔案",
-        width = "100%"
+        width = "34rem"
       )
     ),
     shiny::tags$small(

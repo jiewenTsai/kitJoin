@@ -109,17 +109,23 @@ kits_unit_short <- function(unit) {
 }
 
 #' 第 1 步收起來時的一行：「5 個檔案 · 世代 TDCYP · 2009、2011（年）· 孩子編號 w1_id 等 5 欄」
+#'
+#' 世代、時間點是檔案裡的欄時，寫「世代在 cohort 欄」「時間點在 wave_m 欄」。
+#' @param spec kits_step1_spec()（NULL 時都當成自己填的值）
 #' @noRd
-kits_step1_summary <- function(cells, n_files, unit) {
+kits_step1_summary <- function(cells, n_files, unit, spec = NULL) {
   uniq <- function(v) unique(v[nzchar(v)])
+  some <- function(v, k) paste0(paste(utils::head(v, k), collapse = "、"), if (length(v) > k) "…")
   coh <- uniq(trimws(cells$cohort))
   wave <- uniq(trimws(cells$wave_m))
   subj <- uniq(trimws(cells$subj_id))
   short <- kits_unit_short(unit)
+  coh_col <- !is.null(spec) && any(vapply(spec$cohort, function(x) x$type == "column", logical(1)))
+  wave_col <- !is.null(spec) && (nzchar(spec$map$wave_m %||% "") || !is.null(spec$per_file$wave_m))
   paste0(
     n_files, " 個檔案",
-    " · 世代 ", paste(utils::head(coh, 3), collapse = "、"), if (length(coh) > 3) "…",
-    " · ", paste(utils::head(wave, 6), collapse = "、"), if (length(wave) > 6) "…",
+    if (coh_col) paste0(" · 世代在 ", some(coh, 3), " 欄") else paste0(" · 世代 ", some(coh, 3)),
+    if (wave_col) paste0(" · 時間點在 ", some(wave, 3), " 欄") else paste0(" · ", some(wave, 6)),
     if (nzchar(short)) paste0("（", short, "）"),
     if (length(subj) == 1) paste0(" · 孩子編號 ", subj) else if (length(subj) > 1)
       paste0(" · 孩子編號 ", subj[1], " 等 ", length(subj), " 欄")
@@ -329,7 +335,8 @@ kits_items_page_html <- function(id, rows, selected = character(0)) {
     "<td class=\"kit-flag\">", esc(kits_item_flags(rows)), "</td></tr>"
   )
   htmltools::HTML(paste0(
-    "<div id=\"", att(id), "\" class=\"form-group shiny-input-checkboxgroup shiny-input-container\">",
+    "<div id=\"", att(id), "\" class=\"form-group shiny-input-checkboxgroup shiny-input-container\"",
+    " style=\"width: auto; max-width: 100%;\">",
     "<div class=\"shiny-options-group kit-table-scroll\"><table class=\"table kit-items\">",
     "<thead><tr><th></th><th>欄位</th><th>領域</th><th>計分（原分數→計分）</th><th>提醒</th></tr></thead>",
     "<tbody>", paste(tr, collapse = ""), "</tbody></table></div></div>"
