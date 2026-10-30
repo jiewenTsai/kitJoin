@@ -173,3 +173,35 @@ test_that("④ 下載的 SAV 讀得回來，即使原檔有 SPSS 存不了的文
     }
   )
 })
+
+test_that("③ 結果會暴增時跳出確認，按「仍要執行」才串接（A3）", {
+  dir <- withr::local_tempdir()
+  w1 <- write_wave(dir, "w1.csv", data.frame(id = 1:60, birth = rep(1:3, 20)))
+  w2 <- write_wave(dir, "w2.csv", data.frame(id = 1:60, birth = rep(1:3, 20)))
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = upload_df(c(w1, w2)))
+    session$setInputs(
+      `join-by_vars` = "birth", `join-method` = "left_join", `join-keys_as_text` = TRUE
+    )
+    expect_match(output[["join-id_check"]]$html, "ID 重複")
+    session$setInputs(`join-run` = 1)
+    expect_match(output[["join-status"]]$html, "仍要執行")
+    expect_match(output[["join-downloads"]]$html, "disabled")
+    session$setInputs(`join-run_confirm` = 1)
+    expect_match(output[["join-status"]]$html, "串接完成")
+  })
+})
+
+test_that("⑤ 選到出生年這種重複很多的欄，不會顯示完成（A3）", {
+  dir <- withr::local_tempdir()
+  w1 <- write_wave(dir, "w1.csv", data.frame(id = 1:60, birth = rep(1:3, 20)))
+  w2 <- write_wave(dir, "w2.csv", data.frame(id = 1:30, birth = rep(1:3, 10)))
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = upload_df(c(w1, w2)))
+    session$setInputs(`attrition-baseline` = "f1", `attrition-followup` = "f2",
+                      `attrition-id_vars` = "birth")
+    session$setInputs(`attrition-run` = 1)
+    expect_match(output[["attrition-status"]]$html, "沒有完成")
+    expect_match(output[["attrition-status"]]$html, "不是用來辨識")
+  })
+})

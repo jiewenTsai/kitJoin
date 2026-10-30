@@ -33,7 +33,10 @@ mod_attrition_ui <- function(id) {
       options = list(create = FALSE, placeholder = "請選擇 ID 欄位，例如 release_id"),
       width = "60%"
     ),
-    shiny::tags$small(class = "kit-hint", "只列出前期與後期樣本都有的欄位。"),
+    shiny::tags$small(
+      class = "kit-hint",
+      "只列出前期與後期樣本都有的欄位；括號裡是前期「不重複的比例」，ID 應該接近 100%。"
+    ),
     shiny::br(),
     shiny::actionButton(ns("run"), "建立流失樣本", class = "btn-primary"),
     shiny::uiOutput(ns("status")),
@@ -106,12 +109,13 @@ mod_attrition_server <- function(id, files, working, goto) {
       } else {
         intersect(names(p$baseline), names(p$followup))
       }
+      choices <- if (length(cols) > 0) id_choices(list(p$baseline), cols) else character(0)
       selected <- intersect(input$id_vars %||% character(0), cols)
-      if (length(selected) == 0) selected <- utils::head(guess_id_cols(cols), 1)
+      if (length(selected) == 0) selected <- default_id_choice(choices)
       shiny::updateSelectizeInput(
         session,
         "id_vars",
-        choices = cols,
+        choices = choices,
         selected = selected
       )
     }, ignoreNULL = FALSE)

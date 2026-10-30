@@ -20,3 +20,19 @@ test_that("ID 型別不一致時轉文字比對", {
   out <- build_attrition(base, follow, "id")
   expect_equal(out$result$attrition, c(0L, 1L))
 })
+
+test_that("前期 ID 大多重複時停下，少量重複時提醒（A3）", {
+  base <- tibble::tibble(c_birth = rep(c(97, 98), each = 10), x = 1:20)
+  follow <- tibble::tibble(c_birth = c(97, 98))
+  expect_error(build_attrition(base, follow, "c_birth"), "不是用來辨識", class = "kit_user_error")
+
+  base2 <- tibble::tibble(id = c(1, 2, 3, 3), x = 1:4)
+  out <- build_attrition(base2, tibble::tibble(id = 1:3), "id")
+  expect_match(out$warnings, "前期有 1 個 ID 出現不只一次", all = FALSE)
+})
+
+test_that("前期和後期沒有相同 ID 時提醒，不是直接完成（A3）", {
+  out <- build_attrition(tibble::tibble(id = 1:3), tibble::tibble(id = 4:6), "id")
+  expect_equal(out$result$attrition, c(1L, 1L, 1L))
+  expect_match(out$warnings, "沒有任何相同的 ID", all = FALSE)
+})

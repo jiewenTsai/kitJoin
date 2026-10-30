@@ -26,9 +26,10 @@ mod_join_ui <- function(id) {
     ),
     shiny::tags$small(
       class = "kit-hint",
-      "只列出每個檔案都有的欄位。請選每個人唯一的編號，例如 release_id；",
-      "不要用姓名，因為可能有人同名。"
+      "只列出每個檔案都有的欄位；括號裡是「不重複的比例」，ID 應該接近 100%。",
+      "請選每個人唯一的編號，例如 release_id；不要用姓名，因為可能有人同名。"
     ),
+    shiny::uiOutput(ns("id_check")),
     shiny::radioButtons(
       ns("method"), "要保留哪些人？",
       choices = KIT_JOIN_METHODS, selected = "left_join", width = "100%"
@@ -74,17 +75,46 @@ mod_join_server <- function(id, files, working, goto) {
     })
     shiny::observeEvent(common_cols(), {
       common <- common_cols()
+      choices <- id_choices(files$data(), common)
       selected <- intersect(input$by_vars %||% character(0), common)
-      if (length(selected) == 0) {
-        selected <- utils::head(guess_id_cols(common), 1)
-      }
+      if (length(selected) == 0) selected <- default_id_choice(choices)
       shiny::updateSelectizeInput(
         session,
         "by_vars",
-        choices = common,
+        choices = choices,
         selected = selected
       )
     }, ignoreNULL = FALSE)
+
+    # 選好 ID 後，先看各檔的 ID 有沒有重複、空白
+    output$id_check <- shiny::renderUI({
+      by_vars <- input$by_vars
+      dfs <- files$data()
+      if (length(dfs) < 2 || length(by_vars) == 0) return(NULL)
+      if (!all(purrr::map_lgl(dfs, function(df) all(by_vars %in% names(df))))) {
+        return(NULL)
+      }
+      names_shown <- file_display_name(files$labels(), files$names())
+      tbl <- id_check_table(dfs, names_shown, by_vars)
+      shiny::tags$details(
+        class = "kit-example",
+        open = if (any(tbl$重複的ID數 > 0)) NA,
+        shiny::tags$summary(
+          if (any(tbl$重複的ID數 > 0)) "⚠ ID 檢查：有檔案的 ID 重複" else "ID 檢查：各檔的 ID 都不重複"
+        ),
+        shiny::tags$div(
+          class = "kit-table-scroll",
+          shiny::renderTable(tbl, digits = 0)
+        ),
+        if (any(tbl$重複的ID數 > 0)) {
+          shiny::tags$small(
+            class = "kit-hint",
+            "ID 重複時，同一個人在結果中會佔多列；重複很多時結果會暴增。",
+            "請確認選的是每個人都不同的編號。"
+          )
+        }
+      )
+    })
 
     # 檔案或設定變動後，舊結果失效
     shiny::observeEvent(
@@ -104,13 +134,15 @@ mod_join_server <- function(id, files, working, goto) {
       ignoreInit = TRUE
     )
 
-    shiny::observeEvent(input$run, {
+    run_join <- function(confirm_large) {
       result(NULL)
+      asked <- FALSE
       st <- tryCatch(
         shiny::withProgress(message = "正在串接資料…", value = 0.3, {
           out <- join_waves(
             working$data(), files$names(), files$labels(), input$by_vars,
-            method = input$method, keys_as_text = isTRUE(input$keys_as_text)
+            method = input$method, keys_as_text = isTRUE(input$keys_as_text),
+            confirm_large = confirm_large
           )
           out$by_vars <- input$by_vars
           result(out)
@@ -123,10 +155,29 @@ mod_join_server <- function(id, files, working, goto) {
             warnings = out$warnings, notes = out$notes
           )
         }),
+        # 結果會暴增：跳出確認視窗，使用者按「仍要執行」才繼續
+        kit_join_too_large = function(e) {
+          shiny::showModal(shiny::modalDialog(
+            title = "串接結果會非常大",
+            conditionMessage(e),
+            footer = shiny::tagList(
+              shiny::modalButton("取消，回去改 ID"),
+              shiny::actionButton(ns("run_confirm"), "仍要執行", class = "btn-danger")
+            ),
+            easyClose = TRUE
+          ))
+          asked <<- TRUE
+          kit_status("error", conditionMessage(e))
+        },
         error = function(e) kit_error_status(e, "串接")
       )
       status(st)
-      kit_notify(st)
+      if (!asked) kit_notify(st)
+    }
+    shiny::observeEvent(input$run, run_join(confirm_large = FALSE))
+    shiny::observeEvent(input$run_confirm, {
+      shiny::removeModal()
+      run_join(confirm_large = TRUE)
     })
 
     output$status <- shiny::renderUI(make_status_ui(status()))

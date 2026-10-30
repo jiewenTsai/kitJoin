@@ -12,6 +12,16 @@ kit_abort <- function(...) {
   ))
 }
 
+#' 給使用者看的錯誤，另加一個 class（呼叫端可以另外處理，例如跳出確認視窗）
+#' @param data 附在 condition 上的其他欄位（list）
+#' @noRd
+kit_abort_class <- function(class, ..., data = list()) {
+  stop(structure(
+    class = c(class, "kit_user_error", "error", "condition"),
+    c(list(message = paste0(...), call = NULL), data)
+  ))
+}
+
 #' x 為 NULL 時改用 y（R 4.4 起 base 也有，這裡為了支援較舊的 R）
 #' @noRd
 `%||%` <- function(x, y) if (is.null(x)) y else x

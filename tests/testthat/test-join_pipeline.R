@@ -120,3 +120,54 @@ test_that("文字 ID 前後空白一律去掉，只有空白的 ID 不配對", {
   att <- build_attrition(a, b, "id")
   expect_equal(att$result$attrition, c(0L, 0L, NA))
 })
+
+test_that("多對多會暴增時先停下，確認後才執行；太大直接拒絕（A3）", {
+  a <- tibble::tibble(birth = rep(1:3, each = 20), x = 1:60)
+  b <- tibble::tibble(birth = rep(1:3, each = 20), y = 1:60)
+  expect_equal(join_size_estimate(list(a, b), "birth", "left_join"), 1200)
+  expect_error(
+    join_waves(list(a, b), c("a", "b"), c("t1", "t2"), "birth"),
+    "1,200 列",
+    class = "kit_join_too_large"
+  )
+  out <- join_waves(list(a, b), c("a", "b"), c("t1", "t2"), "birth", confirm_large = TRUE)
+  expect_equal(nrow(out$result), 1200)
+
+  # 預估：left 保留左邊沒配到的與空白 ID；full 兩邊都保留
+  l <- tibble::tibble(id = c(1, 1, 2, NA))
+  r <- tibble::tibble(id = c(1, 3, NA))
+  expect_equal(join_size_estimate(list(l, r), "id", "left_join"), 4)
+  expect_equal(join_size_estimate(list(l, r), "id", "inner_join"), 2)
+  expect_equal(join_size_estimate(list(l, r), "id", "full_join"), 6)
+
+  # 正常的少量重複不用確認
+  w2_dup <- dplyr::bind_rows(w2, tibble::tibble(release_id = 2L, score = 99))
+  expect_no_error(join_waves(list(w1, w2_dup), c("a", "b"), c("t1", "t2"), "release_id"))
+
+  big <- tibble::tibble(k = rep(1, 2e4), x = 1)
+  expect_error(
+    join_waves(list(big, big), c("a", "b"), c("t1", "t2"), "k", confirm_large = TRUE),
+    "太大",
+    class = "kit_user_error"
+  )
+})
+
+test_that("ID 選單附不重複比例，像 ID 的欄排前面（A3）", {
+  a <- tibble::tibble(c_birth = c(1, 1, 2, 2), w1_id = 1:4, W = c(1, 1, 1, 2))
+  ch <- id_choices(list(a), names(a))
+  expect_equal(unname(ch), c("w1_id", "c_birth", "W"))
+  expect_equal(names(ch)[1], "w1_id（不重複 100%）")
+  expect_equal(names(ch)[2], "c_birth（不重複 50%）")
+  expect_equal(default_id_choice(ch), "w1_id")
+  expect_equal(format_unique_pct(0.99999), "99.9%")
+  tbl <- id_check_table(list(a, a), c("t1", "t2"), "c_birth")
+  expect_equal(tbl$重複的ID數, c(2L, 2L))
+})
+
+test_that("檔案只有 ID 一欄時也能串接", {
+  out <- join_waves(
+    list(tibble::tibble(id = 1:3, x = 1:3), tibble::tibble(id = 2:3)),
+    c("a", "b"), c("t1", "t2"), "id"
+  )
+  expect_named(out$result, c("id", "x_t1"))
+})
