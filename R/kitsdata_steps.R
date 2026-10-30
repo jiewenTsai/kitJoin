@@ -342,3 +342,109 @@ kits_items_page_html <- function(id, rows, selected = character(0)) {
     "<tbody>", paste(tr, collapse = ""), "</tbody></table></div></div>"
   ))
 }
+
+# ── 第 2 步：看起來像題目的欄，一組一列（給人勾選） ───────────────────────
+
+# 每頁幾組；分數最大到多少、最多幾種才算「像題目」
+KITS_GROUPS_PAGE <- 15L
+KITS_GROUP_MAX_SCORE <- 20
+KITS_GROUP_MAX_VALUES <- 11L
+
+#' 每一欄的變項標籤（SPSS 的 label），去掉開頭的編號，例如「W1:D5-1   最近一星期_感覺緊張不安」
+#' → 「最近一星期_感覺緊張不安」；沒有標籤是 ""
+#' @noRd
+kits_col_labels <- function(dfs, cols) {
+  vapply(cols, function(col) {
+    for (df in dfs) {
+      lab <- attr(df[[col]], "label", exact = TRUE)
+      if (!is.null(lab) && length(lab) == 1 && !is.na(lab) && nzchar(lab)) {
+        out <- trimws(sub("^[A-Za-z]*[0-9]*:[A-Za-z0-9_.-]*[[:space:]]*", "", lab))
+        return(if (nzchar(out)) out else lab)
+      }
+    }
+    ""
+  }, character(1), USE.NAMES = FALSE)
+}
+
+#' 欄名的「組名」：同一組的題目欄名只差最後的編號
+#'
+#' - 結尾是「_數字」：去掉數字（w1d5_1、w1d5_2 → w1d5_）
+#' - 結尾是補零的數字，而且同一個開頭的欄位數都一樣（KIT 的 lana01、lana02 → lana）
+#' - 開頭沒有數字的（q1、q2 → q）
+#' - 其他（TDCYP 的 w1a2、w1a3 是不同的題）：一欄一組
+#' @noRd
+kits_col_stems <- function(cols) {
+  stem <- cols
+  under <- grepl("_[0-9]+[A-Za-z]?$", cols)
+  stem[under] <- sub("[0-9]+[A-Za-z]?$", "", cols[under])
+  rest <- which(!under & grepl("[0-9]+$", cols))
+  if (length(rest) > 0) {
+    base <- sub("[0-9]+$", "", cols[rest])
+    num <- regmatches(cols[rest], regexpr("[0-9]+$", cols[rest]))
+    for (b in unique(base)) {
+      i <- which(base == b)
+      padded <- length(i) > 1 && length(unique(nchar(num[i]))) == 1 && any(startsWith(num[i], "0"))
+      plain <- length(i) > 1 && !grepl("[0-9]", b)   # q1、q2、item10（開頭沒有數字）
+      if ((padded || plain) && nzchar(b)) stem[rest[i]] <- b
+    }
+  }
+  stem
+}
+
+#' 看起來像題目的欄，欄名開頭一樣的放一組（w1d5_1…w1d5_5 → 「w1d5_」）
+#'
+#' 像題目：原分數是 0–20 的整數，至少 2 種、最多 11 種（不含疑似遺漏值代碼）。
+#' 順序照資料裡出現的順序（通常就是問卷的順序）。
+#' @return tibble：stem、cols（list）、n、range（「1–5」）、label（第一題的標籤）、
+#'   n_in（已經納入幾欄）、domain（組裡已經有的領域，沒有是 NA）
+#' @noRd
+kits_item_groups <- function(settings, dfs) {
+  empty <- tibble::tibble(stem = character(0), cols = list(), n = integer(0), range = character(0),
+                          label = character(0), n_in = integer(0), domain = character(0))
+  if (nrow(settings) == 0) return(empty)
+  like <- purrr::map_lgl(settings$raw, function(r) {
+    length(r) >= 2 && length(r) <= KITS_GROUP_MAX_VALUES && all(r == round(r)) &&
+      min(r) >= 0 && max(r) <= KITS_GROUP_MAX_SCORE
+  })
+  s <- settings[like, ]
+  if (nrow(s) == 0) return(empty)
+  stem <- kits_col_stems(s$column)
+  labels <- kits_col_labels(dfs, s$column)
+  idx <- split(seq_len(nrow(s)), factor(stem, levels = unique(stem)))
+  tibble::tibble(
+    stem = names(idx),
+    cols = lapply(idx, function(i) s$column[i]),
+    n = lengths(idx),
+    range = vapply(idx, function(i) {
+      r <- unlist(s$raw[i])
+      paste0(kits_num_text(min(r)), "–", kits_num_text(max(r)))
+    }, character(1)),
+    label = vapply(idx, function(i) {
+      lab <- labels[i][nzchar(labels[i])]
+      if (length(lab) == 0) "" else lab[1]
+    }, character(1)),
+    n_in = vapply(idx, function(i) sum(s$include[i]), integer(1)),
+    domain = vapply(idx, function(i) {
+      d <- unique(stats::na.omit(s$domain[i]))
+      if (length(d) == 1) d else NA_character_
+    }, character(1))
+  )
+}
+
+#' 找組：欄名或題目內容（標籤）包含這幾個字（不分大小寫）
+#' @noRd
+kits_groups_filter <- function(groups, text) {
+  f <- tolower(trimws(text %||% ""))
+  if (!nzchar(f) || nrow(groups) == 0) return(groups)
+  hit <- grepl(f, tolower(groups$stem), fixed = TRUE) | grepl(f, tolower(groups$label), fixed = TRUE) |
+    vapply(groups$cols, function(c) any(grepl(f, tolower(c), fixed = TRUE)), logical(1))
+  groups[hit, ]
+}
+
+#' 一組的欄名：「w1d5_1 … w1d5_5（5 欄）」
+#' @noRd
+kits_group_cols_text <- function(cols) {
+  if (length(cols) == 1) return(cols)
+  if (length(cols) == 2) return(paste0(cols[1], "、", cols[2], "（2 欄）"))
+  paste0(cols[1], " … ", cols[length(cols)], "（", length(cols), " 欄）")
+}

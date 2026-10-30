@@ -473,11 +473,34 @@ kit_header <- function(
     meta = kit_app_meta()) {
   shiny::div(
     class = "kit-header mb-4",
-    shiny::h1(title),
-    shiny::p(
-      shiny::tags$span(class = "kit-subtitle", subtitle),
-      " · ", tagline
-    ),
-    meta
+    # 分頁圖示（favicon）；Shiny 會把 tags$head() 搬到 <head>
+    shiny::tags$head(shiny::tags$link(rel = "icon", type = "image/png", href = kit_logo_uri(64))),
+    shiny::div(
+      style = "display: flex; align-items: center; gap: 1.1rem;",
+      shiny::tags$img(src = kit_logo_uri(96), alt = "KIT 標誌",
+                      style = "width: 4.2rem; height: auto; flex: none;"),
+      shiny::div(
+        shiny::h1(title),
+        shiny::p(
+          shiny::tags$span(class = "kit-subtitle", subtitle),
+          " · ", tagline
+        ),
+        meta
+      )
+    )
   )
+}
+
+#' KIT 標誌（豆子）：data URI，直接放進頁面（不用另外設定靜態檔案的路徑）
+#' @param size 64、96 或 256（像素，正方形透明底 PNG，在 inst/logo/）
+#' @noRd
+kit_logo_uri <- function(size = 96) {
+  file <- paste0("kit-mark-", size, ".png")
+  pkg <- utils::packageName()
+  # 安裝成套件時在 system.file()；用 runApp(資料夾) 跑時（本機、雲端版）在 inst/logo/
+  candidates <- c(if (length(pkg) == 1) system.file("logo", file, package = pkg),
+                  file.path("inst", "logo", file))
+  path <- candidates[nzchar(candidates) & file.exists(candidates)][1]
+  if (is.na(path)) return("")
+  paste0("data:image/png;base64,", base64enc::base64encode(path))
 }

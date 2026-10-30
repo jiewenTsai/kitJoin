@@ -79,39 +79,48 @@ mod_kitsdata_ui <- function(id) {
         shiny::conditionalPanel(
           open_is(2), ns = ns, shiny::tags$div(class = "kit-stepbody",
           shiny::uiOutput(ns("intro2")),
-          shiny::fileInput(
-            ns("item_file"), "上傳題目表（item_id、domain）或之前下載的題目設定",
-            accept = c(".csv", ".sav"), buttonLabel = "選擇檔案…", placeholder = "還沒有上傳",
-            width = "34rem"
+          shiny::tags$div(
+            class = "kit-inline",
+            shiny::textInput(ns("grp_search"), NULL, width = "20rem",
+                             placeholder = "找欄名或題目內容，例如 d5 或 緊張"),
+            shiny::actionButton(ns("grp_prev"), "上一頁", class = "btn-sm btn-default"),
+            shiny::textOutput(ns("grp_page"), inline = TRUE),
+            shiny::actionButton(ns("grp_next"), "下一頁", class = "btn-sm btn-default")
           ),
-          kit_detail(
-            "沒有題目表：用欄名挑",
-            shiny::tags$div(
-              class = "kit-inline",
-              shiny::textInput(ns("pick_prefix"), "欄名開頭是", width = "16rem",
-                               placeholder = "例如 w1d5_、w2d5_"),
-              shiny::selectizeInput(ns("pick_domain"), "領域", choices = NULL, width = "12rem",
-                                    options = list(create = TRUE, placeholder = "例如 distress")),
-              shiny::actionButton(ns("pick_add"), "加入這些欄", class = "btn-default")
-            ),
-            shiny::uiOutput(ns("pick_note")),
-            shiny::actionLink(ns("pick_clear"), "全部清掉，重新挑")
-          ),
+          shiny::uiOutput(ns("groups_table")),
           shiny::uiOutput(ns("items_status")),
           kit_details_row(
-            kit_detail("看挑出來的題目", shiny::uiOutput(ns("items_list"))),
             kit_detail(
-              "題目表的格式",
+              "有題目表或之前下載的設定",
+              shiny::fileInput(
+                ns("item_file"), "上傳題目表（item_id、domain）或之前下載的題目設定",
+                accept = c(".csv", ".sav"), buttonLabel = "選擇檔案…", placeholder = "還沒有上傳",
+                width = "34rem"
+              ),
               shiny::tags$p(class = "kit-hint",
                 "CSV 或 SAV，一列一題：item_id（資料裡的欄名）、domain（領域）；",
                 "可以再加 item_id_out（作答檔的題號：各波次欄名不同、其實是同一題時，給同一個題號）。",
-                "也可以上傳之前在這一頁下載的「題目設定」，會連計分對照一起套用。"),
+                "之前在這一頁下載的「題目設定」會連計分對照一起套用。"),
               shiny::selectInput(
                 ns("reverse_rule"), "反向題的欄名（題目表查不到時，用原題的領域）",
                 choices = KITS_REVERSE_RULES, selected = "suffix", width = "24rem"
               )
             ),
-            kit_detail("不能當題目的欄", shiny::uiOutput(ns("text_cols")))
+            kit_detail(
+              "用欄名一次挑很多欄",
+              shiny::tags$div(
+                class = "kit-inline",
+                shiny::textInput(ns("pick_prefix"), "欄名開頭是", width = "16rem",
+                                 placeholder = "例如 w1d5_、w2d5_"),
+                shiny::selectizeInput(ns("pick_domain"), "領域", choices = NULL, width = "12rem",
+                                      options = list(create = TRUE, placeholder = "例如 distress")),
+                shiny::actionButton(ns("pick_add"), "加入這些欄", class = "btn-default")
+              ),
+              shiny::uiOutput(ns("pick_note")),
+              shiny::actionLink(ns("pick_clear"), "全部清掉，重新挑")
+            ),
+            kit_detail("看挑出來的題目", shiny::uiOutput(ns("items_list"))),
+            kit_detail("沒有列在上面的欄", shiny::uiOutput(ns("text_cols")))
           ),
           shiny::actionButton(ns("ok2"), "對，下一步", class = "btn-default")
         ))
@@ -414,11 +423,123 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     counts <- shiny::reactive(kits_step2_counts(settings()))
 
     output$intro2 <- shiny::renderUI({
-      shiny::tags$p(paste0(
-        length(files$keys()), " 個檔案共 ", kit_num(length(all_cols())), " 欄，",
-        "大多不是題目。上傳題目表最快："
-      ))
+      shiny::tags$p(
+        "下面是看起來像題目的欄（分數是 0–20 的整數），欄名開頭一樣的放在一組。",
+        shiny::tags$strong("勾選要轉的組，再替每一組選一個領域"),
+        "（例如 憂鬱、語言；選單裡沒有就直接打）。"
+      )
     })
+
+    # 像題目的欄一組一列：組的結構只在欄變了時重算（勾選、領域改了不重畫，打字不會被打斷）
+    groups_all <- shiny::reactiveVal(kits_item_groups(kits_settings_empty(), list()))
+    shiny::observe({
+      s <- settings()
+      g <- kits_item_groups(s, dfs())
+      old <- shiny::isolate(groups_all())
+      if (!identical(g$stem, old$stem) || !identical(g$cols, old$cols)) groups_all(g)
+    })
+    grp_page <- shiny::reactiveVal(1L)
+    grp_shown <- shiny::reactive({
+      g <- groups_all()
+      g$k <- seq_len(nrow(g))
+      kits_groups_filter(g, input$grp_search)
+    })
+    grp_pages <- shiny::reactive(max(1L, ceiling(nrow(grp_shown()) / KITS_GROUPS_PAGE)))
+    shiny::observeEvent(input$grp_search, grp_page(1L), ignoreInit = TRUE)
+    shiny::observeEvent(input$grp_prev, grp_page(max(1L, grp_page() - 1L)))
+    shiny::observeEvent(input$grp_next, grp_page(min(grp_pages(), grp_page() + 1L)))
+    grp_rows <- shiny::reactive({
+      g <- grp_shown()
+      p <- min(grp_page(), grp_pages())
+      i <- seq_len(nrow(g))
+      g[i > (p - 1) * KITS_GROUPS_PAGE & i <= p * KITS_GROUPS_PAGE, ]
+    })
+    output$grp_page <- shiny::renderText({
+      paste0(kit_num(nrow(grp_shown())), " 組 · 第 ", min(grp_page(), grp_pages()), " / ",
+             grp_pages(), " 頁")
+    })
+    grp_dom_id <- function(k) paste0("gdom_", k)
+    output$groups_table <- shiny::renderUI({
+      g <- grp_rows()
+      if (nrow(g) == 0) {
+        return(shiny::tags$p(class = "kit-hint", if (nrow(groups_all()) == 0)
+          "沒有看起來像題目的欄。可以上傳題目表，或用欄名挑（下面）。" else "沒有符合的組。"))
+      }
+      s <- shiny::isolate(settings())
+      doms <- sort(unique(stats::na.omit(s$domain)))
+      rows <- purrr::pmap(g, function(stem, cols, n, range, label, n_in, domain, k) {
+        on <- all(s$include[match(cols, s$column)])
+        dom <- unique(stats::na.omit(s$domain[match(cols, s$column)]))
+        shiny::tags$tr(
+          shiny::tags$td(shiny::tags$input(
+            type = "checkbox", name = ns("grp_sel"), value = stem,
+            checked = if (on) NA, `aria-label` = paste("要", stem)
+          )),
+          shiny::tags$td(shiny::tags$strong(kits_group_cols_text(cols)), shiny::tags$br(),
+                         shiny::tags$small(class = "kit-hint", paste0("分數 ", range))),
+          shiny::tags$td(class = "kit-group-label", if (nzchar(label)) label else
+            shiny::tags$span(class = "kit-muted", "（沒有題目內容）")),
+          shiny::tags$td(shiny::selectizeInput(
+            ns(grp_dom_id(k)), NULL, choices = c("", union(doms, dom)),
+            selected = if (length(dom) == 1) dom else "", width = "11rem",
+            options = list(create = TRUE, placeholder = "選或打領域", dropdownParent = "body")
+          ))
+        )
+      })
+      shiny::tags$div(
+        id = ns("grp_sel"), class = "form-group shiny-input-checkboxgroup shiny-input-container",
+        style = "width: auto; max-width: 100%;",
+        shiny::tags$div(
+          class = "shiny-options-group kit-table-scroll",
+          shiny::tags$table(
+            class = "table kit-groups",
+            shiny::tags$thead(shiny::tags$tr(
+              shiny::tags$th("要"), shiny::tags$th("欄"), shiny::tags$th("題目內容（第一題）"),
+              shiny::tags$th("領域")
+            )),
+            shiny::tags$tbody(rows)
+          )
+        )
+      )
+    })
+    # 勾選：這一頁勾的組納入、沒勾的不納入（只改這一頁的組）
+    shiny::observeEvent(input$grp_sel, {
+      g <- grp_rows()
+      s <- settings()
+      want <- g$stem %in% (input$grp_sel %||% character(0))
+      for (i in seq_len(nrow(g))) {
+        cols <- g$cols[[i]]
+        now <- all(s$include[match(cols, s$column)])
+        if (!identical(now, want[i])) s <- kits_bulk_include(s, cols, want[i])
+      }
+      if (!identical(s, settings())) settings(s)
+    }, ignoreNULL = FALSE, ignoreInit = TRUE)
+    # 領域：選了就設給這一組的每一欄，並且勾起來
+    shiny::observe({
+      g <- grp_rows()
+      vals <- lapply(g$k, function(k) input[[grp_dom_id(k)]])
+      shiny::isolate({
+        s <- settings()
+        turned_on <- character(0)
+        for (i in seq_len(nrow(g))) {
+          v <- trimws(vals[[i]] %||% "")
+          if (!nzchar(v)) next
+          cols <- g$cols[[i]]
+          hit <- match(cols, s$column)
+          if (!all(s$domain[hit] %in% v)) s <- kits_bulk_domain(s, cols, v)
+          if (!all(s$include[hit])) {
+            s <- kits_bulk_include(s, cols, TRUE)
+            turned_on <- c(turned_on, g$stem[i])
+          }
+        }
+        if (!identical(s, settings())) settings(s)
+        if (length(turned_on) > 0) {
+          on <- g$stem[vapply(g$cols, function(c) all(s$include[match(c, s$column)]), logical(1))]
+          shiny::updateCheckboxGroupInput(session, "grp_sel", selected = on)
+        }
+      })
+    })
+
     # 用欄名挑
     picked <- shiny::reactive(kits_pick_cols(settings()$column, input$pick_prefix))
     output$pick_note <- shiny::renderUI({
