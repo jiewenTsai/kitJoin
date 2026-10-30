@@ -67,7 +67,7 @@ run_app <- function() {
 
   use_user_library()
   install_if_missing(c(
-    "shiny", "bslib", "dplyr", "readr", "haven", "purrr", "tibble", "htmltools"
+    "shiny", "bslib", "dplyr", "readr", "haven", "purrr", "tibble", "tidyr", "vctrs", "htmltools"
   ))
 
   log_msg("啟動中，瀏覽器會自動開啟 kitJoin。")

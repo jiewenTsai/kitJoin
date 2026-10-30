@@ -222,7 +222,7 @@ kit_source_note_ui <- function(n_files, source, code_cells, ns) {
 
 # ── 下載 ─────────────────────────────────────────────────────────────────────
 
-#' 下載區（CSV + SAV）
+#' 下載區（CSV + CSV.GZ + SAV）
 #'
 #' 沒有結果時顯示停用的按鈕與「先執行」提示；有結果時顯示下載按鈕、
 #' 檔名與 SAV 自動改名提醒。
@@ -236,6 +236,10 @@ kit_download_server <- function(output, ns, data_fn, filename_fn, run_label) {
   output$download_csv <- shiny::downloadHandler(
     filename = function() filename_fn("csv"),
     content = function(file) write_kit_csv(data_fn(), file)
+  )
+  output$download_csvgz <- shiny::downloadHandler(
+    filename = function() filename_fn("csv.gz"),
+    content = function(file) write_kit_csv_gz(data_fn(), file)
   )
   output$download_sav <- shiny::downloadHandler(
     filename = function() filename_fn("sav"),
@@ -255,7 +259,7 @@ kit_download_server <- function(output, ns, data_fn, filename_fn, run_label) {
       }
       return(shiny::tags$div(
         class = "kit-downloads",
-        disabled("下載 CSV"), disabled("下載 SAV"),
+        disabled("下載 CSV"), disabled("下載 CSV.GZ"), disabled("下載 SAV"),
         shiny::tags$small(
           class = "kit-hint",
           paste0("先按上方「", run_label, "」，才能下載結果。")
@@ -271,6 +275,11 @@ kit_download_server <- function(output, ns, data_fn, filename_fn, run_label) {
         class = "btn-primary me-2"
       ),
       shiny::downloadButton(
+        ns("download_csvgz"),
+        "下載 CSV.GZ",
+        class = "btn-outline-primary me-2"
+      ),
+      shiny::downloadButton(
         ns("download_sav"),
         "下載 SAV（SPSS）",
         class = "btn-outline-primary"
@@ -278,6 +287,7 @@ kit_download_server <- function(output, ns, data_fn, filename_fn, run_label) {
       shiny::tags$small(
         class = "kit-hint",
         "CSV 的遺漏值為空白儲存格，可直接用 Excel 開啟。",
+        "CSV.GZ 是壓縮過的 CSV，檔案較小，可直接上傳 kitsUI；Excel 不能直接開。",
         if (length(renamed) > 0) {
           paste0(
             "匯出 SAV 時，有 ", length(renamed), " 個欄名不符合 SPSS 規則，會自動改名：",
@@ -319,14 +329,17 @@ kit_preview_table <- function(df, priority_cols = NULL, n = KIT_PREVIEW_ROWS) {
 #' 教學區塊（預設收起）
 #'
 #' @param output_id 由 server 以 `kit_code_blocks()` 填入內容的 uiOutput id
+#' @param title 收合區標題
 #' @noRd
-kit_code_panel <- function(output_id) {
+kit_code_panel <- function(
+    output_id,
+    title = "用 R 怎麼做？（tidyverse 版與 base R 版）") {
   shiny::tags$div(
     class = "kit-code-panel",
     bslib::accordion(
       open = FALSE,
       bslib::accordion_panel(
-        title = "用 R 怎麼做？（tidyverse 版與 base R 版）",
+        title = title,
         value = output_id,
         icon = shiny::icon("code"),
         shiny::uiOutput(output_id)
@@ -337,7 +350,7 @@ kit_code_panel <- function(output_id) {
 
 #' 教學區塊內容：說明 + tidyverse 版 + base R 版（附複製按鈕）
 #'
-#' @param snips list(tidy = 字串, base = 字串)
+#' @param snips list(tidy = 字串, base = 字串)；base 為 NULL 時只顯示 tidyverse 版
 #' @noRd
 kit_code_blocks <- function(snips) {
   block <- function(label, code) {
@@ -373,6 +386,6 @@ kit_code_blocks <- function(snips) {
       "app 實際處理另含編碼修正、型別檢查與核對等步驟。"
     ),
     block("tidyverse 版", snips$tidy),
-    block("base R 版", snips$base)
+    if (!is.null(snips$base)) block("base R 版", snips$base)
   )
 }

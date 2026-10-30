@@ -57,7 +57,10 @@ kit_ui <- function(request) {
         "⑤ 流失樣本",
         value = "attrition",
         mod_attrition_ui("attrition")
-      )
+      ),
+      shiny::tabPanel("⑥ 轉成 kits 作答檔", value = "kitsdata", mod_kitsdata_ui("kitsdata")),
+      shiny::tabPanel("⑦ 長寬互轉", value = "reshape", mod_reshape_ui("reshape")),
+      shiny::tabPanel("⑧ 檔案格式轉換", value = "convert", mod_convert_ui("convert"))
     ),
     if (kit_is_cloud()) kit_cloud_footer()
   )
@@ -74,4 +77,8 @@ kit_server <- function(input, output, session) {
   mod_join_server("join", files, working, goto)
   mod_stack_server("stack", files, working, goto)
   mod_attrition_server("attrition", files, working, goto)
+  mod_kitsdata_server("kitsdata", files, working)
+  mod_reshape_server("reshape", files, working, goto)
+  # ⑧ 和其他分頁無關：不收 files / working
+  mod_convert_server("convert")
 }

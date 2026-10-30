@@ -35,6 +35,8 @@ read_data_file <- function(path, name) {
     "無法讀取 ", name, "：目前只支援 CSV 與 SPSS（.sav）檔。",
     if (ext %in% c("xlsx", "xls")) {
       "Excel 檔請先在 Excel 用「另存新檔 → CSV UTF-8（逗號分隔）」存成 CSV 再上傳。"
+    } else if (ext == "gz") {
+      "壓縮過的 CSV（.csv.gz）請先到「⑧ 檔案格式轉換」解壓縮成 .csv 再上傳。"
     }
   )
 }
@@ -81,6 +83,18 @@ reorder_key_first <- function(df, key_cols) {
 #' @noRd
 write_kit_csv <- function(df, file) {
   readr::write_excel_csv(fix_utf8_df(df), file, na = "")
+}
+
+#' 匯出壓縮過的 CSV（.csv.gz）：遺漏值寫成空白；kitsUI 等工具可直接讀
+#'
+#' readr 看路徑結尾決定要不要壓縮，所以先寫到 .csv.gz 結尾的暫存檔再複製。
+#' @noRd
+write_kit_csv_gz <- function(df, file) {
+  tmp <- tempfile(fileext = ".csv.gz")
+  on.exit(unlink(tmp), add = TRUE)
+  readr::write_csv(fix_utf8_df(df), tmp, na = "")
+  file.copy(tmp, file, overwrite = TRUE)
+  invisible(file)
 }
 
 #' 匯出 SAV：不合法的 SPSS 變項名稱自動改名

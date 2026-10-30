@@ -72,3 +72,30 @@ test_that("改了波次名稱後，舊結果失效並提示重新執行", {
     expect_match(output[["stack-downloads"]]$html, "disabled")
   })
 })
+
+test_that("一次上傳多個檔案時，每一列都能改波次名稱、排序、移除", {
+  dir <- withr::local_tempdir()
+  w1 <- write_wave(dir, "w1.csv", data.frame(release_id = 1:3, score = 1:3))
+  w2 <- write_wave(dir, "w2.csv", data.frame(release_id = 2:4, score = 4:6))
+  w3 <- write_wave(dir, "w3.csv", data.frame(release_id = 3:5, score = 7:9))
+
+  shiny::testServer(
+    mod_upload_server,
+    args = list(goto = function(tab) NULL),
+    {
+      session$setInputs(files = upload_df(c(w1, w2, w3)))
+      expect_equal(current_labels(), c("t1", "t2", "t3"))
+
+      session$setInputs(label_f1 = "pre")
+      session$setInputs(label_f2 = "mid")
+      expect_equal(current_labels(), c("pre", "mid", "t3"))
+
+      session$setInputs(down_f1 = 1)
+      expect_equal(keys(), c("f2", "f1", "f3"))
+
+      session$setInputs(remove_f2 = 1)
+      expect_equal(keys(), c("f1", "f3"))
+      expect_equal(current_labels(), c("pre", "t3"))
+    }
+  )
+})

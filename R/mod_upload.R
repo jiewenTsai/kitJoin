@@ -75,6 +75,9 @@ mod_upload_server <- function(id, goto) {
     }
 
     watch_row <- function(key) {
+      # 一定要先 force：observer 晚一點才求值，否則同一批上傳的列
+      # 都會讀到 for 迴圈最後的 key（只有最後一個檔案能改名、排序、移除）
+      force(key)
       shiny::observeEvent(input[[paste0("label_", key)]], {
         value <- trimws(input[[paste0("label_", key)]])
         if (!identical(shiny::isolate(labels[[key]]), value)) {
@@ -201,7 +204,9 @@ mod_upload_server <- function(id, goto) {
       if (n == 1) {
         return(shiny::tags$div(
           class = "kit-callout",
-          "已加入 1 個檔案。串接、疊加與流失樣本都需要至少 2 個波次的檔案，請再加入一個檔案。"
+          "已加入 1 個檔案。串接、疊加與流失樣本都需要至少 2 個波次的檔案，請再加入一個檔案。",
+          "要轉成 kits 作答檔時，1 個檔案就可以 → ",
+          shiny::actionLink(ns("goto_kitsdata"), "⑥ 轉成 kits 作答檔")
         ))
       }
       link <- function(id, text) shiny::actionLink(ns(id), text)
@@ -217,11 +222,12 @@ mod_upload_server <- function(id, goto) {
           },
           shiny::tags$li("要「每人一列、各波變項並排」→ 到 ", link("goto_join", "③ 寬格式串接")),
           shiny::tags$li("要「每人每波一列」→ 到 ", link("goto_stack", "④ 長格式疊加")),
-          shiny::tags$li("要標記誰在後期沒有繼續參加 → 到 ", link("goto_attrition", "⑤ 流失樣本"))
+          shiny::tags$li("要標記誰在後期沒有繼續參加 → 到 ", link("goto_attrition", "⑤ 流失樣本")),
+          shiny::tags$li("要做 kits 或 kitsUI 的作答檔 → 到 ", link("goto_kitsdata", "⑥ 轉成 kits 作答檔"))
         )
       )
     })
-    for (tab in c("missing", "join", "stack", "attrition")) {
+    for (tab in c("missing", "join", "stack", "attrition", "kitsdata")) {
       local({
         target <- tab
         shiny::observeEvent(input[[paste0("goto_", target)]], goto(target))

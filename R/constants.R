@@ -3,6 +3,7 @@
 # 預覽表最多顯示幾欄、幾列
 KIT_PREVIEW_COLS <- 20L
 KIT_PREVIEW_ROWS <- 10L
+KIT_RESHAPE_PREVIEW_ROWS <- 20L   # ⑦ 長寬互轉
 
 # 單檔上傳上限（MB）
 KIT_UPLOAD_MB <- 500

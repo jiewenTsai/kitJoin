@@ -76,7 +76,7 @@ kit_cloud_footer <- function() {
     section(
       "四、建議使用方式",
       "已去識別化之資料可使用雲端版；含個資或受 IRB 限制之資料請使用本機版（資料不會離開您的電腦）。",
-      sprintf("單檔上傳上限為 %d MB，雲端運算資源有限，大型檔案亦建議使用本機版。",
+      sprintf("單檔上傳上限為 %d MB；雲端運算資源有限，大型檔案處理時間較長。",
               KIT_UPLOAD_MB)
     ),
     section(
