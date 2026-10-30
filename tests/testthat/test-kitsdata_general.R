@@ -336,3 +336,101 @@ test_that("C1：TDCYP W1–W3 jsq 猜得到各檔的 ID 欄（有檔案時才跑
   expect_equal(kits_guess_per_file(dfs)$subj_id, c("w1_id", "w2_id", "w3id"))
   expect_equal(kits_guess_sources(dfs)[["subj_id"]], "per_file")
 })
+
+# ── C2：輸出題號（跨波次同一題給同一個 item_id） ─────────────────────────────
+
+kg_waves <- function() {
+  list(
+    tibble::tibble(id = 1:3, w1d5_1 = c(0, 1, 2), w1d5_2 = c(1, 1, 0), w1c21_5 = c(0, 1, 1)),
+    tibble::tibble(id = 1:2, w2d5_1 = c(1, 2), w2d5_2 = c(0, 0)),
+    tibble::tibble(id = 2:3, w3c5_1 = c(2, 2), w3c5_2 = c(1, 0), w3d32_5 = c(1, 1))
+  )
+}
+
+kg_waves_spec <- function(dfs, s) {
+  map <- kits_guess_map("id")
+  kg_spec(s, map, rep("B85", 3), typed = list(wave_m = c("0", "12", "24")))
+}
+
+test_that("C2：去掉 ^w[0-9]+；題目表的 item_id_out；作答檔用輸出題號，程式碼也一樣", {
+  dfs <- kg_waves()
+  cols <- unique(unlist(purrr::map(dfs, function(df) setdiff(names(df), "id"))))
+  s <- kits_item_settings(dfs, cols) |> kits_bulk_domain(cols, "bsrs")
+  s <- kits_bulk_out_prefix(s, cols, "^w[0-9]+")
+  expect_equal(s$item_id_out[s$column == "w2d5_1"], "d5_1")
+  expect_error(kits_bulk_out_prefix(s, cols, "("), "看不懂")
+  expect_error(kits_bulk_out_prefix(s, cols, "^.*$"), "空白")
+  # 題號換了的（W3 的 c5_ 是 W1 的 d5_）：題目表給 item_id_out；w3d32_5 不給（保留欄名）
+  tab <- kits_settings_import(data.frame(
+    item_id = c("w3c5_1", "w3c5_2", "w3d32_5"), item_id_out = c("d5_1", "d5_2", "")
+  ))
+  expect_equal(tab$type, "table")
+  s <- kits_settings_apply(s, tab)
+  s <- kits_bulk_out_reset(s, "w3d32_5")
+  expect_equal(s$item_id_out[s$column %in% c("w3c5_1", "w3d32_5")], c("d5_1", NA))
+  expect_match(kitsdata_settings_table("x", s), "→ 題號 <code>d5_1</code>", fixed = TRUE)
+
+  spec <- kg_waves_spec(dfs, s)
+  out <- kits_build(dfs, c("w1", "w2", "w3"), spec)
+  expect_length(out$problems, 0)
+  long <- kits_long_of(out)
+  expect_setequal(unique(long$item_id), c("d5_1", "d5_2", "c21_5", "w3d32_5"))
+  expect_equal(out$n_items, 4)
+  w <- paste(out$warnings, collapse = "\n")
+  expect_match(w, "2 個輸出題號由不同的欄合成（d5_1 ← w1d5_1、w2d5_1、w3c5_1")
+  expect_match(w, "同一個題號在不同波次可能是不同的題")
+
+  got <- kg_run_code(dfs, spec, s)
+  expect_match(got$code, "mutate(item_id = coalesce(item_id_out, item_id))", fixed = TRUE)
+  kg_same_long(got$long, long)
+
+  # 設定檔來回：item_id_out 也回來
+  ex <- kits_settings_export(s)
+  back <- kits_settings_apply(kits_item_settings(dfs, cols), kits_settings_import(ex))
+  expect_equal(back$item_id_out, s$item_id_out)
+})
+
+test_that("C2：同一個檔案裡兩欄變成同一個題號時擋下；同一個題號兩個領域也擋下", {
+  dfs <- kg_waves()
+  cols <- c("w1d5_1", "w1c21_5")
+  s <- kits_item_settings(dfs[1], cols) |> kits_bulk_domain(cols, "a")
+  s$item_id_out <- c("x1", "x1")
+  out <- kits_build(dfs[1], "w1.sav", kg_waves_spec(dfs[1], s))
+  expect_match(out$problems, "w1.sav：w1d5_1、w1c21_5 都輸出成題號 x1", all = FALSE)
+
+  s <- kits_item_settings(dfs[1:2], c("w1d5_1", "w2d5_1")) |>
+    kits_bulk_domain("w1d5_1", "a") |> kits_bulk_domain("w2d5_1", "b") |>
+    kits_bulk_out_prefix(c("w1d5_1", "w2d5_1"), "^w[0-9]+")
+  spec <- kg_waves_spec(dfs[1:2], s)
+  spec$typed$wave_m <- c("0", "12")
+  out <- kits_build(dfs[1:2], c("a", "b"), spec)
+  expect_match(out$problems, "對到不同的領域：d5_1", all = FALSE)
+})
+
+test_that("C2：變項標籤不同的欄合成同一個題號時，特別提醒", {
+  dfs <- kg_waves()
+  attr(dfs[[1]]$w1c21_5, "label") <- "W1:家扶老師很關心我"
+  attr(dfs[[3]]$w3d32_5, "label") <- "W3:學校老師很關心我"
+  cols <- c("w1c21_5", "w3d32_5")
+  s <- kits_item_settings(dfs, cols) |> kits_bulk_domain(cols, "tsup")
+  s$item_id_out <- c("tsup5", "tsup5")
+  out <- kits_build(dfs, c("a", "b", "c"), kg_waves_spec(dfs, s))
+  expect_match(out$warnings, "變項標籤不一樣，請特別確認：tsup5", all = FALSE)
+})
+
+test_that("C2：app 裡用「去掉」改輸出題號，摘要與表都看得到", {
+  dir <- withr::local_tempdir()
+  dfs <- kg_waves()[1:2]
+  paths <- file.path(dir, c("w1.csv", "w2.csv"))
+  for (i in 1:2) readr::write_csv(dfs[[i]], paths[i])
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kg_upload(paths))
+    session$setInputs(`kitsdata-sel` = c("w1d5_1", "w2d5_1"), `kitsdata-out_pattern` = "^w[0-9]+",
+                      `kitsdata-do_out_prefix` = 1)
+    expect_match(output[["kitsdata-settings_table"]]$html, "→ 題號 <code>d5_1</code>")
+    expect_match(output[["kitsdata-settings_summary"]]$html, "2 題改了輸出題號，合成 1 個題號")
+    session$setInputs(`kitsdata-sel` = c("w1d5_1", "w1d5_2"), `kitsdata-out_pattern` = "[0-9]$",
+                      `kitsdata-do_out_prefix` = 2)
+    expect_match(output[["kitsdata-settings_summary"]]$html, "都輸出成題號 w1d5_")
+  })
+})

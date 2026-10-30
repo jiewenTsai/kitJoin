@@ -150,31 +150,38 @@ kits_file_map <- function(map, per_file, i) {
 
 # ── 領域：題目表 ─────────────────────────────────────────────────────────
 
-#' 題目表（item_id、domain）整理與檢查
+#' 題目表（item_id、domain，可以再有 item_id_out）整理與檢查
 #'
-#' 欄名不分大小寫；同一題有兩個不同領域時停下來。
-#' @return tibble：item_id、domain（文字，去掉前後空白）
+#' item_id 是資料裡的欄名；item_id_out 是作答檔要用的題號（跨波次同一題給同一個題號，
+#' 空白時就用欄名）。有 item_id_out 時 domain 可以省略。
+#' 欄名不分大小寫；同一題有兩列不同的設定時停下來。
+#' @return tibble：item_id、domain、item_id_out（文字，去掉前後空白；空白是 NA）
 #' @noRd
 kits_item_table <- function(df) {
   names(df) <- tolower(trimws(names(df)))
-  miss <- setdiff(c("item_id", "domain"), names(df))
+  has_out <- "item_id_out" %in% names(df)
+  miss <- setdiff(c("item_id", if (!has_out) "domain"), names(df))
   if (length(miss) > 0) {
     kit_abort(
       "題目表需要 item_id 與 domain 兩欄，缺少：", paste(miss, collapse = "、"), "。",
-      "請用一列一題的表，例如 item_id = lana01、domain = lan。"
+      "請用一列一題的表，例如 item_id = lana01、domain = lan",
+      "（要改輸出的題號時，再加一欄 item_id_out）。"
     )
   }
+  text <- function(x) {
+    if (is.null(x)) return(rep(NA_character_, nrow(df)))
+    dplyr::na_if(trimws(as.character(unclass(x))), "")
+  }
   tab <- tibble::tibble(
-    item_id = trimws(as.character(unclass(df$item_id))),
-    domain = trimws(as.character(unclass(df$domain)))
+    item_id = text(df$item_id), domain = text(df[["domain"]]), item_id_out = text(df[["item_id_out"]])
   ) |>
-    dplyr::filter(!is.na(.data$item_id), nzchar(.data$item_id)) |>
+    dplyr::filter(!is.na(.data$item_id)) |>
     dplyr::distinct()
   dup <- unique(tab$item_id[duplicated(tab$item_id)])
   if (length(dup) > 0) {
     kit_abort(
-      "題目表裡同一題有不同的領域：", paste(utils::head(dup, 5), collapse = "、"),
-      "。每一題只能有一個領域。"
+      "題目表裡同一題有不同的領域或輸出題號：", paste(utils::head(dup, 5), collapse = "、"),
+      "。每一題只能有一列。"
     )
   }
   tab
@@ -193,7 +200,7 @@ kits_item_domains <- function(cols, table = NULL) {
   if (!is.null(table) && nrow(table) > 0) {
     hit <- match(cols, table$item_id)
     domain <- table$domain[hit]
-    source[!is.na(hit)] <- "題目表"
+    source[!is.na(domain)] <- "題目表"
     base <- sub("r$", "", cols)
     use_base <- is.na(domain) & grepl("r$", cols) & base %in% table$item_id
     domain[use_base] <- table$domain[match(base[use_base], table$item_id)]
@@ -361,7 +368,8 @@ kits_settings_empty <- function() {
   tibble::tibble(
     column = character(0), include = logical(0), domain = character(0),
     source = character(0), raw = list(), score = list(), has_codes = logical(0),
-    codes = list(), n_codes = integer(0), code_set = character(0)
+    codes = list(), n_codes = integer(0), code_set = character(0),
+    item_id_out = character(0)
   )
 }
 
@@ -388,7 +396,7 @@ kits_item_settings <- function(dfs, cols, na_codes = NULL) {
       column = col, include = TRUE, domain = NA_character_, source = NA_character_,
       raw = list(observed), score = list(observed), has_codes = nrow(found) > 0,
       codes = list(found), n_codes = sum(all_vals %in% found$value),
-      code_set = NA_character_
+      code_set = NA_character_, item_id_out = NA_character_
     )
   })
   purrr::list_rbind(rows)
@@ -436,6 +444,7 @@ kits_settings_sync <- function(old, new, upload = NULL) {
       new$include[i] <- old$include[j]
       new$domain[i] <- old$domain[j]
       new$source[i] <- old$source[j]
+      new$item_id_out[i] <- old[["item_id_out"]][j] %||% NA_character_
       if (!is.na(old$code_set[j] %||% NA)) {
         # 使用者決定的代碼：資料變了也照用
         new <- kits_set_codes(new, i, old$codes[[j]], old$code_set[j])
@@ -463,12 +472,19 @@ kits_settings_apply <- function(settings, upload, cols = NULL) {
   set <- todo & !is.na(dom$domain)
   settings$domain[set] <- dom$domain[set]
   settings$source[set] <- if (upload$type == "settings") "設定檔" else dom$source[set]
+  # 輸出題號：只對欄名完全相同的列（不用反向題的規則）
+  if (!is.null(upload$data[["item_id_out"]]) && any(!is.na(upload$data[["item_id_out"]]))) {
+    if (is.null(settings[["item_id_out"]])) settings$item_id_out <- NA_character_
+    out <- upload$data[["item_id_out"]][match(settings$column, upload$data$item_id)]
+    set <- todo & !is.na(out)
+    settings$item_id_out[set] <- ifelse(out[set] == settings$column[set], NA, out[set])
+  }
   if (upload$type == "settings") {
     hit <- match(settings$column, upload$data$item_id)
     for (i in which(todo & !is.na(hit))) {
       j <- hit[i]
       if (!is.na(upload$data$include[j])) settings$include[i] <- upload$data$include[j]
-      codes <- upload$data$codes[[j]]
+      codes <- upload$data[["codes"]][[j]]
       if (!is.null(codes)) {
         settings <- kits_set_codes(
           settings, i, tibble::tibble(value = codes, why = rep("設定檔", length(codes))), "設定檔"
@@ -519,7 +535,9 @@ kits_settings_import <- function(df) {
       .default = NA
     ),
     domain = dplyr::na_if(text(df$domain), ""),
-    raw = purrr::map(maps, "raw"), score = purrr::map(maps, "score"), codes = codes
+    raw = purrr::map(maps, "raw"), score = purrr::map(maps, "score"), codes = codes,
+    item_id_out = if (is.null(df[["item_id_out"]])) NA_character_ else
+      dplyr::na_if(text(df[["item_id_out"]]), "")
   )
   data <- data[!is.na(data$item_id) & nzchar(data$item_id), ]
   list(type = "settings", data = data)
@@ -547,7 +565,7 @@ kits_parse_map <- function(text) {
 }
 
 #' 下載用的題目設定：item_id、include、domain、map_raw_to_score（原分數=計分）、
-#' missing_codes（遺漏值代碼，用分號隔開）
+#' missing_codes（遺漏值代碼，用分號隔開）、item_id_out（輸出的題號；空白是用欄名）
 #' @noRd
 kits_settings_export <- function(settings) {
   codes <- settings[["codes"]] %||% rep(list(kits_no_codes()), nrow(settings))
@@ -558,7 +576,8 @@ kits_settings_export <- function(settings) {
     map_raw_to_score = purrr::map2_chr(settings$raw, settings$score, kits_map_text),
     missing_codes = purrr::map_chr(codes, function(x) {
       paste(kits_id_text((x %||% kits_no_codes())$value), collapse = ";")
-    })
+    }),
+    item_id_out = settings[["item_id_out"]] %||% rep(NA_character_, nrow(settings))
   )
 }
 
@@ -639,6 +658,31 @@ kits_bulk_codes <- function(settings, rows, values) {
   settings
 }
 
+#' 輸出題號：欄名去掉符合 pattern（正規式）的部分，例如 ^w[0-9]+ 讓 w1d5_1、w2d5_1 都是 d5_1
+#' @noRd
+kits_bulk_out_prefix <- function(settings, rows, pattern) {
+  ok <- tryCatch({
+    grepl(pattern, "x")
+    TRUE
+  }, error = function(e) FALSE, warning = function(w) FALSE)
+  if (!ok || !nzchar(pattern)) kit_abort("看不懂這個規則（正規式）：", pattern, "。例如 ^w[0-9]+")
+  hit <- settings$column %in% rows
+  out <- sub(pattern, "", settings$column[hit])
+  empty <- settings$column[hit][!nzchar(out)]
+  if (length(empty) > 0) {
+    kit_abort("去掉後題號會變成空白：", paste(utils::head(empty, 5), collapse = "、"), "。")
+  }
+  settings$item_id_out[hit] <- ifelse(out == settings$column[hit], NA, out)
+  settings
+}
+
+#' 輸出題號還原成欄名
+#' @noRd
+kits_bulk_out_reset <- function(settings, rows) {
+  settings$item_id_out[settings$column %in% rows] <- NA_character_
+  settings
+}
+
 #' 不是遺漏值代碼：這些題的代碼都放回原分數（計分 = 原分數）
 #' @noRd
 kits_bulk_uncode <- function(settings, rows) {
@@ -700,12 +744,14 @@ kits_code_like <- function(sc) {
   upper[grepl("^9+[0-9]?$", kits_id_text(upper)) & upper >= 9]
 }
 
-#' 要轉的題目（納入的列）：column、domain、raw、score、codes（遺漏值代碼，list 欄）
+#' 要轉的題目（納入的列）：column、domain、raw、score、codes（遺漏值代碼，list 欄）、
+#' item_id_out（輸出的題號，NA 是用欄名）
 #' @noRd
 kits_settings_items <- function(settings) {
   keep <- settings[settings$include, ]
   if (is.null(keep[["codes"]])) keep$codes <- rep(list(kits_no_codes()), nrow(keep))
-  keep[c("column", "domain", "raw", "score", "codes")]
+  if (is.null(keep[["item_id_out"]])) keep$item_id_out <- rep(NA_character_, nrow(keep))
+  keep[c("column", "domain", "raw", "score", "codes", "item_id_out")]
 }
 
 #' 納入但還沒有領域的題
@@ -989,7 +1035,10 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   if (mapped$n > 0) notes <- c(notes, paste0("計分對照：", mapped$n, " 題的原分數改成計分。"))
   problems <- kits_score_problems(dfs, items)
   if (length(problems) > 0) return(list(problems = problems))
-  rename <- character(0)
+  rename <- kits_item_rename(spec$items)
+  clash <- kits_rename_problems(dfs, file_names, spec$items, rename)
+  if (length(clash) > 0) return(list(problems = clash))
+  warnings <- c(warnings, kits_rename_warning(dfs, spec$items, rename))
 
   visit_rule <- kits_visit_rule(map, per_file)
   files <- purrr::map(seq_along(dfs), function(i) {
@@ -1098,7 +1147,79 @@ kits_apply_side_codes <- function(dfs, cols, na_codes = NULL) {
   list(dfs = dfs, warning = if (length(out) > 0) paste(out, collapse = ""))
 }
 
-# 輸出的題號（目前就是題目欄的欄名；保留這一層給以後改題號用）
+#' 輸出題號的對照：欄名 → 輸出的題號（只列有改的題）
+#' @noRd
+kits_item_rename <- function(items) {
+  out <- items[["item_id_out"]]
+  if (is.null(out)) return(character(0))
+  keep <- !is.na(out) & nzchar(out) & out != items$column
+  stats::setNames(out[keep], items$column[keep])
+}
+
+#' 改題號後的問題（擋下）：同一個檔案裡兩欄變成同一個題號、同一個題號有兩個領域
+#' @noRd
+kits_rename_problems <- function(dfs, file_names, items, rename) {
+  if (length(rename) == 0) return(character(0))
+  out <- character(0)
+  for (i in seq_along(dfs)) {
+    have <- intersect(items$column, names(dfs[[i]]))
+    ids <- kits_out_ids(have, rename)
+    dup <- unique(ids[duplicated(ids)])
+    for (d in utils::head(dup, 3)) {
+      out <- c(out, paste0(
+        file_names[i], "：", paste(have[ids == d], collapse = "、"), " 都輸出成題號 ", d,
+        "。同一個檔案裡兩欄不能是同一題（同一個列次會有兩個 ", d, "），請改 item_id_out。"
+      ))
+    }
+  }
+  doms <- dplyr::distinct(tibble::tibble(id = kits_out_ids(items$column, rename),
+                                         domain = items$domain))
+  two <- unique(doms$id[duplicated(doms$id)])
+  if (length(two) > 0) {
+    out <- c(out, paste0(
+      "這些輸出題號對到不同的領域：", paste(utils::head(two, 5), collapse = "、"),
+      "。同一個題號只能有一個領域。"
+    ))
+  }
+  out
+}
+
+#' 改題號後的提醒：不同的欄（通常是不同波次）合成同一個題號時，列出來請使用者確認
+#'
+#' 同一個題號在不同波次可能是不同的題（例如 TDCYP W1 的 c21_5 是家扶老師，W3 以後的
+#' d32_5 是學校老師），變項標籤不同時特別標出來。
+#' @noRd
+kits_rename_warning <- function(dfs, items, rename) {
+  if (length(rename) == 0) return(NULL)
+  ids <- kits_out_ids(items$column, rename)
+  groups <- split(items$column, ids)
+  groups <- groups[lengths(groups) > 1]
+  if (length(groups) == 0) return(NULL)
+  label_of <- function(col) {
+    for (df in dfs) {
+      lab <- attr(df[[col]], "label", exact = TRUE)
+      if (!is.null(lab)) return(lab)
+    }
+    NA_character_
+  }
+  differ <- names(groups)[vapply(groups, function(cols) {
+    labs <- vapply(cols, label_of, character(1))
+    labs <- sub("^[A-Za-z]*[0-9]+[:：]\\s*", "", labs[!is.na(labs)])
+    length(unique(labs)) > 1
+  }, logical(1))]
+  shown <- paste0(names(groups), " ← ", vapply(groups, paste, character(1), collapse = "、"))
+  paste0(
+    length(groups), " 個輸出題號由不同的欄合成（", paste(utils::head(shown, 4), collapse = "；"),
+    if (length(groups) > 4) "；…", "）。kits 會把它們當成同一題。",
+    "同一個題號在不同波次可能是不同的題（例如改版後題號沿用、內容換了），請對照題目內容確認",
+    if (length(differ) > 0) {
+      paste0("；這些題的變項標籤不一樣，請特別確認：", paste(utils::head(differ, 5), collapse = "、"))
+    },
+    "。"
+  )
+}
+
+# 輸出的題號：有改的題用 item_id_out（kits_item_rename()），其他就是欄名
 kits_out_ids <- function(ids, rename) {
   if (length(rename) == 0) return(ids)
   dplyr::coalesce(unname(rename[ids]), ids)
@@ -1432,7 +1553,7 @@ kits_wide_checks <- function(prep, spec) {
       ))
     }
   }
-  no_dom <- answered$item_id[blank(answered$domain)]
+  no_dom <- unique(answered$item_id[blank(answered$domain)])
   if (length(no_dom) > 0) {
     problems <- c(problems, paste0(
       "這些題沒有領域：", paste(utils::head(no_dom, 8), collapse = "、"), "。"
@@ -1443,7 +1564,7 @@ kits_wide_checks <- function(prep, spec) {
     problems = problems,
     warnings = kits_score_warnings(stats, ok, spec),
     n_visits = length(unique(ok$visit_id)),
-    n_items = nrow(answered)
+    n_items = length(unique(answered$item_id))
   )
 }
 
@@ -1451,8 +1572,8 @@ kits_wide_checks <- function(prep, spec) {
 kits_score_warnings <- function(stats, persons, spec) {
   out <- character(0)
   per_item <- stats[stats$n > 0, ]
-  some <- function(x) paste(utils::head(x, 5), collapse = "、")
-  no_zero <- per_item$item_id[per_item$min > 0]
+  some <- function(x) paste(utils::head(unique(x), 5), collapse = "、")
+  no_zero <- unique(per_item$item_id[per_item$min > 0])
   if (length(no_zero) > 0) {
     out <- c(out, paste0(
       length(no_zero), " 題沒有 0 分（例如 ", some(no_zero),

@@ -152,7 +152,8 @@ test_that("題目設定下載再上傳：納入、領域、計分對照都回來
   path <- withr::local_tempfile(fileext = ".csv")
   readr::write_excel_csv(kits_settings_export(st), path, na = "")
   back <- readr::read_csv(path, show_col_types = FALSE)
-  expect_named(back, c("item_id", "include", "domain", "map_raw_to_score", "missing_codes"))
+  expect_named(back, c("item_id", "include", "domain", "map_raw_to_score", "missing_codes",
+                       "item_id_out"))
   expect_match(back$map_raw_to_score[1], "^[0-9]+=[0-9]+(;[0-9]+=[0-9]+)*$")
 
   up <- kits_settings_import(back)

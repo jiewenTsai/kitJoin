@@ -66,7 +66,8 @@ mod_kitsdata_ui <- function(id) {
       )
     ),
     shiny::fileInput(
-      ns("item_file"), "上傳題目表（item_id、domain）或題目設定檔（之前下載的；CSV 或 SAV）",
+      ns("item_file"),
+      "上傳題目表（item_id、domain，可以再加 item_id_out）或題目設定檔（之前下載的；CSV 或 SAV）",
       accept = c(".csv", ".sav"), buttonLabel = "選擇檔案…", placeholder = "沒有上傳",
       width = "60%"
     ),
@@ -77,7 +78,8 @@ mod_kitsdata_ui <- function(id) {
       shiny::tags$small(
         class = "text-muted ms-2",
         "欄位：item_id、include、domain、map_raw_to_score（計分對照，寫成「原分數=計分」，",
-        "例如 1=0;2=1）。下一波上傳這個檔，就會套用同樣的設定。"
+        "例如 1=0;2=1）、missing_codes（遺漏值代碼，例如 98;99）、item_id_out（輸出的題號）。",
+        "下一波上傳這個檔，就會套用同樣的設定。"
       )
     ),
     shiny::uiOutput(ns("settings_summary")),
@@ -201,11 +203,19 @@ kitsdata_bulk_ui <- function(ns) {
       btn("do_exclude", "排除", "btn-outline-danger"),
       btn("do_include", "納入", "btn-outline-success")
     ),
+    row(
+      shiny::tags$span("輸出題號：欄名去掉"),
+      shiny::textInput(ns("out_pattern"), NULL, value = "^w[0-9]+", width = "8rem"),
+      btn("do_out_prefix", "去掉"),
+      btn("do_out_reset", "還原成欄名")
+    ),
     shiny::tags$small(
       class = "text-muted",
       "平移、反向都在目前的計分上做（例如先合併再平移）；合併是把指定的原分數都改成同一個計分。",
       "「當成遺漏值」把填的原分數改成遺漏值代碼（例如 98、99），不會寫進作答檔；",
-      "「不是遺漏值代碼」把自動找到的代碼放回原分數。"
+      "「不是遺漏值代碼」把自動找到的代碼放回原分數。",
+      "輸出題號是作答檔的 item_id：各波次欄名不同、其實是同一題時，給它們同一個題號",
+      "（例如 w1d5_1、w2d5_1 去掉 ^w[0-9]+ 都是 d5_1；題號換了的，用題目表的 item_id_out 欄）。"
     )
   )
 }
@@ -514,8 +524,19 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       inc <- s[s$include, ]
       dc <- dplyr::count(inc[!is.na(inc$domain), ], .data$domain)
       text_cols <- candidates()$text
+      items_now <- kits_settings_items(s)
+      rename <- kits_item_rename(items_now)
+      clash <- kits_rename_problems(working$data(), files$names(), items_now, rename)
       shiny::tags$div(
         class = "kit-source-note",
+        if (length(rename) > 0) {
+          shiny::tags$p(paste0(
+            length(rename), " 題改了輸出題號，合成 ", length(unique(rename)), " 個題號。"
+          ))
+        },
+        if (length(clash) > 0) {
+          shiny::tags$div(class = "text-danger small", lapply(clash, shiny::tags$div))
+        },
         shiny::tags$p(paste0(
           nrow(s), " 欄：納入 ", nrow(inc), "、排除 ", nrow(s) - nrow(inc), "；",
           "納入但沒有領域 ", sum(is.na(inc$domain)), " 題",
@@ -597,6 +618,10 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       kits_bulk_codes(s, rows, from)
     }))
     shiny::observeEvent(input$do_uncode, act(kits_bulk_uncode))
+    shiny::observeEvent(input$do_out_prefix, act(function(s, rows) {
+      kits_bulk_out_prefix(s, rows, trimws(input$out_pattern %||% ""))
+    }))
+    shiny::observeEvent(input$do_out_reset, act(kits_bulk_out_reset))
     shiny::observeEvent(input$do_exclude, act(function(s, rows) kits_bulk_include(s, rows, FALSE)))
     shiny::observeEvent(input$do_include, act(function(s, rows) kits_bulk_include(s, rows, TRUE)))
 
@@ -833,6 +858,10 @@ kitsdata_settings_table <- function(id, settings, selected = character(0),
     is.na(settings$source), "",
     paste0("<div class=\"text-muted small\">", esc(settings$source), "</div>")
   )
+  out <- settings[["item_id_out"]] %||% rep(NA_character_, nrow(settings))
+  out_id <- ifelse(
+    is.na(out), "", paste0("<div class=\"small\">→ 題號 <code>", esc(out), "</code></div>")
+  )
   rows <- paste0(
     "<tr data-col=\"", att(col), "\"",
     ifelse(inc, "", " class=\"excluded\""),
@@ -840,7 +869,7 @@ kitsdata_settings_table <- function(id, settings, selected = character(0),
     "<td><input type=\"checkbox\" name=\"", att(id), "\" value=\"", att(col), "\"",
     ifelse(col %in% selected, " checked=\"checked\"", ""), "/></td>",
     "<td>", ifelse(inc, "納入", "排除"), "</td>",
-    "<td><code>", esc(col), "</code></td>",
+    "<td><code>", esc(col), "</code>", out_id, "</td>",
     "<td>", domain, source, "</td>",
     "<td>", map$raw_text, "</td><td>", map$table, "</td><td>", map$after_text, "</td>",
     "<td class=\"small text-danger\">", esc(kits_settings_alerts(settings)), "</td></tr>"

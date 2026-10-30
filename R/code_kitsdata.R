@@ -24,6 +24,7 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, side_codes = list()) {
   }
   map_out$visit_id <- "visit_id"
   idx <- seq_along(f$obj)
+  renamed <- length(kits_item_rename(spec$items)) > 0
   long <- paste0("long_", sub("^data_", "", f$obj))
   per_file_code <- function(fun) paste(vapply(idx, fun, character(1)), collapse = "\n")
 
@@ -38,8 +39,10 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, side_codes = list()) {
     },
     "",
     "# 題目設定：⑥ 下載的 kits_item_settings.csv（item_id、include、domain、",
-    "# map_raw_to_score = 計分對照，寫成「原分數=計分」）",
-    paste0("item_settings <- read_csv(", r_str(KITS_SETTINGS_FILE), ")"),
+    "# map_raw_to_score = 計分對照，寫成「原分數=計分」；missing_codes = 不寫進作答檔的代碼；",
+    "# item_id_out = 輸出的題號）。include 是 TRUE/FALSE，其他欄都當文字讀",
+    paste0("item_settings <- read_csv(", r_str(KITS_SETTINGS_FILE),
+           ", col_types = cols(include = \"l\", .default = \"c\"))"),
     "items <- item_settings$item_id[item_settings$include]",
     code_kitsdata_codes(f, spec$items, side_codes),
     code_kitsdata_maps(f, spec$items),
@@ -50,9 +53,14 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, side_codes = list()) {
                          purrr::map(typed, i), per_file)
     }),
     "",
-    "# 合併各檔，接上領域",
+    if (renamed) "# 合併各檔，接上領域；有 item_id_out 的題改成輸出的題號" else "# 合併各檔，接上領域",
     paste0("kits_long <- bind_rows(", paste(long, collapse = ", "), ") |>"),
-    "  left_join(select(item_settings, item_id, domain), by = \"item_id\")",
+    if (renamed) {
+      c("  left_join(select(item_settings, item_id, item_id_out, domain), by = \"item_id\") |>",
+        "  mutate(item_id = coalesce(item_id_out, item_id))")
+    } else {
+      "  left_join(select(item_settings, item_id, domain), by = \"item_id\")"
+    },
     "",
     code_kitsdata_finish(map_out),
     "",
