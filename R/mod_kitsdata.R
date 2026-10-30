@@ -13,7 +13,7 @@ mod_kitsdata_ui <- function(id) {
         "替每個檔案填世代（例如 M03），或選世代所在的欄",
         "確認孩子編號、波次、月齡等欄位的對應",
         "上傳題目表（item_id、domain），或輸入規則；沒有領域的欄逐一排除或指定領域",
-        "（選用）勾選進階調整：遺漏值代碼、分數減 1、反向計分",
+        "（選用）勾選進階調整：分數減 1、反向計分（遺漏值代碼請先在 ② 處理）",
         "按「執行轉換」，看檢查結果，下載 .csv.gz"
       ),
       output = paste0(
@@ -25,13 +25,14 @@ mod_kitsdata_ui <- function(id) {
         "多個檔案時，每個檔案可以是不同世代、各有好幾個波次。"
       ),
       technical = paste0(
-        "每個檔案先做勾選的進階調整（固定順序：1 遺漏值代碼轉 NA → 2 分數減 1 → 3 反向計分），",
+        "每個檔案先做勾選的進階調整（固定順序：1 分數減 1 → 2 反向計分；遺漏值代碼由 ② 處理），",
         "再用 tidyr::pivot_longer() 把題目欄轉成 item_id、item_score，最後接上領域並合併。",
         "檢查都在寬資料上做；長格式在下載時每 5,000 列寬資料轉一段、寫進 .csv.gz，不會整張放進記憶體。",
         "visit_id 由 {cohort}_{subj_id}_{波次標籤} 組成；沒有波次標籤欄時改用 wave_m。"
       )
     ),
     shiny::uiOutput(ns("source_note")),
+    shiny::uiOutput(ns("codes_note")),
     kitsdata_spec_ui(),
 
     shiny::h4("1. 世代（每個檔案）"),
@@ -63,7 +64,7 @@ mod_kitsdata_ui <- function(id) {
     shiny::h4("4. 進階調整（選用）"),
     shiny::tags$small(
       class = "kit-hint",
-      "勾了才做；不管勾的順序，都依 1 → 2 → 3 的順序執行。「用 R 怎麼做？」只會列出勾了的步驟。"
+      "勾了才做；不管勾的順序，都依 1 → 2 的順序執行。「用 R 怎麼做？」只會列出勾了的步驟。"
     ),
     kitsdata_steps_ui(ns),
 
@@ -102,21 +103,12 @@ kitsdata_map_ui <- function(ns) {
   )
 }
 
-# 進階調整：三個勾選框，勾了才出現各自的設定
+# 進階調整：兩個勾選框，勾了才出現各自的設定（遺漏值代碼由 ② 處理）
 kitsdata_steps_ui <- function(ns) {
   cond <- function(id) paste0("input['", ns(id), "']")
   shiny::tagList(
-    shiny::checkboxInput(ns("step_na"), "步驟 1：遺漏值代碼轉 NA", FALSE, width = "100%"),
-    shiny::conditionalPanel(
-      cond("step_na"),
-      shiny::textInput(
-        ns("na_codes"), "遺漏值代碼（以逗號分隔；題目、wave_m、age_m 都會處理）",
-        value = kit_na_codes_default(), width = "60%"
-      ),
-      shiny::uiOutput(ns("na_note"))
-    ),
     shiny::checkboxInput(
-      ns("step_shift"), "步驟 2：分數減 1（例如 1–5 計分改成 0–4；kits 的分數要從 0 開始）",
+      ns("step_shift"), "步驟 1：分數減 1（例如 1–5 計分改成 0–4；kits 的分數要從 0 開始）",
       FALSE, width = "100%"
     ),
     shiny::conditionalPanel(
@@ -133,7 +125,7 @@ kitsdata_steps_ui <- function(ns) {
     ),
     shiny::uiOutput(ns("shift_suggest")),
     shiny::checkboxInput(
-      ns("step_reverse"), "步驟 3：反向計分（最高分 − 分數，在 0 起算的分數上做）",
+      ns("step_reverse"), "步驟 2：反向計分（最高分 − 分數，在 0 起算的分數上做）",
       FALSE, width = "100%"
     ),
     shiny::conditionalPanel(
@@ -155,8 +147,9 @@ kitsdata_steps_ui <- function(ns) {
 
 #' @param files mod_upload_server() 的回傳值
 #' @param working mod_missing_server() 的回傳值
+#' @param goto function(tab) 切換分頁（到 ② 處理遺漏值代碼）
 #' @noRd
-mod_kitsdata_server <- function(id, files, working) {
+mod_kitsdata_server <- function(id, files, working, goto) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
     result <- shiny::reactiveVal(NULL)
@@ -175,6 +168,22 @@ mod_kitsdata_server <- function(id, files, working) {
         "目前使用：",
         if (identical(working$source(), "na")) "「② 遺漏值轉 NA」處理後的資料" else "原始資料",
         "，共 ", n, " 個檔案。"
+      )
+    })
+
+    # 疑似遺漏值代碼（7777 以上）還在資料裡、也沒用 ②：提醒先到 ② 處理（不擋轉換）
+    shiny::observeEvent(input$goto_missing, goto("missing"))
+    output$codes_note <- shiny::renderUI({
+      if (identical(working$source(), "na") || length(working$data()) == 0) return(NULL)
+      cols <- c(items()$column, map()$wave_m, map()$age_m)
+      n <- kits_code_cells(working$data(), cols)
+      if (n == 0) return(NULL)
+      shiny::tags$div(
+        class = "kit-callout kit-callout-warning",
+        "題目、wave_m 或 age_m 有 ", format(n, big.mark = ","), " 格是 7777 以上的值，",
+        "可能是遺漏值代碼。這一頁不處理遺漏值代碼，請先",
+        shiny::actionLink(ns("goto_missing"), "到「② 遺漏值轉 NA」"),
+        "把它們改成 NA，再回來轉換。"
       )
     })
 
@@ -409,18 +418,9 @@ mod_kitsdata_server <- function(id, files, working) {
         shiny::updateSelectizeInput(session, id, choices = cols, selected = keep, server = TRUE)
       }
     })
-    na_codes <- shiny::reactive(parse_na_codes(input$na_codes)$codes)
-    output$na_note <- shiny::renderUI({
-      if (!identical(working$source(), "na")) return(NULL)
-      shiny::tags$small(
-        class = "kit-hint",
-        "「② 遺漏值轉 NA」已經處理過這些資料；這一步可以不勾（勾了也不會重複替換）。"
-      )
-    })
     steps <- shiny::reactive({
       cols <- items()$column
       list(
-        na = if (isTRUE(input$step_na)) na_codes(),
         shift = if (isTRUE(input$step_shift)) {
           if (identical(input$shift_scope, "pick")) {
             intersect(input$shift_items %||% character(0), cols)
@@ -438,17 +438,14 @@ mod_kitsdata_server <- function(id, files, working) {
     })
     output$shift_suggest <- shiny::renderUI({
       if (isTRUE(input$step_shift) || length(items()$column) == 0) return(NULL)
-      dfs <- working$data()
-      if (isTRUE(input$step_na)) {
-        dfs <- purrr::map(dfs, function(df) kits_step_na(df, items()$column, na_codes())$data)
-      }
-      r <- kits_item_ranges(dfs, items()$column)
+      # 先不管 7777 以上的值（疑似遺漏值代碼），才不會被它們誤導
+      r <- kits_item_ranges(working$data(), items()$column, below = KITS_CODE_MIN)
       r <- r[r$n > 0, ]
       if (nrow(r) == 0 || any(r$min != 1)) return(NULL)
       shiny::tags$div(
         class = "kit-callout",
         shiny::tags$strong("建議："), "每一題的最低分都是 1，分數可能是從 1 開始計分。",
-        "kits 的分數要從 0 開始；如果是這樣，請勾「步驟 2：分數減 1」（不會自動幫您勾）。"
+        "kits 的分數要從 0 開始；如果是這樣，請勾「步驟 1：分數減 1」（不會自動幫您勾）。"
       )
     })
 
@@ -547,7 +544,8 @@ mod_kitsdata_server <- function(id, files, working) {
     output$code <- shiny::renderUI({
       kit_code_blocks(list(tidy = code_kitsdata(
         code_files_from(files), spec(), item_file = input$item_file$name,
-        rules = rules()$rules, assigned = decided()$assigned
+        rules = rules()$rules, assigned = decided()$assigned,
+        na_applied = identical(working$source(), "na")
       ), base = NULL))
     })
   })

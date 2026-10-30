@@ -68,14 +68,18 @@ new_lines <- function(dfs, spec, chunk_rows) {
   read_gz_lines(path)
 }
 
+# ② 遺漏值轉 NA 的結果（⑥ 不處理遺漏值代碼）
+after_missing_all <- function(dfs) {
+  purrr::map(dfs, function(df) replace_na_codes(df, c(7777, 9999), exclude = "release_id")$data)
+}
+
 all_steps <- list(
-  na = c(7777, 9999),
   shift = c("lana01", "lana02", "bodyaf01", "bodyef01", "cogd01r", "coga01"),
   reverse = list(items = c("lana02", "coga01"), max = 4, add_r = TRUE)
 )
 
-test_that("分段寫出和整張長表一列一列相同：多個檔案、r 題、步驟 1–3、各種分段大小", {
-  dfs <- stream_dfs()
+test_that("分段寫出和整張長表一列一列相同：多個檔案、r 題、步驟 1–2、各種分段大小", {
+  dfs <- after_missing_all(stream_dfs())
   spec <- stream_spec(dfs, all_steps)
   old <- kits_build_old(dfs, c("a", "b", "c"), spec)
   expect_length(old$problems, 0)
@@ -90,8 +94,8 @@ test_that("分段寫出和整張長表一列一列相同：多個檔案、r 題�
 })
 
 test_that("分段寫出相同：沒對應的選填欄（sex、age_m）、沒有波次標籤（用 wave_m）", {
-  dfs <- stream_dfs()
-  spec <- stream_spec(dfs, list(na = c(7777, 9999)), map_drop = c("sex", "age_m", "wave"))
+  dfs <- after_missing_all(stream_dfs())
+  spec <- stream_spec(dfs, map_drop = c("sex", "age_m", "wave"))
   old <- kits_build_old(dfs, c("a", "b", "c"), spec)
   expect_length(old$problems, 0)
   want <- old_lines(old$long)
@@ -100,7 +104,7 @@ test_that("分段寫出相同：沒對應的選填欄（sex、age_m）、沒有�
 })
 
 test_that("摘要、列數、預覽、檔案大小估計和舊做法相同", {
-  dfs <- stream_dfs()
+  dfs <- after_missing_all(stream_dfs())
   spec <- stream_spec(dfs, all_steps)
   old <- kits_build_old(dfs, c("a", "b", "c"), spec)
   new <- kits_build(dfs, c("a", "b", "c"), spec)
@@ -114,9 +118,9 @@ test_that("摘要、列數、預覽、檔案大小估計和舊做法相同", {
 })
 
 test_that("在寬資料上檢查：擋下的情況和舊做法相同", {
-  dfs <- stream_dfs()
+  dfs <- after_missing_all(stream_dfs())
   dfs[[1]] <- dplyr::bind_rows(dfs[[1]], dfs[[1]][3, ])   # 重複的孩子
-  spec <- stream_spec(dfs, list(na = c(7777, 9999)))
+  spec <- stream_spec(dfs)
   old <- kits_build_old(dfs, c("a", "b", "c"), spec)
   new <- kits_build(dfs, c("a", "b", "c"), spec)
   expect_null(new$prep)

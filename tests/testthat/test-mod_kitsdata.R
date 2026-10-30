@@ -47,8 +47,20 @@ test_that("⑥：設定好世代、規則與排除後，轉換成功並有 .csv.
     expect_match(output[["kitsdata-status"]]$html, "沒有領域、也還沒決定")
 
     do.call(session$setInputs, stats::setNames(list("__exclude__"), extra_id))
-    session$setInputs(`kitsdata-step_na` = TRUE, `kitsdata-na_codes` = "9999")
-    # 每題最低分是 1：建議勾步驟 2，但不會自動勾
+    # 9999 還在、也沒用 ②：提醒到 ②（不擋）；減 1 的建議不管 9999
+    expect_match(output[["kitsdata-codes_note"]]$html, "goto_missing")
+    expect_no_match(output[["kitsdata-code"]]$html, "已經把遺漏值代碼改成 NA")
+    session$setInputs(`kitsdata-goto_missing` = 1)
+    expect_match(output[["kitsdata-shift_suggest"]]$html, "建議")
+    # 到 ② 把 9999 改成 NA
+    session$setInputs(
+      `missing-codes` = "9999", `missing-exclude_cols` = "release_id",
+      `missing-match_text` = TRUE, `missing-use_downstream` = TRUE
+    )
+    session$setInputs(`missing-run` = 1)
+    expect_null(output[["kitsdata-codes_note"]])
+    expect_match(output[["kitsdata-code"]]$html, "已經把遺漏值代碼改成 NA")
+    # 每題最低分是 1：建議勾步驟 1，但不會自動勾
     expect_match(output[["kitsdata-shift_suggest"]]$html, "建議")
     expect_null(input[["kitsdata-step_shift"]])
     session$setInputs(`kitsdata-step_shift` = TRUE, `kitsdata-shift_scope` = "all")
@@ -58,8 +70,7 @@ test_that("⑥：設定好世代、規則與排除後，轉換成功並有 .csv.
     expect_match(output[["kitsdata-status"]]$html, "檢查完成")
     expect_match(output[["kitsdata-result"]]$html, "download_gz")
     expect_match(output[["kitsdata-code"]]$html, "步驟 1")
-    expect_match(output[["kitsdata-code"]]$html, "步驟 2")
-    expect_no_match(output[["kitsdata-code"]]$html, "步驟 3")
+    expect_no_match(output[["kitsdata-code"]]$html, "步驟 2")
     expect_match(output[["kitsdata-visit_note"]]$html, "M03_K1_m03g01")
   })
 })
@@ -73,8 +84,7 @@ test_that("⑥：世代空白時不轉換；改設定後舊結果失效", {
     extra_id <- paste0("kitsdata-nodom_", paste(as.character(charToRaw("extra")), collapse = ""))
     session$setInputs(
       `kitsdata-cohort_txt_f1` = "M03", `kitsdata-cohort_txt_f2` = "",
-      `kitsdata-rules` = "^lan = lan\n^body = motor",
-      `kitsdata-step_na` = TRUE, `kitsdata-na_codes` = "9999"
+      `kitsdata-rules` = "^lan = lan\n^body = motor"
     )
     do.call(session$setInputs, stats::setNames(list("__exclude__"), extra_id))
     session$setInputs(`kitsdata-run` = 1)

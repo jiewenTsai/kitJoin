@@ -3,7 +3,7 @@
 # 輸出固定 9 欄、固定順序（kits 與 kitsUI 的資料約定）：
 #   visit_id、subj_id、cohort、sex、wave_m、age_m、item_id、item_score、domain
 # 編號與 sex 一律寫成文字；wave_m、age_m 是數字；item_score 是整數。
-# 進階調整依固定順序執行：1 遺漏值代碼轉 NA → 2 分數減 1 → 3 反向計分（max − x）。
+# 進階調整依固定順序執行：1 分數減 1 → 2 反向計分（max − x）。遺漏值代碼由 ② 處理。
 # 這個檔案只有純函式（不碰 Shiny），由 mod_kitsdata.R 呼叫。
 
 # kits 作答檔的欄位（和 kits::kitm03$responses 相同的名稱、順序與型別；不依賴 kits）
@@ -36,6 +36,9 @@ NULL
 
 # 外部連結的錨題只認這三個領域名稱
 KITS_ANCHOR_DOMAINS <- c("lan", "motor", "cog")
+
+# 這個值以上的分數當成疑似遺漏值代碼（例如 7777、9999），提醒先到 ② 處理
+KITS_CODE_MIN <- 7777
 
 # kitsUI 單檔上傳上限（MB，未壓縮的估計超過時提醒）
 KITSUI_UPLOAD_MB <- 200
@@ -173,14 +176,15 @@ kits_candidate_cols <- function(dfs, mapped) {
 # ── 作答分數 ─────────────────────────────────────────────────────────────────
 
 #' 每一題觀察到的最小、最大分數（所有檔案合起來）
+#' @param below 只看小於這個值的分數（例如 7777：先不管疑似遺漏值代碼）
 #' @return tibble：item_id、min、max、n（有作答的格數）
 #' @noRd
-kits_item_ranges <- function(dfs, items) {
+kits_item_ranges <- function(dfs, items, below = Inf) {
   purrr::map(dfs, function(df) {
     have <- intersect(items, names(df))
     purrr::map(have, function(col) {
       x <- as.numeric(unclass(df[[col]]))
-      x <- x[!is.na(x)]
+      x <- x[!is.na(x) & x < below]
       tibble::tibble(item_id = col, min = suppressWarnings(min(x)),
                      max = suppressWarnings(max(x)), n = length(x))
     }) |>
@@ -193,24 +197,20 @@ kits_item_ranges <- function(dfs, items) {
     )
 }
 
-#' 步驟 1：遺漏值代碼轉 NA（只處理題目、wave_m、age_m）
-#' @return list(data, n)：n 是改成 NA 的格數
+#' 疑似遺漏值代碼（KITS_CODE_MIN 以上）的格數
+#' @param cols 要看的欄（題目、wave_m、age_m）
 #' @noRd
-kits_step_na <- function(df, cols, codes) {
-  n <- 0L
-  for (col in intersect(cols, names(df))) {
-    x <- df[[col]]
-    if (!is.numeric(x)) next
-    hit <- !is.na(x) & as.numeric(unclass(x)) %in% codes
-    if (!any(hit)) next   # 沒有代碼的欄不複製（省記憶體）
-    n <- n + sum(hit)
-    x[hit] <- NA
-    df[[col]] <- x
-  }
-  list(data = df, n = n)
+kits_code_cells <- function(dfs, cols) {
+  sum(purrr::map_dbl(dfs, function(df) {
+    have <- intersect(cols, names(df))
+    sum(purrr::map_dbl(df[have], function(x) {
+      if (!is.numeric(x)) return(0)
+      sum(as.numeric(unclass(x)) >= KITS_CODE_MIN, na.rm = TRUE)
+    }))
+  }))
 }
 
-#' 步驟 2 與 3：分數減 1、反向計分（max − x）
+#' 步驟 1 與 2：分數減 1、反向計分（max − x）
 #' @noRd
 kits_step_scores <- function(df, cols, fun) {
   for (col in intersect(cols, names(df))) {
@@ -265,16 +265,13 @@ kits_spec_problems <- function(dfs, file_names, spec) {
 kits_step_problems <- function(dfs, spec) {
   out <- character(0)
   st <- spec$steps
-  if (!is.null(st$na) && length(st$na) == 0) {
-    out <- c(out, "步驟 1：請輸入至少一個遺漏值代碼，例如 9999。")
-  }
   if (!is.null(st$shift) && length(st$shift) == 0) {
-    out <- c(out, "步驟 2：請選要減 1 的題目。")
+    out <- c(out, "步驟 1：請選要減 1 的題目。")
   }
   if (!is.null(st$reverse)) {
-    if (length(st$reverse$items) == 0) out <- c(out, "步驟 3：請選要反向計分的題目。")
+    if (length(st$reverse$items) == 0) out <- c(out, "步驟 2：請選要反向計分的題目。")
     if (is.null(st$reverse$max) || is.na(st$reverse$max)) {
-      out <- c(out, "步驟 3：請填最高分（0 起算，例如 0–4 計分填 4）。")
+      out <- c(out, "步驟 2：請填最高分（0 起算，例如 0–4 計分填 4）。")
     }
   }
   out
@@ -345,45 +342,38 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   map <- spec$map
   notes <- character(0)
 
-  # 步驟 1：遺漏值代碼轉 NA
-  if (!is.null(spec$steps$na)) {
-    na_cols <- c(items, map$wave_m, map$age_m)
-    done <- purrr::map(dfs, kits_step_na, cols = na_cols, codes = spec$steps$na)
-    dfs <- purrr::map(done, "data")
-    notes <- c(notes, paste0("步驟 1：", sum(purrr::map_int(done, "n")), " 格遺漏值代碼改成 NA。"))
-  }
   problems <- kits_score_problems(dfs, items)
   if (length(problems) > 0) return(list(problems = problems))
 
-  # 步驟 2：分數減 1（已經有 0 分的題不能減）
+  # 步驟 1：分數減 1（已經有 0 分的題不能減）
   shift <- spec$steps$shift
   if (!is.null(shift)) {
     zero <- dplyr::filter(kits_item_ranges(dfs, shift), .data$min <= 0)
     if (nrow(zero) > 0) {
       return(list(problems = paste0(
-        "步驟 2：這些題已經有 0 分，減 1 會變成負分：",
+        "步驟 1：這些題已經有 0 分，減 1 會變成負分：",
         paste(utils::head(zero$item_id, 10), collapse = "、"),
         if (nrow(zero) > 10) "…" else "", "。請把它們從要減 1 的題目拿掉。"
       )))
     }
     dfs <- purrr::map(dfs, kits_step_scores, cols = shift, fun = function(x) x - 1)
-    notes <- c(notes, paste0("步驟 2：", length(shift), " 題的分數減 1。"))
+    notes <- c(notes, paste0("步驟 1：", length(shift), " 題的分數減 1。"))
   }
 
-  # 步驟 3：反向計分（0 起算的量尺上 max − x）
+  # 步驟 2：反向計分（0 起算的量尺上 max − x）
   rev <- spec$steps$reverse
   rename <- character(0)
   if (!is.null(rev)) {
     over <- dplyr::filter(kits_item_ranges(dfs, rev$items), .data$max > rev$max)
     if (nrow(over) > 0) {
       return(list(problems = paste0(
-        "步驟 3：這些題的分數比最高分 ", rev$max, " 還大：",
+        "步驟 2：這些題的分數比最高分 ", rev$max, " 還大：",
         paste(utils::head(over$item_id, 10), collapse = "、"),
         "。請確認最高分（0 起算）。"
       )))
     }
     dfs <- purrr::map(dfs, kits_step_scores, cols = rev$items, fun = function(x) rev$max - x)
-    notes <- c(notes, paste0("步驟 3：", length(rev$items), " 題反向計分（", rev$max, " − 分數）。"))
+    notes <- c(notes, paste0("步驟 2：", length(rev$items), " 題反向計分（", rev$max, " − 分數）。"))
     if (isTRUE(rev$add_r)) {
       todo <- rev$items[!grepl("r$", rev$items)]
       rename <- stats::setNames(paste0(todo, "r"), todo)
@@ -612,7 +602,7 @@ kits_score_problems <- function(dfs, items) {
   if (length(neg) > 0) {
     out <- c(out, paste0(
       "這些題有負分：", paste(utils::head(neg, 8), collapse = "、"),
-      "。如果負數（例如 -1）代表遺漏，請勾「步驟 1」並把它加進遺漏值代碼。"
+      "。如果負數（例如 -1）代表遺漏，請先到「② 遺漏值轉 NA」把它加進遺漏值代碼。"
     ))
   }
   out
@@ -739,7 +729,7 @@ kits_score_warnings <- function(stats, persons, spec) {
   if (length(no_zero) > 0) {
     out <- c(out, paste0(
       length(no_zero), " 題沒有 0 分（例如 ", some(no_zero),
-      "）。kits 要有 0 分才能自由校準；分數如果是從 1 開始，請勾「步驟 2：分數減 1」。"
+      "）。kits 要有 0 分才能自由校準；分數如果是從 1 開始，請勾「步驟 1：分數減 1」。"
     ))
   }
   gap <- per_item$item_id[per_item$gap]
@@ -748,10 +738,11 @@ kits_score_warnings <- function(stats, persons, spec) {
       length(gap), " 題的分數中間有缺（例如 ", some(gap), "）。kits 校準時會停下來，要先合併分數。"
     ))
   }
-  big <- per_item$item_id[per_item$max >= 7777]
+  big <- per_item$item_id[per_item$max >= KITS_CODE_MIN]
   if (length(big) > 0) {
     out <- c(out, paste0(
-      length(big), " 題有 7777 以上的分數（例如 ", some(big), "），可能是遺漏值代碼。請勾「步驟 1」。"
+      length(big), " 題有 7777 以上的分數（例如 ", some(big), "），可能是遺漏值代碼。",
+      "請先到「② 遺漏值轉 NA」處理。"
     ))
   }
   doms <- setdiff(unique(stats::na.omit(per_item$domain)), KITS_ANCHOR_DOMAINS)

@@ -10,9 +10,11 @@
 #' @param item_file 題目表的檔名（NULL 表示沒有上傳）
 #' @param rules kits_parse_rules()$rules
 #' @param assigned tibble（column、domain）：手動指定領域的欄
+#' @param na_applied TRUE 時資料已經過「② 遺漏值轉 NA」（加一行註解）
 #' @return 字串
 #' @noRd
-code_kitsdata <- function(f, spec, item_file = NULL, rules = NULL, assigned = NULL) {
+code_kitsdata <- function(f, spec, item_file = NULL, rules = NULL, assigned = NULL,
+                          na_applied = FALSE) {
   map <- spec$map
   items <- spec$items$column
   if (length(items) == 0) items <- c("lana01", "lana02", "bodyaf01")
@@ -24,6 +26,10 @@ code_kitsdata <- function(f, spec, item_file = NULL, rules = NULL, assigned = NU
   code_lines(
     "library(dplyr)", "library(readr)", "library(tidyr)", "",
     grep("^data_.* <- read_", strsplit(code_read(f)$tidy, "\n")[[1]], value = TRUE),
+    if (na_applied) {
+      c("# 「② 遺漏值轉 NA」已經把遺漏值代碼改成 NA；",
+        "# 請先執行 ② 的「用 R 怎麼做？」裡的程式碼，再接著跑下面的程式")
+    },
     "",
     "# 題目欄（各檔的聯集；某個檔案沒有的題會略過）",
     paste0("items <- ", r_cols_vector(items, indent = "  ", quote = TRUE)),
@@ -39,37 +45,28 @@ code_kitsdata <- function(f, spec, item_file = NULL, rules = NULL, assigned = NU
     "# 檢查：同一列次同一題只能有一列（應該是 0 列）",
     "count(kits_long, visit_id, item_id) |> filter(n > 1)",
     "",
-"# app 為了省記憶體，是一段一段（每 5,000 列寬資料）轉換、寫進 .csv.gz；結果和這裡相同",
-        'write_csv(kits_long, "kits_long.csv.gz")   # 副檔名 .gz 會自動壓縮'
+    "# app 為了省記憶體，是一段一段（每 5,000 列寬資料）轉換、寫進 .csv.gz；結果和這裡相同",
+    'write_csv(kits_long, "kits_long.csv.gz")   # 副檔名 .gz 會自動壓縮'
   )
 }
 
-# 勾了的進階調整（固定順序 1 → 2 → 3）
+# 勾了的進階調整（固定順序 1 → 2；遺漏值代碼由 ② 處理）
 code_kitsdata_steps <- function(f, steps, map, items) {
   each <- function(expr) {
     paste(paste0(f$obj, " <- ", f$obj, " |>\n  mutate(", expr, ")"), collapse = "\n")
   }
   out <- character(0)
-  if (!is.null(steps$na)) {
-    extra <- c(map$wave_m, map$age_m)
-    extra <- extra[nzchar(extra)]
-    target <- if (length(extra) == 0) "any_of(items)" else
-      paste0("c(any_of(items), ", paste(r_col(extra), collapse = ", "), ")")
-    out <- c(out, "", "# 步驟 1：遺漏值代碼轉 NA",
-             paste0("na_codes <- ", r_num(steps$na)),
-             each(paste0("across(", target, ", \\(x) replace(x, x %in% na_codes, NA))")))
-  }
   if (!is.null(steps$shift)) {
     shift <- if (setequal(steps$shift, items)) "items" else
       r_cols_vector(steps$shift, indent = "  ", quote = TRUE)
-    out <- c(out, "", "# 步驟 2：分數減 1（kits 的分數要從 0 開始）",
+    out <- c(out, "", "# 步驟 1：分數減 1（kits 的分數要從 0 開始）",
              paste0("shift_items <- ", shift),
              each("across(any_of(shift_items), \\(x) x - 1)"))
   }
   rev <- steps$reverse
   if (!is.null(rev)) {
     max <- if (is.null(rev$max) || is.na(rev$max)) "最高分" else rev$max
-    out <- c(out, "", "# 步驟 3：反向計分（0 起算的分數上，最高分 − 分數）",
+    out <- c(out, "", "# 步驟 2：反向計分（0 起算的分數上，最高分 − 分數）",
              paste0("reverse_items <- ", r_cols_vector(rev$items, indent = "  ", quote = TRUE)),
              each(paste0("across(any_of(reverse_items), \\(x) ", max, " - x)")))
     if (isTRUE(rev$add_r)) {

@@ -12,7 +12,10 @@ mod_upload_ui <- function(id) {
         "用 ↑ ↓ 調整順序（第一個檔案是寬格式串接與流失樣本的基準）",
         "在下方預覽確認中文、數字顯示正常"
       ),
-      output = "檔案只是載入，還沒有合併。之後到 ③ ④ ⑤ 分頁做串接、疊加或建立流失樣本。",
+      output = paste0(
+        "檔案只是載入，還沒有合併。1 個檔案可以用 ②、⑥、⑦；",
+        "③ ④ ⑤（串接、疊加、流失樣本）需要 2 個以上。"
+      ),
       technical = paste0(
         "CSV 會依序嘗試 UTF-8 與 BIG5（CP950）編碼；都不符合時以 Latin1 讀入並提醒可能是亂碼。",
         "欄位型別以整個檔案判斷，SAV 檔保留變項標籤與數值標籤。"
@@ -202,11 +205,21 @@ mod_upload_server <- function(id, goto) {
       n <- length(records())
       if (n == 0) return(NULL)
       if (n == 1) {
+        link1 <- function(id, text) shiny::actionLink(ns(id), text)
         return(shiny::tags$div(
-          class = "kit-callout",
-          "已加入 1 個檔案。串接、疊加與流失樣本都需要至少 2 個波次的檔案，請再加入一個檔案。",
-          "要轉成 kits 作答檔時，1 個檔案就可以 → ",
-          shiny::actionLink(ns("goto_kitsdata"), "⑥ 轉成 kits 作答檔")
+          class = "kit-callout kit-next-step",
+          shiny::tags$strong("已加入 1 個檔案。可以用："),
+          shiny::tags$ul(
+            shiny::tags$li("只改遺漏值代碼 → 到 ", link1("goto_missing", "② 遺漏值轉 NA"),
+                           "，處理後直接下載"),
+            shiny::tags$li("要做 kits 或 kitsUI 的作答檔 → 到 ",
+                           link1("goto_kitsdata", "⑥ 轉成 kits 作答檔")),
+            shiny::tags$li("要長轉寬或寬轉長 → 到 ", link1("goto_reshape", "⑦ 長寬互轉"))
+          ),
+          shiny::tags$small(
+            class = "kit-hint",
+            "串接、疊加與流失樣本（③ ④ ⑤）需要至少 2 個波次的檔案。"
+          )
         ))
       }
       link <- function(id, text) shiny::actionLink(ns(id), text)
@@ -223,11 +236,12 @@ mod_upload_server <- function(id, goto) {
           shiny::tags$li("要「每人一列、各波變項並排」→ 到 ", link("goto_join", "③ 寬格式串接")),
           shiny::tags$li("要「每人每波一列」→ 到 ", link("goto_stack", "④ 長格式疊加")),
           shiny::tags$li("要標記誰在後期沒有繼續參加 → 到 ", link("goto_attrition", "⑤ 流失樣本")),
-          shiny::tags$li("要做 kits 或 kitsUI 的作答檔 → 到 ", link("goto_kitsdata", "⑥ 轉成 kits 作答檔"))
+          shiny::tags$li("要做 kits 或 kitsUI 的作答檔 → 到 ", link("goto_kitsdata", "⑥ 轉成 kits 作答檔")),
+          shiny::tags$li("要長轉寬或寬轉長 → 到 ", link("goto_reshape", "⑦ 長寬互轉"))
         )
       )
     })
-    for (tab in c("missing", "join", "stack", "attrition", "kitsdata")) {
+    for (tab in c("missing", "join", "stack", "attrition", "kitsdata", "reshape")) {
       local({
         target <- tab
         shiny::observeEvent(input[[paste0("goto_", target)]], goto(target))

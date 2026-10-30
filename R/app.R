@@ -77,7 +77,7 @@ kit_server <- function(input, output, session) {
   mod_join_server("join", files, working, goto)
   mod_stack_server("stack", files, working, goto)
   mod_attrition_server("attrition", files, working, goto)
-  mod_kitsdata_server("kitsdata", files, working)
+  mod_kitsdata_server("kitsdata", files, working, goto)
   mod_reshape_server("reshape", files, working, goto)
   # ⑧ 和其他分頁無關：不收 files / working
   mod_convert_server("convert")

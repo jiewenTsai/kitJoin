@@ -13,9 +13,10 @@ mod_missing_ui <- function(id) {
         "確認遺漏值代碼（已預填 KIT 常用代碼）",
         "確認不要處理的欄位（ID 已預先排除）",
         "按「執行轉換」，檢查每個欄位替換了幾格",
-        "之後到 ③ ④ ⑤ 分頁時，會自動使用處理後的資料"
+        "只想改遺漏值：在「下載處理後的檔案」下載就完成了（1 個檔案就可以）",
+        "要接著做：③～⑦ 分頁會自動使用處理後的資料"
       ),
-      output = "每個檔案各自轉換；列數與欄位不變，只有遺漏值代碼變成空白（NA）。也可以單獨下載處理後的檔案。",
+      output = "每個檔案各自轉換；列數與欄位不變，只有遺漏值代碼變成空白（NA）。可以直接下載處理後的檔案。",
       note = paste0(
         "轉換後無法再區分遺漏原因（例如 7777 不適用、9999 拒答）；分析需要區分時請保留原檔。",
         "SAV 檔中 SPSS 已設定為遺漏的值，讀入時就已經是 NA。"
@@ -44,7 +45,7 @@ mod_missing_ui <- function(id) {
       value = TRUE, width = "100%"
     ),
     shiny::checkboxInput(
-      ns("use_downstream"), "③ ④ ⑤ 分頁使用處理後的資料",
+      ns("use_downstream"), "③～⑦ 分頁使用處理後的資料",
       value = TRUE, width = "100%"
     ),
     shiny::actionButton(ns("run"), "執行轉換", class = "btn-primary"),
@@ -143,8 +144,8 @@ mod_missing_server <- function(id, files) {
         }))
         kit_done_status(paste0(
           "轉換完成！", length(dfs), " 個檔案共替換 ", n_cells, " 格為 NA。",
-          if (isTRUE(input$use_downstream)) "③ ④ ⑤ 分頁會使用處理後的資料。"
-          else "③ ④ ⑤ 分頁仍使用原始資料（上方選項未勾選）。"
+          if (isTRUE(input$use_downstream)) "③～⑦ 分頁會使用處理後的資料。"
+          else "③～⑦ 分頁仍使用原始資料（上方選項未勾選）。"
         ))
       }, error = function(e) kit_error_status(e, "轉換"))
       status(st)
@@ -162,7 +163,12 @@ mod_missing_server <- function(id, files) {
         shiny::h4("轉換結果"),
         shiny::h5("各檔案替換摘要"),
         shiny::tableOutput(ns("summary")),
-        shiny::selectInput(ns("view_file"), "檢視與下載的檔案", choices = choices),
+        shiny::h5("下載處理後的檔案"),
+        shiny::tags$p(
+          class = "kit-hint",
+          "一次下載一個檔案。只想改遺漏值的話，下載後就完成了，不用到後面的分頁。"
+        ),
+        shiny::selectInput(ns("view_file"), "要下載與檢視的檔案", choices = choices),
         kit_download_ui(ns),
         shiny::h5("各欄位替換格數"),
         shiny::tags$div(

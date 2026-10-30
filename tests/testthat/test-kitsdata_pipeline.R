@@ -125,11 +125,17 @@ test_that("visit_id 直接用某一欄時，兩個世代撞號會擋下", {
   expect_match(out$problems, "兩個世代", all = FALSE)
 })
 
-test_that("進階調整依 1 → 2 → 3 的順序：9999 先變 NA，再減 1，再反向", {
+# ② 遺漏值轉 NA 的結果（⑥ 不處理遺漏值代碼）
+after_missing <- function(df, codes = c(7777, 9999)) {
+  replace_na_codes(df, codes, exclude = "release_id")$data
+}
+
+test_that("進階調整依 1 → 2 的順序：先減 1，再反向（9999 已由 ② 改成 NA）", {
   dfs <- sim_dfs()
   dfs[[1]]$lana01[1] <- 9999
   dfs[[1]]$lana02 <- c(1, 2, 3, 4, 5)
-  steps <- list(na = 9999, shift = c("lana01", "lana02", "bodyaf01", "cogd01r"),
+  dfs <- purrr::map(dfs, after_missing)
+  steps <- list(shift = c("lana01", "lana02", "bodyaf01", "cogd01r"),
                 reverse = list(items = "lana02", max = 4, add_r = TRUE))
   out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs, steps = steps))
   expect_length(out$problems, 0)
@@ -164,7 +170,9 @@ test_that("負分擋下並建議當成遺漏值代碼；文字的題目欄擋下
   dfs[[1]]$lana01[1] <- -1
   out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs))
   expect_match(out$problems, "負分", all = FALSE)
-  out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs, steps = list(na = -1)))
+  expect_match(out$problems, "② 遺漏值轉 NA", all = FALSE)
+  dfs <- purrr::map(dfs, after_missing, codes = -1)
+  out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs))
   expect_length(out$problems, 0)
 })
 
@@ -208,7 +216,8 @@ test_that(".csv.gz 寫得出來、讀得回來", {
 test_that("「用 R 怎麼做？」的程式碼跑出來和 app 的結果一樣", {
   dfs <- sim_dfs()
   dfs[[1]]$lana01[1] <- 9999
-  steps <- list(na = 9999, shift = c("lana01", "lana02", "bodyaf01", "cogd01r"),
+  dfs <- purrr::map(dfs, after_missing)
+  steps <- list(shift = c("lana01", "lana02", "bodyaf01", "cogd01r"),
                 reverse = list(items = "lana02", max = 4, add_r = TRUE))
   spec <- sim_spec(dfs, steps = steps)
   app <- kits_long_of(kits_build(dfs, c("w1.csv", "w2.csv"), spec))
@@ -239,8 +248,23 @@ test_that("沒勾的進階調整不會出現在程式碼裡", {
   code <- code_kitsdata(code_files(c("a.csv", "b.csv"), c("t1", "t2")), sim_spec(dfs))
   expect_no_match(code, "步驟 1")
   expect_no_match(code, "步驟 2")
-  expect_no_match(code, "步驟 3")
+  expect_no_match(code, "遺漏值")
   expect_match(code, "pivot_longer")
+  code <- code_kitsdata(code_files(c("a.csv", "b.csv"), c("t1", "t2")), sim_spec(dfs),
+                        na_applied = TRUE)
+  expect_match(code, "「② 遺漏值轉 NA」已經把遺漏值代碼改成 NA")
+})
+
+test_that("疑似遺漏值代碼：數格數；減 1 的建議不被 7777 以上的值誤導", {
+  dfs <- sim_dfs()
+  dfs[[1]]$lana01 <- c(9999, 1, 2, 1, 3)
+  dfs[[2]]$age_m[1] <- 7777
+  expect_equal(kits_code_cells(dfs, c("lana01", "lana02", "age_m")), 2)
+  r <- kits_item_ranges(dfs, "lana01", below = KITS_CODE_MIN)
+  expect_equal(r$max, 5)
+  expect_equal(kits_item_ranges(dfs, "lana01")$max, 9999)
+  out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs))
+  expect_match(out$warnings, "請先到「② 遺漏值轉 NA」處理", all = FALSE)
 })
 
 test_that("欄位表：名稱、順序、型別固定；必填的欄", {

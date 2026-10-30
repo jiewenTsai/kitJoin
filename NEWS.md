@@ -1,3 +1,16 @@
+# kitJoin 0.4.1
+
+* ②（選用）遺漏值轉 NA: its texts now say that ③–⑦ (not only ③④⑤) use the processed
+  data, and the result has its own 「下載處理後的檔案」 section (CSV, CSV.GZ, SAV), so a user
+  with one file can fix missing codes and download without going further.
+* ① 上傳檔案: with one file, the next-step box lists what works with one file (②, ⑥, ⑦)
+  and says ③④⑤ need at least two; the box for two or more files also links to ⑦.
+* ⑥ no longer has its own missing-code step; use ②. ⑥'s adjustments are now 1 shift
+  scores by -1 and 2 reverse scoring. When item, `wave_m` or `age_m` columns still hold
+  values of 7777 or more and ② was not applied, ⑥ shows a warning with a link to ②, and the
+  "shift by 1" suggestion ignores those values. The 「用 R 怎麼做？」 code notes when ② was
+  applied.
+
 # kitJoin 0.4.0
 
 ## New features

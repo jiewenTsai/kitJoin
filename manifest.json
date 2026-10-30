@@ -1771,7 +1771,7 @@
       "checksum": "0eade2d4e1626bbb124b0d23795d6c55"
     },
     "DESCRIPTION": {
-      "checksum": "89ab6ad5653dd08a066ca31653af581c"
+      "checksum": "71b4960de96db6f15ae67191bf6ce520"
     },
     "inst/extdata/example_t1.csv": {
       "checksum": "86b287c755537d1155c134d0572929a5"
@@ -1789,10 +1789,10 @@
       "checksum": "cce648823b7b69b74e913cbc57d67c7e"
     },
     "NEWS.md": {
-      "checksum": "3ab65841580c40bc9cf1048b692116f9"
+      "checksum": "791d35a54d8a8bb0ce2178323e01b003"
     },
     "R/app.R": {
-      "checksum": "ca30e97269cc759251c9227a4d563e2b"
+      "checksum": "136dee007ffd5a1edbcfe92ad7001c33"
     },
     "R/attrition_pipeline.R": {
       "checksum": "af8ee1a74bf69f7b63f5cf935d0a6df0"
@@ -1801,7 +1801,7 @@
       "checksum": "81809e4a2bdf4afda1c5f56c23672f2b"
     },
     "R/code_kitsdata.R": {
-      "checksum": "688c30209a5758c56a90f38efa095298"
+      "checksum": "fc63e20011be57aa155ad3ba9884f4e7"
     },
     "R/code_reshape.R": {
       "checksum": "675220834ca646fc8ec980c1cf868f6d"
@@ -1825,7 +1825,7 @@
       "checksum": "1d1dd3e06c9eef79aa5e1628bbe97321"
     },
     "R/kitsdata_pipeline.R": {
-      "checksum": "977c87b3a2cda3e7a6615a8a0c950f2b"
+      "checksum": "62cd543fb2b4bb0805bef7f4c82d9239"
     },
     "R/missing_pipeline.R": {
       "checksum": "25f4eec04c5d09e1f291d97e5cd6b258"
@@ -1840,10 +1840,10 @@
       "checksum": "f8b67e4a4254e6777c57eed08ea1b63c"
     },
     "R/mod_kitsdata.R": {
-      "checksum": "e115db0d7ddea23c17dd37462ce08e52"
+      "checksum": "f950fb38b1489b79f6ca417c67b95c59"
     },
     "R/mod_missing.R": {
-      "checksum": "abc8aa422bde8623329b15e03118e10d"
+      "checksum": "bae3a561e019cf373e22e3382e18dded"
     },
     "R/mod_pivot_longer.R": {
       "checksum": "6d1a5a19452323ba6835e1a9db520304"
@@ -1855,7 +1855,7 @@
       "checksum": "87a4bbac6ae370a4df06380ce11bf153"
     },
     "R/mod_upload.R": {
-      "checksum": "dac786bf39073c2599e86d911c0baf27"
+      "checksum": "8cad8af65fdcf15aa301b6799cb50d77"
     },
     "R/reshape_pipeline.R": {
       "checksum": "ecc32868e894ee9d869da3290f20acd4"
@@ -1873,7 +1873,7 @@
       "checksum": "3d9a740116542d0132a862b8d24b1317"
     },
     "README.md": {
-      "checksum": "f0878ef391dde54491d8461086195093"
+      "checksum": "925318182f3bf57e758e29c35d8517e5"
     }
   },
   "users": null
