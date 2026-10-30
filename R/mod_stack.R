@@ -79,7 +79,7 @@ mod_stack_server <- function(id, files, working, goto) {
       c(guess_id_cols(names(res$result)), res$wave_col)
     }
     kit_download_server(
-      output, ns,
+      session, output,
       data_fn = function() {
         res <- result()
         if (is.null(res)) {

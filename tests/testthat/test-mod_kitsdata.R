@@ -77,6 +77,23 @@ test_that("⑥：題目設定給領域、排除、② 處理代碼、建議平�
     session$setInputs(`kitsdata-run` = 2)
     expect_match(output[["kitsdata-status"]]$html, "檢查完成")
     expect_match(output[["kitsdata-result"]]$html, "download_gz")
+    # 下載：網址結尾是檔名；.csv.gz 解壓後和未壓縮的 CSV 一樣
+    href <- kit_link_attr(output[["kitsdata-result"]]$html, "kitsdata-download_gz", "href")
+    expect_match(href, "/kits_long_[0-9_]+\\.csv\\.gz\\?")
+    gz <- kit_test_download(session, "kitsdata-download_gz")
+    expect_match(gz$headers[["Content-Disposition"]], 'filename="kits_long_[0-9_]+\\.csv\\.gz"')
+    expect_equal(readBin(gz$content$file, "raw", 2), as.raw(c(0x1f, 0x8b)))
+    csv <- kit_test_download_file(session, "kitsdata-download_csv")
+    expect_equal(readLines(gzfile(gz$content$file)), readLines(csv))
+    # 題目設定：按下載當下的設定（extra 已排除）
+    expect_equal(
+      kit_link_attr(output[["kitsdata-settings_dl_ui"]]$html, "kitsdata-settings_dl", "download"),
+      KITS_SETTINGS_FILE
+    )
+    settings_csv <- readr::read_csv(
+      kit_test_download_file(session, "kitsdata-settings_dl"), show_col_types = FALSE
+    )
+    expect_false(settings_csv$include[settings_csv$item_id == "extra"])
     expect_match(output[["kitsdata-visit_note"]]$html, "M03_K1_m03g01")
   })
 })

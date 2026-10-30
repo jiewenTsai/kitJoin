@@ -70,8 +70,7 @@ mod_kitsdata_ui <- function(id) {
     shiny::uiOutput(ns("item_file_note")),
     shiny::tags$div(
       class = "mb-2",
-      shiny::downloadButton(ns("settings_dl"), "下載題目設定（CSV）",
-                            class = "btn-sm btn-outline-primary"),
+      shiny::uiOutput(ns("settings_dl_ui"), inline = TRUE),
       shiny::tags$small(
         class = "text-muted ms-2",
         "欄位：item_id、include、domain、map_raw_to_score（計分對照，寫成「原分數=計分」，",
@@ -447,11 +446,12 @@ mod_kitsdata_server <- function(id, files, working, goto) {
                if (up$type == "settings") "：納入、領域與計分對照。" else "：領域。")
       )
     })
-    output$settings_dl <- shiny::downloadHandler(
-      filename = function() KITS_SETTINGS_FILE,
-      content = function(file) readr::write_excel_csv(kits_settings_export(settings()), file,
-                                                      na = "")
-    )
+    # 檔名固定，按鈕只畫一次；內容是按下載當下的設定
+    output$settings_dl_ui <- shiny::renderUI(kit_download_button(
+      session, "settings_dl", "下載題目設定（CSV）", KITS_SETTINGS_FILE,
+      function(file) readr::write_excel_csv(kits_settings_export(settings()), file, na = ""),
+      class = "btn-sm btn-outline-primary"
+    ))
     items <- shiny::reactive(kits_settings_items(settings()))
 
     output$settings_summary <- shiny::renderUI({
@@ -625,13 +625,22 @@ mod_kitsdata_server <- function(id, files, working, goto) {
     output$result <- shiny::renderUI({
       res <- result()
       if (is.null(res)) return(NULL)
+      kits_name <- timestamped_name("kits_long")
       shiny::tagList(
         shiny::hr(),
         shiny::h4("結果"),
         shiny::tags$div(
           class = "kit-downloads",
-          shiny::downloadButton(ns("download_gz"), "下載作答檔（.csv.gz）", class = "btn-primary me-2"),
-          shiny::downloadButton(ns("download_csv"), "下載未壓縮的 CSV", class = "btn-outline-primary"),
+          kit_download_button(
+            session, "download_gz", "下載作答檔（.csv.gz）", kits_name("csv.gz"),
+            function(file) kitsdata_download(res$prep, file, write_kits_long_gz),
+            class = "btn-primary me-2"
+          ),
+          kit_download_button(
+            session, "download_csv", "下載未壓縮的 CSV", kits_name("csv"),
+            function(file) kitsdata_download(res$prep, file, write_kits_long_csv),
+            class = "btn-outline-primary"
+          ),
           shiny::tags$small(
             class = "kit-hint",
             paste0("未壓縮約 ", kits_size_text(res$csv_mb * 1024^2), "；壓縮檔通常小很多。"),
@@ -651,14 +660,6 @@ mod_kitsdata_server <- function(id, files, working, goto) {
     output$preview <- shiny::renderTable(
       kit_preview_table(result()$preview, n = KIT_PREVIEW_ROWS * 2),
       striped = TRUE, spacing = "s"
-    )
-    output$download_gz <- shiny::downloadHandler(
-      filename = function() timestamped_name("kits_long")("csv.gz"),
-      content = function(file) kitsdata_download(result()$prep, file, write_kits_long_gz)
-    )
-    output$download_csv <- shiny::downloadHandler(
-      filename = function() timestamped_name("kits_long")("csv"),
-      content = function(file) kitsdata_download(result()$prep, file, write_kits_long_csv)
     )
 
     output$code <- shiny::renderUI({

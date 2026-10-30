@@ -127,11 +127,6 @@ mod_convert_server <- function(id) {
 
     output$status <- shiny::renderUI(make_status_ui(status()))
 
-    output$download_file <- shiny::downloadHandler(
-      filename = function() result()$out_name,
-      content = function(file) file.copy(result()$out_path, file, overwrite = TRUE)
-    )
-
     output$result <- shiny::renderUI({
       res <- result()
       if (is.null(res)) return(NULL)
@@ -142,13 +137,11 @@ mod_convert_server <- function(id) {
         ),
         shiny::tags$div(
           class = "kit-downloads",
-          # 中文檔名時 Shiny 不送檔名標頭，瀏覽器改用按鈕的 download 屬性
-          shiny::downloadButton(
-            ns("download_file"),
-            paste0("下載 ", res$out_name),
+          kit_download_button(
+            session, "download_file", paste0("下載 ", res$out_name), res$out_name,
+            function(file) file.copy(res$out_path, file, overwrite = TRUE),
             class = "btn-primary"
-          ) |>
-            htmltools::tagAppendAttributes(download = res$out_name)
+          )
         )
       )
     })

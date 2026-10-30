@@ -15,7 +15,7 @@ test_that("⑧ 只列出另外兩種格式，轉換後可下載", {
     expect_match(output$status$html, "w1.csv.gz → w1.csv")
     expect_match(output$result$html, "下載 w1.csv")
     expect_match(output$summary_table, "2 列 × 2 欄")
-    path <- output$download_file
+    path <- kit_test_download_file(session, "download_file")
     back <- readr::read_csv(path, col_types = "cc")
     expect_equal(back$id, c("0012", "0013"))
 
@@ -33,7 +33,7 @@ test_that("⑧ 上傳 SAV 才出現「數值標籤轉成文字」，預設不勾
     expect_match(output$target_ui$html, "數值標籤轉成文字")
     expect_no_match(output$target_ui$html, "checkbox\"[^>]*checked")
     session$setInputs(target = "csv", labels_as_text = FALSE, run = 1)
-    back <- readr::read_csv(output$download_file, col_types = "cdd")
+    back <- readr::read_csv(kit_test_download_file(session, "download_file"), col_types = "cdd")
     expect_equal(back$sex, c(1, 2, NA, NA))
   })
 })

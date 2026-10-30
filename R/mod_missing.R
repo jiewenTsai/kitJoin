@@ -220,7 +220,7 @@ mod_missing_server <- function(id, files) {
     }, striped = TRUE, spacing = "s")
 
     kit_download_server(
-      output, ns,
+      session, output,
       data_fn = function() view()$data,
       filename_fn = function(ext) na_export_name(view()$name, ext),
       run_label = "執行轉換"

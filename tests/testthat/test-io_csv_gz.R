@@ -22,7 +22,7 @@ test_that("下載區有 CSV.GZ 按鈕，下載的檔案是壓縮過的 CSV", {
     session$setInputs(`upload-files` = upload_files(c(w1, w2)))
     session$setInputs(`stack-run` = 1)
     expect_match(output[["stack-downloads"]]$html, "download_csvgz")
-    path <- output[["stack-download_csvgz"]]
+    path <- kit_test_download_file(session, "stack-download_csvgz")
     expect_equal(readBin(path, "raw", 2), as.raw(c(0x1f, 0x8b)))
     back <- readr::read_csv(gzfile(path), show_col_types = FALSE)
     expect_equal(nrow(back), 6)

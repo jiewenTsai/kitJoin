@@ -132,7 +132,7 @@ mod_join_server <- function(id, files, working, goto) {
     output$status <- shiny::renderUI(make_status_ui(status()))
 
     kit_download_server(
-      output, ns,
+      session, output,
       data_fn = function() {
         res <- result()
         if (is.null(res)) NULL else reorder_key_first(res$result, res$by_vars)

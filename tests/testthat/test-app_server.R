@@ -115,7 +115,9 @@ test_that("只有 1 個檔案：② 可以轉換並下載，⑦ 使用 ② 處�
                       `missing-match_text` = TRUE, `missing-run` = 1)
     expect_match(output[["missing-result"]]$html, "下載處理後的檔案")
     session$setInputs(`missing-view_file` = "1")
-    csv <- readr::read_csv(output[["missing-download_csv"]], show_col_types = FALSE)
+    csv <- readr::read_csv(
+      kit_test_download_file(session, "missing-download_csv"), show_col_types = FALSE
+    )
     expect_equal(csv$score, c(1, NA, 3))
     session$setInputs(`reshape-file` = "1")
     expect_match(output[["reshape-source_note"]]$html, "處理後")

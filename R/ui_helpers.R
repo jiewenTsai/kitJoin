@@ -240,24 +240,15 @@ kit_source_note_ui <- function(n_files, source, code_cells, ns) {
 #' 沒有結果時顯示停用的按鈕與「先執行」提示；有結果時顯示下載按鈕、
 #' 檔名與 SAV 自動改名提醒。
 #'
-#' @param output,ns 模組的 output 與 namespace 函式
+#' 按鈕用 kit_download_button()（R/download.R）：檔名在畫出按鈕時決定，
+#' 檔案內容就是畫面上這份結果（結果更新時按鈕會重畫、網址跟著換）。
+#'
+#' @param session,output 模組的 session 與 output
 #' @param data_fn 回傳要匯出的資料框；沒有結果時回傳 NULL
 #' @param filename_fn function(ext) 回傳下載檔名
 #' @param run_label 產生結果的按鈕名稱（給提示用）
 #' @noRd
-kit_download_server <- function(output, ns, data_fn, filename_fn, run_label) {
-  output$download_csv <- shiny::downloadHandler(
-    filename = function() filename_fn("csv"),
-    content = function(file) write_kit_csv(data_fn(), file)
-  )
-  output$download_csvgz <- shiny::downloadHandler(
-    filename = function() filename_fn("csv.gz"),
-    content = function(file) write_kit_csv_gz(data_fn(), file)
-  )
-  output$download_sav <- shiny::downloadHandler(
-    filename = function() filename_fn("sav"),
-    content = function(file) write_kit_sav(data_fn(), file)
-  )
+kit_download_server <- function(session, output, data_fn, filename_fn, run_label) {
   output$downloads <- shiny::renderUI({
     df <- data_fn()
     if (is.null(df)) {
@@ -280,23 +271,17 @@ kit_download_server <- function(output, ns, data_fn, filename_fn, run_label) {
       ))
     }
     renamed <- sav_renamed_cols(names(df))
+    button <- function(id, label, ext, writer, class) {
+      kit_download_button(
+        session, id, label, filename_fn(ext), function(file) writer(df, file), class
+      )
+    }
     shiny::tags$div(
       class = "kit-downloads",
-      shiny::downloadButton(
-        ns("download_csv"),
-        "下載 CSV",
-        class = "btn-primary me-2"
-      ),
-      shiny::downloadButton(
-        ns("download_csvgz"),
-        "下載 CSV.GZ",
-        class = "btn-outline-primary me-2"
-      ),
-      shiny::downloadButton(
-        ns("download_sav"),
-        "下載 SAV（SPSS）",
-        class = "btn-outline-primary"
-      ),
+      button("download_csv", "下載 CSV", "csv", write_kit_csv, "btn-primary me-2"),
+      button("download_csvgz", "下載 CSV.GZ", "csv.gz", write_kit_csv_gz,
+             "btn-outline-primary me-2"),
+      button("download_sav", "下載 SAV（SPSS）", "sav", write_kit_sav, "btn-outline-primary"),
       shiny::tags$small(
         class = "kit-hint",
         "CSV 的遺漏值為空白儲存格，可直接用 Excel 開啟。",

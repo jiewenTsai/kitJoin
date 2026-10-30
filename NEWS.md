@@ -1,3 +1,12 @@
+# kitJoin 0.4.3
+
+* Downloads now always carry the file name and extension, including names with Chinese
+  characters, in every browser. The app serves each file itself: the download URL ends with
+  the file name, the response has an RFC 6266 `Content-Disposition` (`filename` plus
+  `filename*=UTF-8''...`, no redirect), and the button has `download="<name>"`. This covers
+  every download (②③④⑤⑦ CSV / CSV.GZ / SAV, ⑥ response file and item settings, ⑧).
+  Before, some browsers saved e.g. `missing-download_sav` without `.sav`.
+
 # kitJoin 0.4.2
 
 * ⑥ 「2. 對應欄位」: the wave label, `wave_m`, `sex` and `age_m` rows can now come from a

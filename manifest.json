@@ -1771,7 +1771,7 @@
       "checksum": "0eade2d4e1626bbb124b0d23795d6c55"
     },
     "DESCRIPTION": {
-      "checksum": "3cd20b3ff2058569613b1734a21cd7b5"
+      "checksum": "a8db5e5d25898dc6601e3852a183001c"
     },
     "inst/extdata/example_t1.csv": {
       "checksum": "86b287c755537d1155c134d0572929a5"
@@ -1789,7 +1789,7 @@
       "checksum": "cce648823b7b69b74e913cbc57d67c7e"
     },
     "NEWS.md": {
-      "checksum": "cdb489beac31ec667fd41a5e19ab35e3"
+      "checksum": "1d1e096bb9cdba99df3233dcc712f60b"
     },
     "R/app.R": {
       "checksum": "136dee007ffd5a1edbcfe92ad7001c33"
@@ -1815,6 +1815,9 @@
     "R/convert_pipeline.R": {
       "checksum": "0cdb72b435519408ebbaebed8c0aa045"
     },
+    "R/download.R": {
+      "checksum": "92c2c68afa2c9ef82ded9365597e0ab2"
+    },
     "R/io_data.R": {
       "checksum": "2529a14414f3f1e7c9c0adc2234a221b"
     },
@@ -1831,28 +1834,28 @@
       "checksum": "25f4eec04c5d09e1f291d97e5cd6b258"
     },
     "R/mod_attrition.R": {
-      "checksum": "bc0a2c9a7a93740edce605d476f3697e"
+      "checksum": "bfa2c1707b938e4e8c5f802c957fa376"
     },
     "R/mod_convert.R": {
-      "checksum": "60c36dbee10b23f020164b5c317e0a31"
+      "checksum": "31b5fc11074d9322bfe6348c688cd4d8"
     },
     "R/mod_join.R": {
-      "checksum": "f8b67e4a4254e6777c57eed08ea1b63c"
+      "checksum": "5a1bcaa48744392002acd1fe6ceff3d6"
     },
     "R/mod_kitsdata.R": {
-      "checksum": "fb83ba3ce3cb1cc40fc8521105b41183"
+      "checksum": "8cce92086dca79779f9689b92c88f9ec"
     },
     "R/mod_missing.R": {
-      "checksum": "bae3a561e019cf373e22e3382e18dded"
+      "checksum": "129d75fb6d71bf6c7c5117ed1b230882"
     },
     "R/mod_pivot_longer.R": {
       "checksum": "cd20b81351eb5a553a6b64b20cc44b91"
     },
     "R/mod_reshape.R": {
-      "checksum": "9c94f989a980602c6101946d35ab23ce"
+      "checksum": "398d7cd541eca2bd2a1ec8774289f6b0"
     },
     "R/mod_stack.R": {
-      "checksum": "87a4bbac6ae370a4df06380ce11bf153"
+      "checksum": "21b0f2b1fd25d7af52f986c179d95a8f"
     },
     "R/mod_upload.R": {
       "checksum": "8cad8af65fdcf15aa301b6799cb50d77"
@@ -1867,7 +1870,7 @@
       "checksum": "85164da5db02c810b09bec44246f1a94"
     },
     "R/ui_helpers.R": {
-      "checksum": "6ca1c6000381fceeefa9fa18ac1cf124"
+      "checksum": "1ddc508a3ea1a8bac87686aec2494fc1"
     },
     "R/utils.R": {
       "checksum": "3d9a740116542d0132a862b8d24b1317"

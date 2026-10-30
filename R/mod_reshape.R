@@ -419,7 +419,7 @@ mod_reshape_server <- function(id, files, working, goto) {
     )
 
     kit_download_server(
-      output, ns,
+      session, output,
       data_fn = function() result()$result,
       filename_fn = function(ext) {
         dir <- if (identical(result()$direction, "longer")) "long" else "wide"
