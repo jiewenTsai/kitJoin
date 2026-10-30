@@ -543,10 +543,14 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         return(shiny::tags$div(class = "text-danger small", conditionMessage(up)))
       }
       what <- if (up$type == "settings") "題目設定檔" else "題目表"
+      no_dom <- sum(is.na(up$data$domain))
+      n_out <- sum(!is.na(up$data[["item_id_out"]] %||% NA))
       shiny::tags$small(
         class = "kit-hint",
         paste0("已套用", what, "（", nrow(up$data), " 題）",
-               if (up$type == "settings") "：納入、領域與計分對照。" else "：領域。")
+               if (up$type == "settings") "：納入、領域、計分對照與遺漏值代碼。" else "：領域。",
+               if (n_out > 0) paste0(n_out, " 題有輸出題號（item_id_out）。"),
+               if (no_dom > 0) paste0(no_dom, " 題沒有給領域，這些題的領域不變。"))
       )
     })
     # 檔名固定，按鈕只畫一次；內容是按下載當下的設定

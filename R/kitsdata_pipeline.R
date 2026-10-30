@@ -165,7 +165,7 @@ kits_file_map <- function(map, per_file, i) {
 #' @return tibble：item_id、domain、item_id_out（文字，去掉前後空白；空白是 NA）
 #' @noRd
 kits_item_table <- function(df) {
-  names(df) <- tolower(trimws(names(df)))
+  df <- kits_upload_names(df)
   has_out <- "item_id_out" %in% names(df)
   miss <- setdiff(c("item_id", if (!has_out) "domain"), names(df))
   if (length(miss) > 0) {
@@ -177,7 +177,7 @@ kits_item_table <- function(df) {
   }
   text <- function(x) {
     if (is.null(x)) return(rep(NA_character_, nrow(df)))
-    dplyr::na_if(trimws(as.character(unclass(x))), "")
+    dplyr::na_if(trimws(kits_upload_text(x)), "")
   }
   tab <- tibble::tibble(
     item_id = text(df$item_id), domain = text(df[["domain"]]), item_id_out = text(df[["item_id_out"]])
@@ -609,12 +609,12 @@ kits_settings_apply <- function(settings, upload, cols = NULL, reverse = "suffix
 #' @return list(type = "table" 或 "settings", data)
 #' @noRd
 kits_settings_import <- function(df) {
-  names(df) <- tolower(trimws(names(df)))
+  df <- kits_upload_names(df)
   if (!any(c("map_raw_to_score", "include") %in% names(df))) {
     return(list(type = "table", data = kits_item_table(df)))
   }
   if (!"item_id" %in% names(df)) kit_abort("題目設定檔需要 item_id 欄。")
-  text <- function(x) if (is.null(x)) NA_character_ else trimws(as.character(unclass(x)))
+  text <- function(x) if (is.null(x)) NA_character_ else trimws(kits_upload_text(x))
   ids <- text(df$item_id)
   include <- text(df$include)
   maps <- purrr::map2(ids, text(df$map_raw_to_score), function(id, m) {
@@ -632,11 +632,20 @@ kits_settings_import <- function(df) {
       vals
     })
   }
+  yes <- c("TRUE", "T", "1", "是", "YES", "Y", "納入")
+  no <- c("FALSE", "F", "0", "否", "NO", "N", "排除")
+  odd <- unique(include[!is.na(include) & nzchar(include) & !toupper(include) %in% c(yes, no)])
+  if (length(odd) > 0) {
+    kit_abort(
+      "題目設定檔的 include 看不懂：", paste(utils::head(odd, 3), collapse = "、"),
+      "。請寫 TRUE／FALSE（也可以是 是／否、Y／N、1／0）。"
+    )
+  }
   data <- tibble::tibble(
     item_id = ids,
     include = dplyr::case_when(
-      toupper(include) %in% c("TRUE", "T", "1", "是", "YES") ~ TRUE,
-      toupper(include) %in% c("FALSE", "F", "0", "否", "NO") ~ FALSE,
+      toupper(include) %in% yes ~ TRUE,
+      toupper(include) %in% no ~ FALSE,
       .default = NA
     ),
     domain = dplyr::na_if(text(df$domain), ""),
@@ -644,8 +653,37 @@ kits_settings_import <- function(df) {
     item_id_out = if (is.null(df[["item_id_out"]])) NA_character_ else
       dplyr::na_if(text(df[["item_id_out"]]), "")
   )
-  data <- data[!is.na(data$item_id) & nzchar(data$item_id), ]
+  data <- dplyr::distinct(data[!is.na(data$item_id) & nzchar(data$item_id), ])
+  dup <- unique(data$item_id[duplicated(data$item_id)])
+  if (length(dup) > 0) {
+    kit_abort(
+      "題目設定檔裡同一題有好幾列：", paste(utils::head(dup, 5), collapse = "、"),
+      "。每一題只能有一列。"
+    )
+  }
   list(type = "settings", data = data)
+}
+
+#' 上傳的題目表或設定檔的欄名：去掉 BOM 與前後空白、不分大小寫；
+#' 用分號分隔的 CSV（讀成一欄）時停下來說明
+#' @noRd
+kits_upload_names <- function(df) {
+  nm <- tolower(trimws(sub("^\ufeff", "", names(df))))
+  names(df) <- nm
+  if (ncol(df) == 1 && grepl(";", nm[1], fixed = TRUE)) {
+    kit_abort(
+      "這個檔案看起來是用分號（;）分隔的 CSV（例如歐洲版 Excel 存的）。",
+      "請另存成逗號分隔的 CSV（UTF-8），再上傳一次。"
+    )
+  }
+  df
+}
+
+#' 上傳的欄轉成文字：帶值標籤的欄（SAV）用標籤，數字不寫成科學記號
+#' @noRd
+kits_upload_text <- function(x) {
+  if (!is.null(attr(x, "labels", exact = TRUE))) return(kits_label_text(x))
+  kits_id_text(x)
 }
 
 #' 計分對照的文字：「1=0;2=1」（原分數=計分，用分號隔開；還沒有計分的寫「1=」）
@@ -660,12 +698,18 @@ kits_map_text <- function(raw, score) {
 #' @noRd
 kits_parse_map <- function(text) {
   if (is.na(text) || !nzchar(trimws(text))) return(list(raw = numeric(0), score = numeric(0)))
-  pairs <- strsplit(strsplit(trimws(text), ";", fixed = TRUE)[[1]], "=", fixed = TRUE)
+  # 分號是正式寫法；逗號、頓號也接受（例如 1=0,2=1）
+  parts <- strsplit(trimws(text), "[;,，、；]+")[[1]]
+  pairs <- strsplit(trimws(parts[nzchar(trimws(parts))]), "=", fixed = TRUE)
   raw <- suppressWarnings(as.numeric(vapply(pairs, `[`, character(1), 1)))
-  score <- suppressWarnings(as.numeric(vapply(pairs, function(p) {
-    if (length(p) < 2) NA_character_ else p[2]
-  }, character(1))))
-  if (anyNA(raw)) stop("要寫成「原分數=計分;原分數=計分」，例如 1=0;2=1")
+  score_txt <- vapply(pairs, function(p) {
+    if (length(p) < 2) NA_character_ else trimws(p[2])
+  }, character(1))
+  score <- suppressWarnings(as.numeric(score_txt))
+  bad <- is.na(score) & !is.na(score_txt) & nzchar(score_txt)
+  if (anyNA(raw) || any(lengths(pairs) > 2) || any(bad)) {
+    stop("要寫成「原分數=計分;原分數=計分」，例如 1=0;2=1（還沒有計分的寫 1=）")
+  }
   list(raw = raw, score = score)
 }
 
@@ -859,10 +903,10 @@ kits_settings_items <- function(settings) {
   keep[c("column", "domain", "raw", "score", "codes", "item_id_out")]
 }
 
-#' 納入但還沒有領域的題
+#' 納入但還沒有領域的題（沒有任何作答的題不算：它們不會出現在作答檔）
 #' @noRd
 kits_settings_undecided <- function(settings) {
-  keep <- settings[settings$include, ]
+  keep <- settings[settings$include & lengths(settings$raw) > 0, ]
   keep$column[is.na(keep$domain) | !nzchar(keep$domain)]
 }
 

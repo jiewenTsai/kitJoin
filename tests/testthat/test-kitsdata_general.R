@@ -668,3 +668,47 @@ test_that("發現 8：app 的摘要列出在部分檔案是文字的題", {
     expect_match(output[["kitsdata-settings_summary"]]$html, "1 個題目欄在部分檔案是文字：q2（w2.sav）")
   })
 })
+
+# ── 發現 13：全部是 NA、又沒有領域的題不擋 ──────────────────────────────────
+
+test_that("發現 13：沒有任何作答、也沒有領域的題，不擋轉換（只提醒沒有作答）", {
+  df <- tibble::tibble(id = 1:2, wave_m = 0, q1 = c(0, 1), empty = c(NA_real_, NA_real_))
+  map <- kits_guess_map(names(df))
+  map$subj_id <- "id"
+  s <- kits_item_settings(list(df), c("q1", "empty")) |> kits_bulk_domain("q1", "a")
+  expect_equal(kits_settings_undecided(s), character(0))
+  out <- kits_build(list(df), "a.csv", kg_spec(s, map, "B1"))
+  expect_length(out$problems, 0)
+  expect_match(out$warnings, "沒有任何作答.*empty", all = FALSE)
+})
+
+# ── 發現 11：題目表、題目設定檔的解析 ───────────────────────────────────────
+
+test_that("發現 11：BOM、SAV 的標籤欄、分號 CSV、include 與 map_raw_to_score 寫錯、重複的題", {
+  bom <- data.frame(a = "lana01", domain = "lan")
+  names(bom)[1] <- "﻿item_id"
+  expect_equal(kits_item_table(bom)$item_id, "lana01")
+  # SAV：item_id 是標籤欄時用標籤；domain 空白 → NA
+  sav <- tibble::tibble(item_id = haven::labelled(c(1, 2), c("lana01" = 1, "lana02" = 2)),
+                        domain = c("lan", ""))
+  tab <- kits_item_table(sav)
+  expect_equal(tab$item_id, c("lana01", "lana02"))
+  expect_equal(tab$domain, c("lan", NA))
+  expect_error(kits_settings_import(data.frame(`item_id;domain` = "a;lan", check.names = FALSE)),
+               "分號")
+  set <- function(...) {
+    data.frame(item_id = "a", include = "TRUE", domain = "lan", map_raw_to_score = "1=0;2=1",
+               ...)
+  }
+  ok <- kits_settings_import(transform(set(), include = "Y", map_raw_to_score = "1=0,2=1"))
+  expect_true(ok$data$include)
+  expect_equal(ok$data$score[[1]], c(0, 1))
+  expect_false(kits_settings_import(transform(set(), include = "N"))$data$include)
+  expect_error(kits_settings_import(transform(set(), include = "maybe")), "include 看不懂")
+  expect_error(kits_settings_import(transform(set(), map_raw_to_score = "3=a")), "看不懂")
+  expect_error(kits_settings_import(transform(set(), map_raw_to_score = "1=0=2")), "看不懂")
+  expect_equal(kits_parse_map("1=;2=1")$score, c(NA, 1))
+  two <- rbind(set(), transform(set(), domain = "cog"))
+  expect_error(kits_settings_import(two), "同一題有好幾列")
+  expect_equal(nrow(kits_settings_import(rbind(set(), set()))$data), 1)  # 完全一樣的列只留一列
+})
