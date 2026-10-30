@@ -345,10 +345,13 @@ truncate_bytes <- function(x, max_bytes) {
 #' 依序嘗試 UTF-8、CP950（BIG5）；都不是合法中文時退回 Latin1 並標記
 #' @noRd
 read_csv_auto <- function(path) {
+  delim <- guess_csv_delim(path)
   try_enc <- function(enc) {
     # guess_max = Inf：用全部列判斷欄位型別，避免後段的文字值被默默變成 NA
-    readr::read_csv(
+    readr::read_delim(
       path,
+      delim = delim,
+      trim_ws = TRUE,   # 和 read_csv() 相同（read_delim() 預設不去空白）
       show_col_types = FALSE,
       guess_max = Inf,
       locale = readr::locale(encoding = enc),
@@ -361,7 +364,7 @@ read_csv_auto <- function(path) {
   for (label in names(encodings)) {
     df <- tryCatch(try_enc(encodings[[label]]), error = function(e) NULL)
     if (!is.null(df) && is_valid_utf8_df(df)) {
-      return(csv_result(df, label))
+      return(csv_result(df, label, delim))
     }
   }
   df <- tryCatch(
@@ -373,16 +376,35 @@ read_csv_auto <- function(path) {
       )
     }
   )
-  csv_result(df, "Latin1")
+  csv_result(df, "Latin1", delim)
 }
 
-csv_result <- function(df, encoding) {
+csv_result <- function(df, encoding, delim = ",") {
   n_problems <- nrow(readr::problems(df))
   list(
     data = fix_utf8_df(df),
     encoding = encoding,
-    n_problems = as.integer(n_problems)
+    n_problems = as.integer(n_problems),
+    delim = delim
   )
+}
+
+#' CSV 的分隔符號：第一列（欄名）沒有逗號、但有分號或 Tab 時，改用那個符號
+#'
+#' 歐洲版 Excel 存的 CSV 用分號；從其他軟體複製的常是 Tab。
+#' @noRd
+guess_csv_delim <- function(path) {
+  first <- tryCatch({
+    con <- file(path, "rb")
+    on.exit(close(con))
+    line <- readLines(con, n = 1, warn = FALSE)
+    if (length(line) == 0) "" else line
+  }, error = function(e) "")
+  count <- function(ch) lengths(regmatches(first, gregexpr(ch, first, fixed = TRUE, useBytes = TRUE)))
+  if (count(",") > 0) return(",")
+  others <- c(";" = count(";"), "\t" = count("\t"))
+  if (max(others) == 0) return(",")
+  names(others)[which.max(others)]
 }
 
 is_valid_utf8_df <- function(df) {

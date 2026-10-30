@@ -143,3 +143,23 @@ test_that("只有英文的 SAV 也能讀（編碼判斷不會出錯）", {
   expect_equal(count_matches(c("abc", "a"), "[\\x{3400}-\\x{9FFF}]"), 0)
   expect_equal(count_matches(c("中文a", "字"), "[\\x{3400}-\\x{9FFF}]"), 3)
 })
+
+test_that("分號、Tab 分隔的 CSV 自動辨識（低：分隔符號）", {
+  semi <- withr::local_tempfile(fileext = ".csv")
+  writeLines(c("id;score", "1;2,5", "2;3"), semi)
+  out <- read_data_file(semi, "semi.csv")
+  expect_equal(out$delim, ";")
+  expect_named(out$data, c("id", "score"))
+  tab <- withr::local_tempfile(fileext = ".csv")
+  writeLines(c("id\tscore", "1\t2"), tab)
+  expect_named(read_data_file(tab, "tab.csv")$data, c("id", "score"))
+  comma <- withr::local_tempfile(fileext = ".csv")
+  writeLines(c("id,note", "1,a;b"), comma)
+  expect_equal(read_data_file(comma, "c.csv")$delim, ",")
+})
+
+test_that("CSV 欄位值的前後空白照樣去掉（和 read_csv() 相同）", {
+  path <- withr::local_tempfile(fileext = ".csv")
+  writeLines(c("id,txt", "1, 9999", "2,a"), path)
+  expect_equal(read_data_file(path, "a.csv")$data$txt, c("9999", "a"))
+})

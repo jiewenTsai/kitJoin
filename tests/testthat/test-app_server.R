@@ -317,3 +317,17 @@ test_that("在 ① 移除檔案：其他檔案的 ② 結果保留；加入新�
     expect_match(output[["stack-source_note"]]$html, "請回 ② 重新按")
   })
 })
+
+test_that("① 同一個檔案加兩次會提醒，但仍然加入（低）", {
+  dir <- withr::local_tempdir()
+  w1 <- write_wave(dir, "w1.csv", data.frame(id = 1:3, score = 1:3))
+  shiny::testServer(
+    mod_upload_server,
+    args = list(goto = function(tab) NULL),
+    {
+      session$setInputs(files = upload_df(w1))
+      session$setInputs(files = upload_df(w1))
+      expect_equal(keys(), c("f1", "f2"))
+    }
+  )
+})

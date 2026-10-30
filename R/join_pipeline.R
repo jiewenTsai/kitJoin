@@ -304,6 +304,16 @@ check_wave_labels <- function(
       why
     ))
   }
+  # 只差在大小寫（T1、t1）：SPSS 欄名不分大小寫，匯出 SAV 時會被改名；看起來也容易混淆
+  case_dup <- which(duplicated(tolower(normalized)))
+  if (length(case_dup) > 0) {
+    other <- wave_labels[match(tolower(normalized[case_dup[1]]), tolower(normalized))]
+    return(paste0(
+      "波次名稱「", other, "」和「", wave_labels[case_dup[1]], "」只差在大小寫，",
+      "容易混淆，而且 SPSS 不分大小寫，匯出 SAV 時欄名會衝突。",
+      "請到「① 上傳檔案」改成明顯不同的名稱。"
+    ))
+  }
   NULL
 }
 

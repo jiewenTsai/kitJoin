@@ -137,6 +137,20 @@ mod_upload_server <- function(id, goto) {
           )
           next
         }
+        # 同一個檔案加兩次通常是不小心：照樣加入，但提醒
+        same <- purrr::detect(recs, function(r) {
+          r$name == name || identical(r$data, read$data)
+        })
+        if (!is.null(same)) {
+          shiny::showNotification(
+            paste0(
+              name, if (same$name == name) " 已經加入過了（檔名相同）" else paste0(" 的內容和已加入的 ", same$name, " 完全相同"),
+              "。如果是不小心重複加入，請在清單中按「移除」。"
+            ),
+            type = "warning",
+            duration = KIT_NOTIFY_ERROR_SECONDS
+          )
+        }
         n_added <<- n_added + 1L
         key <- paste0("f", n_added)
         taken <- purrr::map_chr(recs, function(r) {
@@ -352,6 +366,15 @@ file_read_notes <- function(record) {
       )
     } else if (!is.na(enc)) {
       shiny::tags$small(class = "text-muted", paste0("　編碼：", enc))
+    },
+    if (!is.null(record$delim) && record$delim != ",") {
+      shiny::tags$div(
+        class = "text-muted small",
+        paste0(
+          "　分隔符號：", if (record$delim == ";") "分號（;）" else "Tab",
+          "。這個檔案的欄位不是用逗號分隔，已自動改用", if (record$delim == ";") "分號" else " Tab", "讀取。"
+        )
+      )
     },
     if (record$n_problems > 0) {
       shiny::tags$div(

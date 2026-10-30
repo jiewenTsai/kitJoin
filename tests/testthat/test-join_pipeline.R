@@ -221,3 +221,11 @@ test_that("TDCYP jsq w1–w5：各檔 ID 欄名不同也能串接（C1）", {
   expect_equal(nrow(out$result), 688)   # 5 波都有資料的人數（報告的實測值）
   expect_equal(anyDuplicated(out$result$w1_id), 0)
 })
+
+test_that("波次名稱只差在大小寫（T1、t1）時擋下（低）", {
+  expect_match(check_wave_labels(c("T1", "t1"), c("a", "b")), "大小寫")
+  expect_error(
+    stack_waves(list(w1, w2), c("a", "b"), c("T1", "t1")),
+    "大小寫", class = "kit_user_error"
+  )
+})
