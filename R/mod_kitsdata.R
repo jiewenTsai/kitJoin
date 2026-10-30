@@ -72,6 +72,10 @@ mod_kitsdata_ui <- function(id) {
       width = "60%"
     ),
     shiny::uiOutput(ns("item_file_note")),
+    shiny::selectInput(
+      ns("reverse_rule"), "反向題的欄名（題目表查不到時，改用原題的領域）",
+      choices = KITS_REVERSE_RULES, selected = "suffix", width = "24rem"
+    ),
     shiny::tags$div(
       class = "mb-2",
       shiny::uiOutput(ns("settings_dl_ui"), inline = TRUE),
@@ -486,8 +490,19 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       new <- kits_item_settings(working$data(), candidates()$numeric, codes_2())
       up <- shiny::isolate(upload())
       if (inherits(up, "error")) up <- NULL
-      settings(kits_settings_sync(shiny::isolate(settings()), new, up))
+      settings(kits_settings_sync(shiny::isolate(settings()), new, up, reverse_rule()))
     })
+    reverse_rule <- shiny::reactive(input$reverse_rule %||% "suffix")
+    # 換規則：拿掉用舊規則從原題來的領域，再用新規則套一次題目表
+    shiny::observeEvent(input$reverse_rule, {
+      up <- upload()
+      if (is.null(up) || inherits(up, "error")) return()
+      s <- settings()
+      old <- !is.na(s$source) & startsWith(s$source, "題目表（原題")
+      s$domain[old] <- NA_character_
+      s$source[old] <- NA_character_
+      settings(kits_settings_apply(s, up, reverse = reverse_rule()))
+    }, ignoreInit = TRUE)
     shiny::observeEvent(input$item_file, {
       f <- input$item_file
       up <- tryCatch(
@@ -495,7 +510,9 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         error = function(e) e
       )
       upload(up)
-      if (!inherits(up, "error")) settings(kits_settings_apply(settings(), up))
+      if (!inherits(up, "error")) {
+        settings(kits_settings_apply(settings(), up, reverse = reverse_rule()))
+      }
     })
     output$item_file_note <- shiny::renderUI({
       up <- upload()

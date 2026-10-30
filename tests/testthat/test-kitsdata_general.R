@@ -434,3 +434,46 @@ test_that("C2：app 裡用「去掉」改輸出題號，摘要與表都看得到
     expect_match(output[["kitsdata-settings_summary"]]$html, "都輸出成題號 w1d5_")
   })
 })
+
+# ── C8：反向題的欄名規則可以設定 ────────────────────────────────────────────
+
+test_that("C8：反向題規則：結尾 r（預設，KIT）、開頭 r（TDCYP）、不用", {
+  cols <- c("cogd01r", "w1ra8", "ra8", "w1st_hour", "lana01")
+  expect_equal(kits_reverse_base(cols), c("cogd01", NA, NA, "w1st_hou", NA))
+  expect_equal(kits_reverse_base(cols, "prefix"), c(NA, "w1a8", "a8", NA, NA))
+  expect_true(all(is.na(kits_reverse_base(cols, "none"))))
+  tab <- tibble::tibble(item_id = c("cogd01", "w1a8", "a8", "w1st_hou"),
+                        domain = c("cog", "self", "self", "time"))
+  expect_equal(kits_item_domains(cols, tab)$domain, c("cog", NA, NA, "time", NA))
+  expect_equal(kits_item_domains(cols, tab, "prefix")$domain, c(NA, "self", "self", NA, NA))
+  expect_equal(kits_item_domains(cols, tab, "none")$domain, rep(NA_character_, 5))
+
+  dfs <- list(tibble::tibble(id = 1:2, w1a8 = c(1, 2), w1ra8 = c(2, 1)))
+  up <- list(type = "table", data = tibble::tibble(item_id = "w1a8", domain = "self"))
+  s <- kits_settings_apply(kits_item_settings(dfs, c("w1a8", "w1ra8")), up)
+  expect_equal(s$domain, c("self", NA))
+  s <- kits_settings_apply(kits_item_settings(dfs, c("w1a8", "w1ra8")), up, reverse = "prefix")
+  expect_equal(s$domain, c("self", "self"))
+  expect_match(s$source[2], "原題 w1a8")
+})
+
+test_that("C8：app 裡換反向題規則，領域跟著換", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "w1.csv")
+  readr::write_csv(tibble::tibble(id = 1:2, w1a8 = c(1, 2), w1ra8 = c(2, 1),
+                                  w1st_hour = c(1, 2)), path)
+  tab <- file.path(dir, "items.csv")
+  readr::write_csv(tibble::tibble(item_id = c("w1a8", "w1st_hou"), domain = c("self", "time")),
+                   tab)
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kg_upload(path))
+    session$setInputs(`kitsdata-item_file` = kg_upload(tab))
+    html <- output[["kitsdata-settings_table"]]$html
+    expect_match(html, "原題 w1st_hou")    # 預設：結尾 r
+    expect_no_match(html, "原題 w1a8")
+    session$setInputs(`kitsdata-reverse_rule` = "prefix")
+    html <- output[["kitsdata-settings_table"]]$html
+    expect_match(html, "原題 w1a8")
+    expect_no_match(html, "原題 w1st_hou")
+  })
+})

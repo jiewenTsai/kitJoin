@@ -187,13 +187,38 @@ kits_item_table <- function(df) {
   tab
 }
 
-#' 每一欄的領域：查題目表（結尾 r 的題查不到時改查原題）
+# 反向題的欄名規則：反向題查不到領域時，改查去掉 r 的原題（KIT 是結尾 r，例如 cogd01r）
+KITS_REVERSE_RULES <- c(
+  "結尾 r（例如 cogd01r → cogd01）" = "suffix",
+  "開頭 r（例如 ra8 → a8、w1ra8 → w1a8）" = "prefix",
+  "不用（反向題的領域要自己給）" = "none"
+)
+
+#' 反向題的原題名稱：照規則去掉 r；不是反向題（或規則是 none）時 NA
+#' @param rule "suffix"（結尾 r）、"prefix"（開頭 r，可以在波次前綴 w1 之後）或 "none"
+#' @noRd
+kits_reverse_base <- function(cols, rule = "suffix") {
+  out <- rep(NA_character_, length(cols))
+  if (identical(rule, "suffix")) {
+    hit <- grepl("r$", cols)
+    out[hit] <- sub("r$", "", cols[hit])
+  } else if (identical(rule, "prefix")) {
+    pattern <- "^([A-Za-z]*[0-9]+_?)?r(?=[A-Za-z0-9])"
+    hit <- grepl(pattern, cols, perl = TRUE)
+    out[hit] <- sub(pattern, "\\1", cols[hit], perl = TRUE)
+  }
+  out[!is.na(out) & !nzchar(out)] <- NA_character_
+  out
+}
+
+#' 每一欄的領域：查題目表（反向題查不到時改查原題，規則見 KITS_REVERSE_RULES）
 #'
 #' @param cols 候選欄
 #' @param table NULL 或 kits_item_table()
+#' @param reverse 反向題的欄名規則（"suffix"、"prefix"、"none"）
 #' @return tibble：column、domain（找不到時 NA）、source（給使用者看的來源）
 #' @noRd
-kits_item_domains <- function(cols, table = NULL) {
+kits_item_domains <- function(cols, table = NULL, reverse = "suffix") {
   cols <- as.character(cols)
   domain <- rep(NA_character_, length(cols))
   source <- rep(NA_character_, length(cols))
@@ -201,8 +226,8 @@ kits_item_domains <- function(cols, table = NULL) {
     hit <- match(cols, table$item_id)
     domain <- table$domain[hit]
     source[!is.na(domain)] <- "題目表"
-    base <- sub("r$", "", cols)
-    use_base <- is.na(domain) & grepl("r$", cols) & base %in% table$item_id
+    base <- kits_reverse_base(cols, reverse)
+    use_base <- is.na(domain) & !is.na(base) & base %in% table$item_id
     domain[use_base] <- table$domain[match(base[use_base], table$item_id)]
     source[use_base] <- paste0("題目表（原題 ", base[use_base], "）")
   }
@@ -434,8 +459,9 @@ kits_map_fit <- function(raw_new, raw_old, score_old) {
 #' @param old 舊的設定（NULL 時直接用 new）
 #' @param new kits_item_settings() 由目前資料建立的設定
 #' @param upload NULL 或 kits_settings_import()：新出現的欄套用上傳的題目表或設定檔
+#' @param reverse 反向題的欄名規則（kits_item_domains()）
 #' @noRd
-kits_settings_sync <- function(old, new, upload = NULL) {
+kits_settings_sync <- function(old, new, upload = NULL, reverse = "suffix") {
   if (nrow(new) == 0) return(new)
   if (!is.null(old) && nrow(old) > 0) {
     hit <- match(new$column, old$column)
@@ -455,20 +481,22 @@ kits_settings_sync <- function(old, new, upload = NULL) {
   } else {
     fresh <- new$column
   }
-  if (!is.null(upload)) new <- kits_settings_apply(new, upload, fresh)
+  if (!is.null(upload)) new <- kits_settings_apply(new, upload, fresh, reverse)
   new
 }
 
 #' 套用上傳的題目表（item_id、domain）或題目設定檔（item_id、include、domain、
 #' map_raw_to_score）
 #'
-#' 題目表只給領域；結尾 r 的題查不到時用原題的領域。設定檔還給納入與計分對照。
+#' 題目表只給領域（和輸出題號）；反向題查不到時用原題的領域（規則見 KITS_REVERSE_RULES）。
+#' 設定檔還給納入、計分對照與遺漏值代碼。
 #' @param cols 只套用這些題（NULL 是全部）
+#' @param reverse 反向題的欄名規則（kits_item_domains()）
 #' @noRd
-kits_settings_apply <- function(settings, upload, cols = NULL) {
+kits_settings_apply <- function(settings, upload, cols = NULL, reverse = "suffix") {
   if (is.null(upload) || nrow(settings) == 0) return(settings)
   todo <- if (is.null(cols)) rep(TRUE, nrow(settings)) else settings$column %in% cols
-  dom <- kits_item_domains(settings$column, upload$data[c("item_id", "domain")])
+  dom <- kits_item_domains(settings$column, upload$data[c("item_id", "domain")], reverse)
   set <- todo & !is.na(dom$domain)
   settings$domain[set] <- dom$domain[set]
   settings$source[set] <- if (upload$type == "settings") "設定檔" else dom$source[set]
