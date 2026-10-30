@@ -227,7 +227,7 @@ test_that("③⑤ 各檔 ID 欄名不同（w1_id、w2_id、w3id）時自動改�
     )
     expect_named(csv, c("w1_id", "a_t1", "a_t2", "a_t3"))
     expect_equal(nrow(csv), 6)
-    expect_match(output[["join-code"]]$html, "rename\\(data_t2, w1_id = w2_id\\)")
+    expect_match(output[["join-code"]]$html, "rename\\(data_2, w1_id = w2_id\\)")
 
     session$setInputs(
       `attrition-baseline` = "f1", `attrition-followup` = "f3",
@@ -236,7 +236,7 @@ test_that("③⑤ 各檔 ID 欄名不同（w1_id、w2_id、w3id）時自動改�
     )
     session$setInputs(`attrition-run` = 1)
     expect_match(output[["attrition-status"]]$html, "留存 2 人、流失 2 人")
-    expect_match(output[["attrition-code"]]$html, "data_t3\\$w3id")
+    expect_match(output[["attrition-code"]]$html, "data_3\\$w3id")
   })
 })
 
