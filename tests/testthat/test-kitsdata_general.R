@@ -714,6 +714,25 @@ test_that("發現 11：BOM、SAV 的標籤欄、分號 CSV、include 與 map_raw
   expect_equal(nrow(kits_settings_import(rbind(set(), set()))$data), 1)  # 完全一樣的列只留一列
 })
 
+test_that("② 的結果過期（source = \"stale\"）時，⑥ 提醒重新執行 ②", {
+  df <- tibble::tibble(id = 1:2, q1 = c(0, 1))
+  files <- list(keys = function() "f1", names = function() "w1.csv", labels = function() "t1",
+                data = function() list(df), encodings = function() NA_character_)
+  src <- shiny::reactiveVal("stale")
+  working <- list(data = function() list(df), source = src)
+  shiny::testServer(mod_kitsdata_server, args = list(files = files, working = working,
+                                                    goto = function(tab) NULL), {
+    expect_match(output$source_note$html, "② 的設定改過了")
+    expect_match(output$source_note$html, "原始資料")
+    src("na")
+    session$flushReact()
+    expect_no_match(output$source_note$html, "改過了")
+    src("something_new")
+    session$flushReact()
+    expect_match(output$source_note$html, "原始資料")
+  })
+})
+
 test_that("帶標籤的文字欄（SAV）也能判斷是不是數字；TDCYP W1–W4 jsq（有檔案時才跑）", {
   x <- haven::labelled(c("1", "2", "x"), c(a = "1"))
   expect_equal(kits_as_num(x), c(1, 2, NA))

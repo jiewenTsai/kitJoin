@@ -273,16 +273,29 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           "請先到「① 上傳檔案」加入寬格式的資料檔（一個或多個）。"
         ))
       }
-      shiny::tags$p(
-        class = "kit-source-note",
-        "目前使用：",
-        if (identical(working$source(), "na")) "「② 遺漏值轉 NA」處理後的資料" else "原始資料",
-        "，共 ", n, " 個檔案。"
+      src <- working$source() %||% "raw"
+      shiny::tagList(
+        shiny::tags$p(
+          class = "kit-source-note",
+          "目前使用：",
+          if (identical(src, "na")) "「② 遺漏值轉 NA」處理後的資料" else "原始資料",
+          "，共 ", n, " 個檔案。"
+        ),
+        # ② 的設定或檔案改過、還沒重新執行（fix-io 分支的 source = "stale"）
+        if (identical(src, "stale")) {
+          shiny::tags$div(
+            class = "kit-callout kit-callout-warning",
+            "② 的設定改過了，請",
+            shiny::actionLink(ns("goto_missing_stale"), "重新執行「② 遺漏值轉 NA」"),
+            "，這一頁才會用到新的結果。"
+          )
+        }
       )
     })
 
     # 遺漏值代碼還在資料裡：⑥ 當成沒有作答；提醒其他分頁要用的話先到 ② 處理（不擋轉換）
     shiny::observeEvent(input$goto_missing, goto("missing"))
+    shiny::observeEvent(input$goto_missing_stale, goto("missing"))
     output$codes_note <- shiny::renderUI({
       if (length(working$data()) == 0) return(NULL)
       s <- settings()
