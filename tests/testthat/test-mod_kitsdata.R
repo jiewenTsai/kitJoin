@@ -30,29 +30,35 @@ kd_map <- function(session) {
   )
 }
 
-test_that("⑥：設定好世代、規則與排除後，轉換成功並有 .csv.gz", {
+# 題目設定：選取幾列、做一個批次動作
+kd_act <- function(session, rows, button, ...) {
+  session$setInputs(`kitsdata-sel` = rows, ...)
+  do.call(session$setInputs, stats::setNames(list(1), paste0("kitsdata-", button)))
+}
+
+test_that("⑥：題目設定給領域、排除、② 處理代碼、建議平移，轉換成功", {
   dir <- withr::local_tempdir()
   paths <- kd_files(dir)
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kd_upload(paths))
     kd_map(session)
-    session$setInputs(
-      `kitsdata-cohort_txt_f1` = "M03", `kitsdata-cohort_txt_f2` = "M36",
-      `kitsdata-rules` = "^lan = lan\n^body = motor"
-    )
-    # extra 沒有領域：要決定
-    expect_match(output[["kitsdata-undecided"]]$html, "extra")
-    extra_id <- paste0("kitsdata-nodom_", paste(as.character(charToRaw("extra")), collapse = ""))
+    session$setInputs(`kitsdata-cohort_txt_f1` = "M03", `kitsdata-cohort_txt_f2` = "M36")
+    table <- output[["kitsdata-settings_table"]]$html
+    expect_match(table, 'value="lana01"')
+    expect_match(table, 'value="extra"')
+    expect_no_match(table, 'value="city"')   # 文字欄不列
     session$setInputs(`kitsdata-run` = 1)
-    expect_match(output[["kitsdata-status"]]$html, "沒有領域、也還沒決定")
+    expect_match(output[["kitsdata-status"]]$html, "個納入的題目沒有領域")
 
-    do.call(session$setInputs, stats::setNames(list("__exclude__"), extra_id))
-    # 9999 還在、也沒用 ②：提醒到 ②（不擋）；減 1 的建議不管 9999
+    kd_act(session, "lana01", "do_domain", `kitsdata-bulk_domain` = "lan")
+    kd_act(session, "bodyaf01", "do_domain", `kitsdata-bulk_domain` = "motor")
+    kd_act(session, "extra", "do_exclude")
+    expect_match(output[["kitsdata-settings_summary"]]$html, "納入 2、排除 1")
+
+    # 9999 還在、也沒用 ②：提醒到 ②（不擋）
     expect_match(output[["kitsdata-codes_note"]]$html, "goto_missing")
     expect_no_match(output[["kitsdata-code"]]$html, "已經把遺漏值代碼改成 NA")
     session$setInputs(`kitsdata-goto_missing` = 1)
-    expect_match(output[["kitsdata-shift_suggest"]]$html, "建議")
-    # 到 ② 把 9999 改成 NA
     session$setInputs(
       `missing-codes` = "9999", `missing-exclude_cols` = "release_id",
       `missing-match_text` = TRUE, `missing-use_downstream` = TRUE
@@ -60,17 +66,17 @@ test_that("⑥：設定好世代、規則與排除後，轉換成功並有 .csv.
     session$setInputs(`missing-run` = 1)
     expect_null(output[["kitsdata-codes_note"]])
     expect_match(output[["kitsdata-code"]]$html, "已經把遺漏值代碼改成 NA")
-    # 每題最低分是 1：建議勾步驟 1，但不會自動勾
-    expect_match(output[["kitsdata-shift_suggest"]]$html, "建議")
-    expect_null(input[["kitsdata-step_shift"]])
-    session$setInputs(`kitsdata-step_shift` = TRUE, `kitsdata-shift_scope` = "all")
+
+    # 每題最低分都是 1：建議（不會自動做）；按了才平移
+    expect_match(output[["kitsdata-shift_suggest"]]$html, "所有題目都從 1 開始")
+    expect_no_match(output[["kitsdata-code"]]$html, "x - 1")
+    session$setInputs(`kitsdata-apply_hint` = 1)
     expect_null(output[["kitsdata-shift_suggest"]])
+    expect_match(output[["kitsdata-code"]]$html, "x - 1")
 
     session$setInputs(`kitsdata-run` = 2)
     expect_match(output[["kitsdata-status"]]$html, "檢查完成")
     expect_match(output[["kitsdata-result"]]$html, "download_gz")
-    expect_match(output[["kitsdata-code"]]$html, "步驟 1")
-    expect_no_match(output[["kitsdata-code"]]$html, "步驟 2")
     expect_match(output[["kitsdata-visit_note"]]$html, "M03_K1_m03g01")
   })
 })
@@ -81,12 +87,9 @@ test_that("⑥：世代空白時不轉換；改設定後舊結果失效", {
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kd_upload(paths))
     kd_map(session)
-    extra_id <- paste0("kitsdata-nodom_", paste(as.character(charToRaw("extra")), collapse = ""))
-    session$setInputs(
-      `kitsdata-cohort_txt_f1` = "M03", `kitsdata-cohort_txt_f2` = "",
-      `kitsdata-rules` = "^lan = lan\n^body = motor"
-    )
-    do.call(session$setInputs, stats::setNames(list("__exclude__"), extra_id))
+    session$setInputs(`kitsdata-cohort_txt_f1` = "M03", `kitsdata-cohort_txt_f2` = "")
+    kd_act(session, c("lana01", "bodyaf01"), "do_domain", `kitsdata-bulk_domain` = "lan")
+    kd_act(session, "extra", "do_exclude")
     session$setInputs(`kitsdata-run` = 1)
     expect_match(output[["kitsdata-status"]]$html, "m36.csv：還沒有填世代")
 
@@ -112,4 +115,24 @@ test_that("候選欄與領域：沒有檔案時是空的表", {
   cand <- kits_candidate_cols(list(), character(0))
   expect_equal(cand$numeric, character(0))
   expect_named(kits_item_domains(cand$numeric), c("column", "domain", "source"))
+  expect_equal(nrow(kits_item_settings(list(), cand$numeric)), 0)
+})
+
+test_that("⑥：說明和下載區都有開啟 kitsUI 的按鈕（新分頁）", {
+  ui <- as.character(mod_kitsdata_ui("kitsdata"))
+  expect_match(ui, 'href="https://jiewentsai-kitsui.share.connect.posit.cloud/"', fixed = TRUE)
+  expect_match(ui, 'target="_blank"', fixed = TRUE)
+  dir <- withr::local_tempdir()
+  paths <- kd_files(dir)
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kd_upload(paths))
+    kd_map(session)
+    session$setInputs(`kitsdata-cohort_txt_f1` = "M03", `kitsdata-cohort_txt_f2` = "M36")
+    kd_act(session, c("lana01", "bodyaf01"), "do_domain", `kitsdata-bulk_domain` = "lan")
+    kd_act(session, "extra", "do_exclude")
+    session$setInputs(`kitsdata-run` = 1)
+    html <- output[["kitsdata-result"]]$html
+    expect_match(html, "開啟 kitsUI 上傳作答檔")
+    expect_match(html, 'href="https://jiewentsai-kitsui.share.connect.posit.cloud/"', fixed = TRUE)
+  })
 })

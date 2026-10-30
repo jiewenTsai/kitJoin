@@ -1,4 +1,4 @@
-# 0.4.0 合併版的 kits_build()（整張長表放在記憶體；0.4.1 拿掉遺漏值步驟）：只給測試比對用，
+# 0.4.0 合併版的 kits_build()（整張長表放在記憶體；0.4.2 起計分對照由測試先算好）：只給測試比對用，
 # 確認分段寫出的 .csv.gz 和舊的結果一列一列相同。
 
 kits_build_old <- function(dfs, file_names, spec, pivot_args = NULL) {
@@ -11,40 +11,7 @@ kits_build_old <- function(dfs, file_names, spec, pivot_args = NULL) {
   problems <- kits_score_problems(dfs, items)
   if (length(problems) > 0) return(list(long = NULL, problems = problems))
 
-  # 步驟 1：分數減 1（已經有 0 分的題不能減）
-  shift <- spec$steps$shift
-  if (!is.null(shift)) {
-    zero <- dplyr::filter(kits_item_ranges(dfs, shift), .data$min <= 0)
-    if (nrow(zero) > 0) {
-      return(list(long = NULL, problems = paste0(
-        "步驟 1：這些題已經有 0 分，減 1 會變成負分：",
-        paste(utils::head(zero$item_id, 10), collapse = "、"),
-        if (nrow(zero) > 10) "…" else "", "。請把它們從要減 1 的題目拿掉。"
-      )))
-    }
-    dfs <- purrr::map(dfs, kits_step_scores, cols = shift, fun = function(x) x - 1)
-    notes <- c(notes, paste0("步驟 1：", length(shift), " 題的分數減 1。"))
-  }
-
-  # 步驟 2：反向計分（0 起算的量尺上 max − x）
-  rev <- spec$steps$reverse
   rename <- character(0)
-  if (!is.null(rev)) {
-    over <- dplyr::filter(kits_item_ranges(dfs, rev$items), .data$max > rev$max)
-    if (nrow(over) > 0) {
-      return(list(long = NULL, problems = paste0(
-        "步驟 2：這些題的分數比最高分 ", rev$max, " 還大：",
-        paste(utils::head(over$item_id, 10), collapse = "、"),
-        "。請確認最高分（0 起算）。"
-      )))
-    }
-    dfs <- purrr::map(dfs, kits_step_scores, cols = rev$items, fun = function(x) rev$max - x)
-    notes <- c(notes, paste0("步驟 2：", length(rev$items), " 題反向計分（", rev$max, " − 分數）。"))
-    if (isTRUE(rev$add_r)) {
-      todo <- rev$items[!grepl("r$", rev$items)]
-      rename <- stats::setNames(paste0(todo, "r"), todo)
-    }
-  }
 
   visit_rule <- kits_visit_rule(map)
   longs <- purrr::map(seq_along(dfs), function(i) {

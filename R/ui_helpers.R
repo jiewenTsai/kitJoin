@@ -24,6 +24,19 @@ kit_tab_guide <- function(goal, steps, output, technical = NULL, note = NULL) {
   )
 }
 
+#' 開啟 kitsUI 雲端版的按鈕（新分頁）
+#' @noRd
+kit_kitsui_button <- function(label = "開啟 kitsUI") {
+  shiny::tags$a(
+    href = KITSUI_URL,
+    target = "_blank",
+    rel = "noopener noreferrer",
+    class = "btn btn-outline-primary",
+    shiny::icon("arrow-up-right-from-square"),
+    label
+  )
+}
+
 #' 編號步驟清單
 #' @noRd
 kit_steps <- function(...) {

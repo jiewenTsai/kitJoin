@@ -178,3 +178,39 @@ test_that("整個 app：⑦ 分頁存在，只上傳 1 個檔案也能轉換", {
     expect_match(output[["reshape-downloads"]]$html, "download_sav")
   })
 })
+
+test_that("轉換前提示格式；方向相反時提醒；寬轉長的程式碼用 starts_with()", {
+  wide <- tibble::tibble(
+    id = 1:2, sex = c(1, 2), score_t1 = c(1, 2), score_t2 = c(3, 4)
+  )
+  shiny::testServer(mod_reshape_server, args = reshape_args(list(wide)), {
+    session$setInputs(file = "f1", direction = "wider")
+    expect_match(output$guess$html, "用哪一欄當 ID")
+    expect_match(output$guess_text$html, "寬格式")
+    expect_match(output$guess_flip$html, "改選「寬轉長」")
+    expect_match(output$direction_note$html, "已經是寬格式")
+
+    session$setInputs(direction = "longer")
+    expect_null(output$direction_note)
+    expect_null(output$guess_flip)
+    session$setInputs(
+      `longer-cols_mode` = "include", `longer-cols` = c("score_t1", "score_t2")
+    )
+    expect_match(output$code$html, "starts_with")
+    session$setInputs(run = 1)
+    expect_equal(dim(result()$result), c(4, 4))
+
+    # 自己選 ID：sex 每個值一列 → 還是寬格式
+    session$setInputs(guess_id = "sex")
+    expect_match(output$guess_text$html, "每個 sex 一列")
+  })
+
+  long <- sim_kitsui_scores()
+  shiny::testServer(mod_reshape_server, args = reshape_args(list(long)), {
+    session$setInputs(file = "f1", direction = "longer")
+    expect_match(output$guess_text$html, "長格式")
+    expect_match(output$direction_note$html, "已經是長格式")
+    session$setInputs(direction = "wider")
+    expect_null(output$direction_note)
+  })
+})

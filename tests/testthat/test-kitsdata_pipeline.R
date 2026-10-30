@@ -17,15 +17,16 @@ sim_table <- function() {
   )
 }
 
-# 預設的設定：兩個檔案（M03、M36），題目表找領域
-sim_spec <- function(dfs, cohorts = c("M03", "M36"), steps = list(), table = sim_table()) {
+# 預設的設定：兩個檔案（M03、M36），題目表給領域；fun 是對題目設定的批次動作
+sim_spec <- function(dfs, cohorts = c("M03", "M36"), fun = NULL, table = sim_table()) {
   map <- kits_guess_map(unique(unlist(purrr::map(dfs, names))))
   cand <- kits_candidate_cols(dfs, kits_mapped_cols(map))
-  dom <- kits_item_domains(cand$numeric, table)
+  s <- kits_settings_apply(kits_item_settings(dfs, cand$numeric),
+                           list(type = "table", data = table))
+  if (!is.null(fun)) s <- fun(s)
   kits_spec(
     purrr::map(cohorts, function(x) list(type = "text", value = x)), map,
-    dplyr::filter(dom, !is.na(.data$domain))[c("column", "domain")],
-    dom$column[is.na(dom$domain)], steps
+    kits_settings_items(s), kits_settings_undecided(s)
   )
 }
 
@@ -49,13 +50,10 @@ test_that("依欄名猜對應的欄", {
   expect_equal(map$visit_id, "")
 })
 
-test_that("領域：先查題目表，r 結尾查不到時查原題，再用規則", {
-  rules <- kits_parse_rules("^body = motor\n這行不對\n^new = cog")
-  expect_equal(rules$invalid, "這行不對")
-  d <- kits_item_domains(c("lana01", "cogd01r", "bodyef01", "city2"), sim_table(), rules$rules)
-  expect_equal(d$domain, c("lan", "cog", "motor", NA))
+test_that("領域：先查題目表，r 結尾查不到時查原題", {
+  d <- kits_item_domains(c("lana01", "cogd01r", "bodyef01"), sim_table())
+  expect_equal(d$domain, c("lan", "cog", NA))
   expect_match(d$source[2], "原題 cogd01")
-  expect_match(d$source[3], "規則")
 })
 
 test_that("題目表要有 item_id 與 domain，同一題不能有兩個領域", {
@@ -98,7 +96,7 @@ test_that("世代空白、欄位沒決定、沒對應 wave_m 時不轉換", {
 
   spec <- sim_spec(dfs, table = sim_table()[1:3, ])
   out <- kits_build(dfs, c("a.csv", "b.csv"), spec)
-  expect_match(out$problems, "沒有領域、也還沒決定", all = FALSE)
+  expect_match(out$problems, "個納入的題目沒有領域", all = FALSE)
 
   spec <- sim_spec(dfs)
   spec$map$wave_m <- ""
@@ -130,39 +128,43 @@ after_missing <- function(df, codes = c(7777, 9999)) {
   replace_na_codes(df, codes, exclude = "release_id")$data
 }
 
-test_that("進階調整依 1 → 2 的順序：先減 1，再反向（9999 已由 ② 改成 NA）", {
+test_that("計分對照：先平移 −1，再反向（9999 已由 ② 改成 NA）；題號不變", {
   dfs <- sim_dfs()
   dfs[[1]]$lana01[1] <- 9999
   dfs[[1]]$lana02 <- c(1, 2, 3, 4, 5)
   dfs <- purrr::map(dfs, after_missing)
-  steps <- list(shift = c("lana01", "lana02", "bodyaf01", "cogd01r"),
-                reverse = list(items = "lana02", max = 4, add_r = TRUE))
-  out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs, steps = steps))
+  fun <- function(s) {
+    s |>
+      kits_bulk_shift(c("lana01", "lana02", "bodyaf01", "cogd01r"), -1) |>
+      kits_bulk_reverse("lana02", 4)
+  }
+  out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs, fun = fun))
   expect_length(out$problems, 0)
   long <- kits_long_of(out)
   expect_false(any(long$item_score > 4))
   expect_false(any(long$item_id == "lana01" & long$visit_id == "M03_K1_m03g01"))
-  # lana02：1..5 → 減 1 → 0..4 → 反向 → 4..0，題號加 r，領域不變
-  rev <- long[long$item_id == "lana02r" & long$cohort == "M03", ]
+  # lana02：1..5 → 平移 → 0..4 → 反向 → 4..0；領域不變
+  rev <- long[long$item_id == "lana02" & long$cohort == "M03", ]
   expect_equal(rev$item_score, c(4L, 3L, 2L, 1L, 0L))
   expect_equal(unique(rev$domain), "lan")
-  expect_match(out$notes, "步驟 1", all = FALSE)
+  expect_match(out$notes, "計分對照：4 題", all = FALSE)
 })
 
-test_that("已經有 0 分的題不能減 1；反向的最高分太小時擋下", {
+test_that("計分後有負分、或原分數沒有計分時擋下", {
   dfs <- sim_dfs()
   dfs[[2]]$lana01[1] <- 0
-  out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs, steps = list(shift = "lana01")))
-  expect_match(out$problems, "已經有 0 分", all = FALSE)
-
-  steps <- list(reverse = list(items = "lana02", max = 3, add_r = FALSE))
-  out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs, steps = steps))
-  expect_match(out$problems, "比最高分 3 還大", all = FALSE)
-
-  steps <- list(reverse = list(items = character(0), max = NA, add_r = FALSE))
-  problems <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs, steps = steps))$problems
-  expect_match(problems, "請選要反向", all = FALSE)
-  expect_match(problems, "請填最高分", all = FALSE)
+  out <- kits_build(dfs, c("a.csv", "b.csv"),
+                    sim_spec(dfs, fun = function(s) kits_bulk_shift(s, "lana01", -1)))
+  expect_match(out$problems, "有負分：lana01", all = FALSE)
+  out <- kits_build(dfs, c("a.csv", "b.csv"),
+                    sim_spec(dfs, fun = function(s) kits_bulk_reverse(s, "lana02", 3)))
+  expect_match(out$problems, "有負分：lana02", all = FALSE)
+  # 計分對照裡沒有 0 這個原分數（例如沿用上一波的設定）
+  spec <- sim_spec(dfs)
+  spec$items$raw[[1]] <- c(1, 2, 3, 4, 5)
+  spec$items$score[[1]] <- c(0, 1, 2, 3, 4)
+  out <- kits_build(dfs, c("a.csv", "b.csv"), spec)
+  expect_match(out$problems, "lana01：原分數 0 沒有計分", all = FALSE)
 })
 
 test_that("負分擋下並建議當成遺漏值代碼；文字的題目欄擋下", {
@@ -216,19 +218,28 @@ test_that(".csv.gz 寫得出來、讀得回來", {
 test_that("「用 R 怎麼做？」的程式碼跑出來和 app 的結果一樣", {
   dfs <- sim_dfs()
   dfs[[1]]$lana01[1] <- 9999
+  dfs[[1]]$lana02 <- c(1, 2, 3, 4, 5)
   dfs <- purrr::map(dfs, after_missing)
-  steps <- list(shift = c("lana01", "lana02", "bodyaf01", "cogd01r"),
-                reverse = list(items = "lana02", max = 4, add_r = TRUE))
-  spec <- sim_spec(dfs, steps = steps)
+  map <- kits_guess_map(unique(unlist(purrr::map(dfs, names))))
+  s <- kits_item_settings(dfs, kits_candidate_cols(dfs, kits_mapped_cols(map))$numeric) |>
+    kits_settings_apply(list(type = "table", data = sim_table())) |>
+    kits_bulk_shift(c("lana01", "lana02", "bodyaf01", "cogd01r"), -1) |>
+    kits_bulk_reverse("lana02", 4) |>
+    kits_bulk_merge("bodyaf01", c(3, 4), 2)
+  cohorts <- list(list(type = "text", value = "M03"), list(type = "text", value = "M36"))
+  spec <- kits_spec(cohorts, map, kits_settings_items(s), kits_settings_undecided(s))
   app <- kits_long_of(kits_build(dfs, c("w1.csv", "w2.csv"), spec))
 
   dir <- withr::local_tempdir()
   readr::write_csv(dfs[[1]], file.path(dir, "w1.csv"))
   readr::write_csv(dfs[[2]], file.path(dir, "w2.csv"))
-  readr::write_csv(sim_table(), file.path(dir, "items.csv"))
+  readr::write_excel_csv(kits_settings_export(s), file.path(dir, KITS_SETTINGS_FILE), na = "")
   f <- code_files(c("w1.csv", "w2.csv"), c("t1", "t2"))
-  code <- code_kitsdata(f, spec, item_file = "items.csv")
+  code <- code_kitsdata(f, spec)
   expect_false(any(nchar(strsplit(code, "\n")[[1]]) > 100))
+  expect_match(code, "(x) x - 1", fixed = TRUE)
+  expect_match(code, "(x) 5 - x", fixed = TRUE)
+  expect_match(code, "x %in% c(3, 4) ~ 2", fixed = TRUE)
 
   withr::with_dir(dir, {
     env <- new.env()
@@ -243,13 +254,13 @@ test_that("「用 R 怎麼做？」的程式碼跑出來和 app 的結果一樣"
   expect_equal(key(got)$visit_id, key(app)$visit_id)
 })
 
-test_that("沒勾的進階調整不會出現在程式碼裡", {
+test_that("沒改的題不會出現在計分對照的程式碼裡", {
   dfs <- sim_dfs()
   code <- code_kitsdata(code_files(c("a.csv", "b.csv"), c("t1", "t2")), sim_spec(dfs))
-  expect_no_match(code, "步驟 1")
-  expect_no_match(code, "步驟 2")
+  expect_no_match(code, "計分對照（原分數")
   expect_no_match(code, "遺漏值")
   expect_match(code, "pivot_longer")
+  expect_match(code, "kits_item_settings.csv")
   code <- code_kitsdata(code_files(c("a.csv", "b.csv"), c("t1", "t2")), sim_spec(dfs),
                         na_applied = TRUE)
   expect_match(code, "「② 遺漏值轉 NA」已經把遺漏值代碼改成 NA")

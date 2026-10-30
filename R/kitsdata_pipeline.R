@@ -3,7 +3,7 @@
 # 輸出固定 9 欄、固定順序（kits 與 kitsUI 的資料約定）：
 #   visit_id、subj_id、cohort、sex、wave_m、age_m、item_id、item_score、domain
 # 編號與 sex 一律寫成文字；wave_m、age_m 是數字；item_score 是整數。
-# 進階調整依固定順序執行：1 分數減 1 → 2 反向計分（max − x）。遺漏值代碼由 ② 處理。
+# 每一題的計分對照（原分數 → 計分）在寬資料上套用；遺漏值代碼由 ② 處理。
 # 這個檔案只有純函式（不碰 Shiny），由 mod_kitsdata.R 呼叫。
 
 # kits 作答檔的欄位（和 kits::kitm03$responses 相同的名稱、順序與型別；不依賴 kits）
@@ -22,14 +22,32 @@ KITS_COLUMNS <- tibble::tribble(
   "domain", "c", TRUE, "items", "領域，例如 lan、motor、cog（「3. 題目與領域」）。"
 )
 
-# 「2. 對應欄位」的列：kits 的欄（from = map）加上波次標籤（只用來組 visit_id）
-KITS_MAP_FIELDS <- c(
-  stats::setNames(
-    KITS_COLUMNS$meaning[KITS_COLUMNS$from == "map"],
-    KITS_COLUMNS$column[KITS_COLUMNS$from == "map"]
-  ),
-  wave = "波次標籤，例如 m108g03（不會輸出，只用來組 visit_id）。"
-)[c("visit_id", "subj_id", "sex", "wave", "wave_m", "age_m")]
+# 「2. 對應欄位」的列：kits 的欄（from = map）加上波次標籤（wave，不會輸出，只用來組 visit_id）
+# typed：可以「自己填」（每個檔案填一個值，例如一個檔案一個波次、檔案裡沒有波次欄時）；
+# label：「1.」的表裡「自己填」那一欄的標題
+KITS_MAP_ROWS <- dplyr::bind_rows(
+  KITS_COLUMNS[KITS_COLUMNS$from == "map", c("column", "type", "required", "meaning")],
+  tibble::tibble(
+    column = "wave", type = "c", required = FALSE,
+    meaning = "波次標籤，例如 m108g03（不會輸出，只用來組 visit_id）。"
+  )
+) |>
+  dplyr::rename(field = "column") |>
+  dplyr::mutate(
+    required = .data$required & .data$field != "visit_id",   # visit_id 預設自動組成
+    typed = .data$field %in% c("sex", "wave", "wave_m", "age_m"),
+    label = unname(c(visit_id = "列次編號", subj_id = "孩子編號", sex = "性別",
+                     wave_m = "波次（月齡）", age_m = "實際月齡", wave = "波次標籤")[.data$field])
+  ) |>
+  dplyr::slice(match(c("visit_id", "subj_id", "sex", "wave", "wave_m", "age_m"), .data$field))
+
+KITS_MAP_FIELDS <- stats::setNames(KITS_MAP_ROWS$meaning, KITS_MAP_ROWS$field)
+
+# 下載的題目設定檔名（「用 R 怎麼做？」也讀這個檔）
+KITS_SETTINGS_FILE <- "kits_item_settings.csv"
+
+# 「自己填」的值放進資料時用的欄名開頭（不會和使用者的欄撞名）
+KITS_TYPED_PREFIX <- ".kits_typed_"
 
 #' @importFrom dplyr .data
 NULL
@@ -77,7 +95,7 @@ kits_mapped_cols <- function(map) {
 }
 
 
-# ── 領域：題目表與規則 ───────────────────────────────────────────────────────
+# ── 領域：題目表 ─────────────────────────────────────────────────────────
 
 #' 題目表（item_id、domain）整理與檢查
 #'
@@ -109,36 +127,13 @@ kits_item_table <- function(df) {
   tab
 }
 
-#' 解析規則文字：一行一條「規則 = 領域」，規則是正規表示式（例如 ^lan = lan）
-#'
-#' @return list(rules = tibble(pattern, domain), invalid = 看不懂的行)
-#' @noRd
-kits_parse_rules <- function(text) {
-  lines <- trimws(strsplit(text %||% "", "\n", fixed = TRUE)[[1]])
-  lines <- lines[nzchar(lines) & !startsWith(lines, "#")]
-  parts <- strsplit(lines, "\\s*(=|→)\\s*")
-  ok <- lengths(parts) == 2 & vapply(parts, function(p) all(nzchar(p)), logical(1))
-  valid <- vapply(parts, function(p) {
-    length(p) == 2 && !inherits(tryCatch(grepl(p[1], "x"), error = identity), "error")
-  }, logical(1))
-  keep <- ok & valid
-  list(
-    rules = tibble::tibble(
-      pattern = vapply(parts[keep], `[`, character(1), 1),
-      domain = vapply(parts[keep], `[`, character(1), 2)
-    ),
-    invalid = lines[!keep]
-  )
-}
-
-#' 每一欄的領域：先查題目表（結尾 r 的題查不到時改查原題），再用規則
+#' 每一欄的領域：查題目表（結尾 r 的題查不到時改查原題）
 #'
 #' @param cols 候選欄
 #' @param table NULL 或 kits_item_table()
-#' @param rules NULL 或 kits_parse_rules()$rules
 #' @return tibble：column、domain（找不到時 NA）、source（給使用者看的來源）
 #' @noRd
-kits_item_domains <- function(cols, table = NULL, rules = NULL) {
+kits_item_domains <- function(cols, table = NULL) {
   cols <- as.character(cols)
   domain <- rep(NA_character_, length(cols))
   source <- rep(NA_character_, length(cols))
@@ -150,11 +145,6 @@ kits_item_domains <- function(cols, table = NULL, rules = NULL) {
     use_base <- is.na(domain) & grepl("r$", cols) & base %in% table$item_id
     domain[use_base] <- table$domain[match(base[use_base], table$item_id)]
     source[use_base] <- paste0("題目表（原題 ", base[use_base], "）")
-  }
-  for (i in seq_len(if (is.null(rules)) 0 else nrow(rules))) {
-    todo <- is.na(domain) & grepl(rules$pattern[i], cols)
-    domain[todo] <- rules$domain[i]
-    source[todo] <- paste0("規則 ", rules$pattern[i])
   }
   tibble::tibble(column = cols, domain = domain, source = source)
 }
@@ -210,13 +200,347 @@ kits_code_cells <- function(dfs, cols) {
   }))
 }
 
-#' 步驟 1 與 2：分數減 1、反向計分（max − x）
+#' 平移量的寫法：−1、+2
 #' @noRd
-kits_step_scores <- function(df, cols, fun) {
-  for (col in intersect(cols, names(df))) {
-    df[[col]] <- fun(as.numeric(unclass(df[[col]])))
+kits_shift_text <- function(by) {
+  if (by < 0) paste0("−", abs(by)) else paste0("+", by)
+}
+
+
+# ── 題目設定：每一題納入與否、領域、計分對照（原分數 → 計分） ───────────────
+#
+# 設定是一張 tibble，一列一個候選欄：
+#   column（題號，就是欄名）、include（納入）、domain（領域，NA 是還沒給）、
+#   source（領域從哪裡來）、raw（觀察到的原分數，list 欄）、score（對應的計分，list 欄；
+#   NA 是還沒有計分）、has_codes（有沒有 KITS_CODE_MIN 以上的值）。
+# 原分數不含 NA 與 KITS_CODE_MIN 以上的值（疑似遺漏值代碼，請在 ② 處理）。
+# 下面的批次動作都只改選取的列（rows 是題號），而且都在「目前的計分」上做。
+
+# 空的題目設定
+kits_settings_empty <- function() {
+  tibble::tibble(
+    column = character(0), include = logical(0), domain = character(0),
+    source = character(0), raw = list(), score = list(), has_codes = logical(0)
+  )
+}
+
+#' 由資料建立題目設定：每一欄納入、沒有領域、原分數 = 計分
+#' @param cols 候選欄（kits_candidate_cols()$numeric）
+#' @noRd
+kits_item_settings <- function(dfs, cols) {
+  if (length(cols) == 0) return(kits_settings_empty())
+  rows <- purrr::map(cols, function(col) {
+    vals <- unlist(purrr::map(dfs, function(df) {
+      x <- df[[col]]
+      if (is.null(x)) NULL else unique(as.numeric(unclass(x)))
+    }))
+    vals <- vals[!is.na(vals)]
+    observed <- sort(unique(vals[vals < KITS_CODE_MIN]))
+    # 注意：tibble() 依序建立欄位，不能用和欄名相同的變數名（raw）
+    tibble::tibble(
+      column = col, include = TRUE, domain = NA_character_, source = NA_character_,
+      raw = list(observed), score = list(observed), has_codes = any(vals >= KITS_CODE_MIN)
+    )
+  })
+  purrr::list_rbind(rows)
+}
+
+# 舊的計分對照套到新的原分數：對得到的照舊；對不到的，舊的對照沒改過（原分數 = 計分）
+# 時也用原分數，否則是 NA（要使用者決定）
+kits_map_fit <- function(raw_new, raw_old, score_old) {
+  score <- score_old[match(raw_new, raw_old)]
+  identity <- length(raw_old) == 0 || isTRUE(all(score_old == raw_old))
+  miss <- is.na(match(raw_new, raw_old))
+  if (identity) score[miss] <- raw_new[miss]
+  score
+}
+
+#' 資料或候選欄變了：新的設定沿用舊設定（納入、領域、計分對照）
+#'
+#' @param old 舊的設定（NULL 時直接用 new）
+#' @param new kits_item_settings() 由目前資料建立的設定
+#' @param upload NULL 或 kits_settings_import()：新出現的欄套用上傳的題目表或設定檔
+#' @noRd
+kits_settings_sync <- function(old, new, upload = NULL) {
+  if (nrow(new) == 0) return(new)
+  if (!is.null(old) && nrow(old) > 0) {
+    hit <- match(new$column, old$column)
+    for (i in which(!is.na(hit))) {
+      j <- hit[i]
+      new$include[i] <- old$include[j]
+      new$domain[i] <- old$domain[j]
+      new$source[i] <- old$source[j]
+      new$score[[i]] <- kits_map_fit(new$raw[[i]], old$raw[[j]], old$score[[j]])
+    }
+    fresh <- new$column[is.na(hit)]
+  } else {
+    fresh <- new$column
   }
-  df
+  if (!is.null(upload)) new <- kits_settings_apply(new, upload, fresh)
+  new
+}
+
+#' 套用上傳的題目表（item_id、domain）或題目設定檔（item_id、include、domain、
+#' map_raw_to_score）
+#'
+#' 題目表只給領域；結尾 r 的題查不到時用原題的領域。設定檔還給納入與計分對照。
+#' @param cols 只套用這些題（NULL 是全部）
+#' @noRd
+kits_settings_apply <- function(settings, upload, cols = NULL) {
+  if (is.null(upload) || nrow(settings) == 0) return(settings)
+  todo <- if (is.null(cols)) rep(TRUE, nrow(settings)) else settings$column %in% cols
+  dom <- kits_item_domains(settings$column, upload$data[c("item_id", "domain")])
+  set <- todo & !is.na(dom$domain)
+  settings$domain[set] <- dom$domain[set]
+  settings$source[set] <- if (upload$type == "settings") "設定檔" else dom$source[set]
+  if (upload$type == "settings") {
+    hit <- match(settings$column, upload$data$item_id)
+    for (i in which(todo & !is.na(hit))) {
+      j <- hit[i]
+      if (!is.na(upload$data$include[j])) settings$include[i] <- upload$data$include[j]
+      settings$score[[i]] <- kits_map_fit(
+        settings$raw[[i]], upload$data$raw[[j]], upload$data$score[[j]]
+      )
+    }
+  }
+  settings
+}
+
+#' 讀進來的題目表或題目設定檔
+#'
+#' 有 map_raw_to_score 或 include 欄的是設定檔（⑥ 下載的）；只有 item_id、domain 的是題目表。
+#' @return list(type = "table" 或 "settings", data)
+#' @noRd
+kits_settings_import <- function(df) {
+  names(df) <- tolower(trimws(names(df)))
+  if (!any(c("map_raw_to_score", "include") %in% names(df))) {
+    return(list(type = "table", data = kits_item_table(df)))
+  }
+  if (!"item_id" %in% names(df)) kit_abort("題目設定檔需要 item_id 欄。")
+  text <- function(x) if (is.null(x)) NA_character_ else trimws(as.character(unclass(x)))
+  ids <- text(df$item_id)
+  include <- text(df$include)
+  maps <- purrr::map2(ids, text(df$map_raw_to_score), function(id, m) {
+    tryCatch(kits_parse_map(m), error = function(e) {
+      kit_abort("題目設定檔裡 ", id, " 的 map_raw_to_score 看不懂：", conditionMessage(e))
+    })
+  })
+  data <- tibble::tibble(
+    item_id = ids,
+    include = dplyr::case_when(
+      toupper(include) %in% c("TRUE", "T", "1", "是", "YES") ~ TRUE,
+      toupper(include) %in% c("FALSE", "F", "0", "否", "NO") ~ FALSE,
+      .default = NA
+    ),
+    domain = dplyr::na_if(text(df$domain), ""),
+    raw = purrr::map(maps, "raw"), score = purrr::map(maps, "score")
+  )
+  data <- data[!is.na(data$item_id) & nzchar(data$item_id), ]
+  list(type = "settings", data = data)
+}
+
+#' 計分對照的文字：「1=0;2=1」（原分數=計分，用分號隔開；還沒有計分的寫「1=」）
+#' @noRd
+kits_map_text <- function(raw, score) {
+  shown <- ifelse(is.na(score), "", format(score, trim = TRUE, drop0trailing = TRUE))
+  paste0(format(raw, trim = TRUE, drop0trailing = TRUE), "=", shown, collapse = ";")
+}
+
+#' 解析計分對照的文字（kits_map_text() 的反向）
+#' @return list(raw, score)
+#' @noRd
+kits_parse_map <- function(text) {
+  if (is.na(text) || !nzchar(trimws(text))) return(list(raw = numeric(0), score = numeric(0)))
+  pairs <- strsplit(strsplit(trimws(text), ";", fixed = TRUE)[[1]], "=", fixed = TRUE)
+  raw <- suppressWarnings(as.numeric(vapply(pairs, `[`, character(1), 1)))
+  score <- suppressWarnings(as.numeric(vapply(pairs, function(p) {
+    if (length(p) < 2) NA_character_ else p[2]
+  }, character(1))))
+  if (anyNA(raw)) stop("要寫成「原分數=計分;原分數=計分」，例如 1=0;2=1")
+  list(raw = raw, score = score)
+}
+
+#' 下載用的題目設定：item_id、include、domain、map_raw_to_score（原分數=計分）
+#' @noRd
+kits_settings_export <- function(settings) {
+  tibble::tibble(
+    item_id = settings$column,
+    include = settings$include,
+    domain = settings$domain,
+    map_raw_to_score = purrr::map2_chr(settings$raw, settings$score, kits_map_text)
+  )
+}
+
+#' 解析「合併」的原分數：「4,5」「4、5」「4 5」
+#' @noRd
+kits_parse_values <- function(text) {
+  parts <- strsplit(trimws(text %||% ""), "[,，、;；[:space:]]+")[[1]]
+  vals <- suppressWarnings(as.numeric(parts[nzchar(parts)]))
+  vals[!is.na(vals)]
+}
+
+# 批次動作：rows 是要改的題號 ----
+
+#' 設領域
+#' @noRd
+kits_bulk_domain <- function(settings, rows, domain) {
+  hit <- settings$column %in% rows
+  settings$domain[hit] <- domain
+  settings$source[hit] <- "自己設"
+  settings
+}
+
+#' 納入或排除
+#' @noRd
+kits_bulk_include <- function(settings, rows, include) {
+  settings$include[settings$column %in% rows] <- include
+  settings
+}
+
+# 改選取列的計分：fun(raw, score) 回傳新的計分
+kits_bulk_score <- function(settings, rows, fun) {
+  for (i in which(settings$column %in% rows)) {
+    settings$score[[i]] <- fun(settings$raw[[i]], settings$score[[i]])
+  }
+  settings
+}
+
+#' 平移：目前的計分加上 by（例如 −1）
+#' @noRd
+kits_bulk_shift <- function(settings, rows, by) {
+  kits_bulk_score(settings, rows, function(raw, score) score + by)
+}
+
+#' 反向：最高分 − 目前的計分；max 是 NA 時用這一題目前的最高計分
+#' @noRd
+kits_bulk_reverse <- function(settings, rows, max = NA) {
+  kits_bulk_score(settings, rows, function(raw, score) {
+    top <- if (is.na(max)) suppressWarnings(base::max(score, na.rm = TRUE)) else max
+    if (!is.finite(top)) return(score)
+    top - score
+  })
+}
+
+#' 合併：原分數 from（可以好幾個）→ 計分 to
+#' @noRd
+kits_bulk_merge <- function(settings, rows, from, to) {
+  kits_bulk_score(settings, rows, function(raw, score) {
+    score[raw %in% from] <- to
+    score
+  })
+}
+
+#' 還原：計分 = 原分數
+#' @noRd
+kits_bulk_restore <- function(settings, rows) {
+  kits_bulk_score(settings, rows, function(raw, score) raw)
+}
+
+#' 每一列的提醒（給畫面上的「提醒」欄）
+#' @return 字元向量（每列一個，沒有提醒時是 ""）
+#' @noRd
+kits_settings_alerts <- function(settings) {
+  purrr::pmap_chr(
+    list(settings$include, settings$domain, settings$raw, settings$score, settings$has_codes),
+    function(include, domain, raw, score, has_codes) {
+      if (!include) return("")
+      out <- character(0)
+      if (is.na(domain) || !nzchar(domain)) out <- c(out, "沒有領域")
+      if (anyNA(score)) {
+        out <- c(out, paste0("原分數 ", paste(raw[is.na(score)], collapse = "、"), " 沒有計分"))
+      }
+      sc <- score[!is.na(score)]
+      if (length(sc) > 0) {
+        if (any(sc < 0)) out <- c(out, "有負分")
+        if (any(sc != round(sc))) out <- c(out, "計分不是整數")
+        if (min(sc) > 0) out <- c(out, "沒有 0 分")
+        if (all(sc == round(sc)) && !all(seq(min(sc), max(sc)) %in% sc)) {
+          out <- c(out, "分數有缺")
+        }
+      }
+      if (any(raw != round(raw))) out <- c(out, "原分數有小數（可能不是題目）")
+      if (has_codes) out <- c(out, "有 7777 以上的值（請到 ②）")
+      paste(out, collapse = "；")
+    }
+  )
+}
+
+#' 要轉的題目（納入的列）：column、domain、raw、score
+#' @noRd
+kits_settings_items <- function(settings) {
+  keep <- settings[settings$include, ]
+  keep[c("column", "domain", "raw", "score")]
+}
+
+#' 納入但還沒有領域的題
+#' @noRd
+kits_settings_undecided <- function(settings) {
+  keep <- settings[settings$include, ]
+  keep$column[is.na(keep$domain) | !nzchar(keep$domain)]
+}
+
+#' 建議：每一個納入的題，最低分都是同一個 m > 0 時回傳 m，否則 NULL
+#'
+#' 看目前的計分（一開始等於原分數）；按了建議平移之後最低分變 0，建議就不再出現。
+#' @noRd
+kits_settings_shift_hint <- function(settings) {
+  keep <- settings[settings$include, ]
+  mins <- purrr::map_dbl(keep$score, function(r) {
+    r <- r[!is.na(r)]
+    if (length(r) == 0) NA_real_ else min(r)
+  })
+  mins <- mins[!is.na(mins)]
+  if (length(mins) == 0 || length(unique(mins)) != 1 || mins[1] <= 0) return(NULL)
+  mins[1]
+}
+
+#' 把每一題的計分對照套到寬資料上（只動有改的題）
+#'
+#' 資料裡出現、但對照裡沒有計分的原分數（例如新的一波多了 0 分）會擋下來。
+#' KITS_CODE_MIN 以上的值不在對照裡，照原樣留下（另有提醒請到 ②）。
+#' @param items kits_settings_items()（沒有 raw、score 欄時什麼都不做）
+#' @return list(dfs, n = 改了幾題, problems)
+#' @noRd
+kits_apply_maps <- function(dfs, items) {
+  if (!all(c("raw", "score") %in% names(items))) return(list(dfs = dfs, n = 0, problems = NULL))
+  problems <- character(0)
+  n <- 0
+  for (i in seq_len(nrow(items))) {
+    col <- items$column[i]
+    raw <- items$raw[[i]]
+    score <- items$score[[i]]
+    seen <- unique(unlist(purrr::map(dfs, function(df) {
+      x <- df[[col]]
+      if (is.null(x)) NULL else unique(as.numeric(unclass(x)))
+    })))
+    seen <- seen[!is.na(seen) & seen < KITS_CODE_MIN]
+    known <- raw[!is.na(score)]
+    miss <- setdiff(seen, known)
+    if (length(miss) > 0) {
+      problems <- c(problems, paste0(
+        col, "：原分數 ", paste(sort(miss), collapse = "、"), " 沒有計分。",
+        "請在「3. 題目設定」用「合併」或「還原」給它計分。"
+      ))
+      next
+    }
+    if (isTRUE(all(score == raw))) next
+    n <- n + 1
+    dfs <- purrr::map(dfs, function(df) {
+      if (col %in% names(df)) df[[col]] <- kits_apply_score_map(df[[col]], raw, score)
+      df
+    })
+  }
+  list(dfs = dfs, n = n, problems = problems)
+}
+
+#' 一欄的原分數 → 計分（對照裡沒有的值照原樣）
+#' @noRd
+kits_apply_score_map <- function(x, raw, score) {
+  x <- as.numeric(unclass(x))
+  m <- match(x, raw)
+  hit <- !is.na(m)
+  x[hit] <- score[m[hit]]
+  x
 }
 
 
@@ -239,7 +563,10 @@ kits_spec_problems <- function(dfs, file_names, spec) {
     }
   }
   map <- spec$map
-  if (!nzchar(map$wave_m %||% "")) out <- c(out, "請對應 wave_m（波次，月）。kitsUI 一定要這一欄。")
+  if (!nzchar(map$wave_m %||% "") && is.null(spec$typed$wave_m)) {
+    out <- c(out, "請對應 wave_m（波次，月）：選檔案裡的欄，或每個檔案自己填。kitsUI 一定要這一欄。")
+  }
+  out <- c(out, kits_typed_problems(file_names, spec$typed %||% list()))
   if (!nzchar(map$visit_id %||% "") && !nzchar(map$subj_id %||% "")) {
     out <- c(out, "請對應 subj_id（孩子編號）：visit_id 要用它組成。")
   }
@@ -251,32 +578,16 @@ kits_spec_problems <- function(dfs, file_names, spec) {
   }
   if (length(spec$undecided) > 0) {
     out <- c(out, paste0(
-      "還有 ", length(spec$undecided), " 欄沒有領域、也還沒決定要不要排除：",
+      "還有 ", length(spec$undecided), " 個納入的題目沒有領域（請設領域或排除）：",
       paste(utils::head(spec$undecided, 8), collapse = "、"),
       if (length(spec$undecided) > 8) "…" else "", "。"
     ))
   }
-  if (nrow(spec$items) == 0) out <- c(out, "沒有題目欄。請上傳題目表、輸入規則，或替欄位指定領域。")
-  out <- c(out, kits_step_problems(dfs, spec))
-  out
-}
-
-# 進階調整的設定問題
-kits_step_problems <- function(dfs, spec) {
-  out <- character(0)
-  st <- spec$steps
-  if (!is.null(st$shift) && length(st$shift) == 0) {
-    out <- c(out, "步驟 1：請選要減 1 的題目。")
-  }
-  if (!is.null(st$reverse)) {
-    if (length(st$reverse$items) == 0) out <- c(out, "步驟 2：請選要反向計分的題目。")
-    if (is.null(st$reverse$max) || is.na(st$reverse$max)) {
-      out <- c(out, "步驟 2：請填最高分（0 起算，例如 0–4 計分填 4）。")
-    }
+  if (nrow(spec$items) == 0) {
+    out <- c(out, "沒有題目。請在「3. 題目設定」納入題目並給領域。")
   }
   out
 }
-
 
 # ── 轉換 ─────────────────────────────────────────────────────────────────────
 
@@ -284,18 +595,62 @@ kits_step_problems <- function(dfs, spec) {
 #'
 #' @param cohort list（每個檔案一個）：list(type = "text" 或 "column", value)
 #' @param map 對應欄位（kits_guess_map() 的形狀）
-#' @param items tibble：column、domain（要轉的題目；領域已決定）
-#' @param undecided 沒有領域也還沒決定的欄
-#' @param steps list(na = 代碼或 NULL, shift = 題目或 NULL,
-#'   reverse = NULL 或 list(items, max, add_r))；NULL 表示沒有勾
+#' @param items tibble：column、domain，可以再有 raw、score（計分對照，list 欄）；
+#'   沒有 raw、score 時原分數 = 計分（kits_settings_items() 的結果）
+#' @param undecided 納入但還沒有領域的題
+#' @param typed 具名 list：自己填的對應欄位（每個檔案一個值）
 #' @noRd
-kits_spec <- function(cohort, map, items, undecided = character(0), steps = list()) {
-  list(cohort = cohort, map = map, items = items, undecided = undecided, steps = steps)
+kits_spec <- function(cohort, map, items, undecided = character(0), typed = list()) {
+  list(cohort = cohort, map = map, items = items, undecided = undecided, typed = typed)
+}
+
+#' 「自己填」的值有沒有問題：每個檔案都要填；數字的欄（wave_m、age_m）要是數字
+#'
+#' @param typed 具名 list（對應欄位 → 每個檔案一個值的字元向量）
+#' @return 中文訊息；沒問題時長度 0
+#' @noRd
+kits_typed_problems <- function(file_names, typed) {
+  out <- character(0)
+  for (field in names(typed)) {
+    row <- KITS_MAP_ROWS[KITS_MAP_ROWS$field == field, ]
+    vals <- trimws(typed[[field]])
+    for (i in seq_along(file_names)) {
+      v <- vals[i]
+      if (is.na(v) || !nzchar(v)) {
+        out <- c(out, paste0(file_names[i], "：還沒有填", row$label, "（", field, "）。"))
+      } else if (row$type == "d" && is.na(suppressWarnings(as.numeric(v)))) {
+        out <- c(out, paste0(
+          file_names[i], "：", row$label, "（", field, "）要填數字（例如 18），現在是「", v, "」。"
+        ))
+      }
+    }
+  }
+  out
+}
+
+#' 「自己填」的值變成每個檔案裡的一欄（每一列同一個值），對應欄位改成這一欄
+#'
+#' 這樣自己填的值和「檔案裡有一欄、每一列都是這個值」寫出來完全相同。
+#' 數字的欄（wave_m、age_m）轉成數字，其他是文字。
+#' @return list(dfs, spec)
+#' @noRd
+kits_apply_typed <- function(dfs, spec) {
+  typed <- spec$typed %||% list()
+  for (field in names(typed)) {
+    col <- paste0(KITS_TYPED_PREFIX, field)
+    is_num <- KITS_MAP_ROWS$type[KITS_MAP_ROWS$field == field] == "d"
+    dfs <- purrr::map2(dfs, trimws(typed[[field]]), function(df, v) {
+      df[[col]] <- rep(if (is_num) suppressWarnings(as.numeric(v)) else v, nrow(df))
+      df
+    })
+    spec$map[[field]] <- col
+  }
+  list(dfs = dfs, spec = spec)
 }
 
 #' 寬格式 → kits 長格式：準備與檢查（不做出整張長表）
 #'
-#' 進階調整與所有檢查都在寬資料上做（寬資料本來就在記憶體裡，比長格式小很多）；
+#' 計分對照與所有檢查都在寬資料上做（寬資料本來就在記憶體裡，比長格式小很多）；
 #' 長格式只在下載時一段一段做出來、寫進 .csv.gz（kits_write_long()），所以幾百萬列也不會
 #' 一次佔用大量記憶體。
 #'
@@ -329,7 +684,7 @@ kits_build <- function(dfs, file_names, spec, pivot_args = NULL) {
   )
 }
 
-#' 進階調整（固定順序 1 → 2 → 3）與每個檔案的孩子欄、題目欄
+#' 自己填的值、計分對照與每個檔案的孩子欄、題目欄
 #'
 #' @return list(files, rename, domain_of, pivot_args, notes, visit_rule, problems)；
 #'   files 每個檔案一個 list(persons, scores, have, n_resp)：persons 是每一列的孩子欄
@@ -338,47 +693,21 @@ kits_build <- function(dfs, file_names, spec, pivot_args = NULL) {
 kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   problems <- kits_spec_problems(dfs, file_names, spec)
   if (length(problems) > 0) return(list(problems = problems))
+  typed <- kits_apply_typed(dfs, spec)
+  dfs <- typed$dfs
+  spec <- typed$spec
   items <- spec$items$column
   map <- spec$map
   notes <- character(0)
 
+  # 計分對照：原分數 → 計分（每一題自己的對照；沒有改的題不動）
+  mapped <- kits_apply_maps(dfs, spec$items)
+  if (length(mapped$problems) > 0) return(list(problems = mapped$problems))
+  dfs <- mapped$dfs
+  if (mapped$n > 0) notes <- c(notes, paste0("計分對照：", mapped$n, " 題的原分數改成計分。"))
   problems <- kits_score_problems(dfs, items)
   if (length(problems) > 0) return(list(problems = problems))
-
-  # 步驟 1：分數減 1（已經有 0 分的題不能減）
-  shift <- spec$steps$shift
-  if (!is.null(shift)) {
-    zero <- dplyr::filter(kits_item_ranges(dfs, shift), .data$min <= 0)
-    if (nrow(zero) > 0) {
-      return(list(problems = paste0(
-        "步驟 1：這些題已經有 0 分，減 1 會變成負分：",
-        paste(utils::head(zero$item_id, 10), collapse = "、"),
-        if (nrow(zero) > 10) "…" else "", "。請把它們從要減 1 的題目拿掉。"
-      )))
-    }
-    dfs <- purrr::map(dfs, kits_step_scores, cols = shift, fun = function(x) x - 1)
-    notes <- c(notes, paste0("步驟 1：", length(shift), " 題的分數減 1。"))
-  }
-
-  # 步驟 2：反向計分（0 起算的量尺上 max − x）
-  rev <- spec$steps$reverse
   rename <- character(0)
-  if (!is.null(rev)) {
-    over <- dplyr::filter(kits_item_ranges(dfs, rev$items), .data$max > rev$max)
-    if (nrow(over) > 0) {
-      return(list(problems = paste0(
-        "步驟 2：這些題的分數比最高分 ", rev$max, " 還大：",
-        paste(utils::head(over$item_id, 10), collapse = "、"),
-        "。請確認最高分（0 起算）。"
-      )))
-    }
-    dfs <- purrr::map(dfs, kits_step_scores, cols = rev$items, fun = function(x) rev$max - x)
-    notes <- c(notes, paste0("步驟 2：", length(rev$items), " 題反向計分（", rev$max, " − 分數）。"))
-    if (isTRUE(rev$add_r)) {
-      todo <- rev$items[!grepl("r$", rev$items)]
-      rename <- stats::setNames(paste0(todo, "r"), todo)
-    }
-  }
 
   visit_rule <- kits_visit_rule(map)
   files <- purrr::map(seq_along(dfs), function(i) {
@@ -393,7 +722,7 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   )
 }
 
-# 輸出的題號（反向計分加 r 之後）
+# 輸出的題號（目前就是題目欄的欄名；保留這一層給以後改題號用）
 kits_out_ids <- function(ids, rename) {
   if (length(rename) == 0) return(ids)
   dplyr::coalesce(unname(rename[ids]), ids)
@@ -534,9 +863,10 @@ kits_visit_rule <- function(map) {
     return(list(parts = NULL, note = paste0("visit_id 直接用 ", map$visit_id, " 欄。")))
   }
   if (nzchar(map$wave %||% "")) {
+    shown <- if (startsWith(map$wave, KITS_TYPED_PREFIX)) "自己填的波次標籤" else map$wave
     return(list(
       parts = c("cohort", "subj_id", map$wave),
-      note = paste0("visit_id 由 {cohort}_{subj_id}_{", map$wave, "} 組成。")
+      note = paste0("visit_id 由 {cohort}_{subj_id}_{", shown, "} 組成。")
     ))
   }
   list(
@@ -602,7 +932,8 @@ kits_score_problems <- function(dfs, items) {
   if (length(neg) > 0) {
     out <- c(out, paste0(
       "這些題有負分：", paste(utils::head(neg, 8), collapse = "、"),
-      "。如果負數（例如 -1）代表遺漏，請先到「② 遺漏值轉 NA」把它加進遺漏值代碼。"
+      "。如果負數（例如 -1）代表遺漏，請先到「② 遺漏值轉 NA」處理；",
+      "如果是計分對照造成的，請在「3. 題目設定」修改。"
     ))
   }
   out
@@ -729,13 +1060,14 @@ kits_score_warnings <- function(stats, persons, spec) {
   if (length(no_zero) > 0) {
     out <- c(out, paste0(
       length(no_zero), " 題沒有 0 分（例如 ", some(no_zero),
-      "）。kits 要有 0 分才能自由校準；分數如果是從 1 開始，請勾「步驟 1：分數減 1」。"
+      "）。kits 要有 0 分才能自由校準；分數如果是從 1 開始，請在「3. 題目設定」選取這些題、平移 −1。"
     ))
   }
   gap <- per_item$item_id[per_item$gap]
   if (length(gap) > 0) {
     out <- c(out, paste0(
-      length(gap), " 題的分數中間有缺（例如 ", some(gap), "）。kits 校準時會停下來，要先合併分數。"
+      length(gap), " 題的分數中間有缺（例如 ", some(gap), "）。kits 校準時會停下來，",
+      "請在「3. 題目設定」用「合併」把分數接起來。"
     ))
   }
   big <- per_item$item_id[per_item$max >= KITS_CODE_MIN]
@@ -761,15 +1093,6 @@ kits_score_warnings <- function(stats, persons, spec) {
   }
   n_age <- length(unique(persons$visit_id[is.na(persons$age_m)]))
   if (n_age > 0) out <- c(out, paste0(n_age, " 個列次沒有 age_m（題目表的通過年齡要用它）。"))
-  rev <- spec$steps$reverse
-  if (!is.null(rev)) {
-    again <- rev$items[grepl("r$", rev$items)]
-    if (length(again) > 0) {
-      out <- c(out, paste0(
-        "反向計分的題已經以 r 結尾（", some(again), "），可能已經反向過；請確認沒有反向兩次。"
-      ))
-    }
-  }
   out
 }
 

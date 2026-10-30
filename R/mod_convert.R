@@ -142,11 +142,13 @@ mod_convert_server <- function(id) {
         ),
         shiny::tags$div(
           class = "kit-downloads",
+          # 中文檔名時 Shiny 不送檔名標頭，瀏覽器改用按鈕的 download 屬性
           shiny::downloadButton(
             ns("download_file"),
             paste0("下載 ", res$out_name),
             class = "btn-primary"
-          )
+          ) |>
+            htmltools::tagAppendAttributes(download = res$out_name)
         )
       )
     })

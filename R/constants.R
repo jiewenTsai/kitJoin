@@ -8,6 +8,9 @@ KIT_RESHAPE_PREVIEW_ROWS <- 20L   # ⑦ 長寬互轉
 # 單檔上傳上限（MB）
 KIT_UPLOAD_MB <- 500
 
+# kitsUI 雲端版（⑥ 的作答檔、CSV.GZ 可以直接上傳）
+KITSUI_URL <- "https://jiewentsai-kitsui.share.connect.posit.cloud/"
+
 # 寬格式串接方法：值為 dplyr 函式名稱，名稱為給使用者看的中文說明
 KIT_JOIN_METHODS <- c(
   "向後追蹤樣本：只保留第一波次有出席的人，後續新加入的不會被納入（left join）" = "left_join",

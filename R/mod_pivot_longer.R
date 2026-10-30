@@ -6,13 +6,16 @@
 # 介面：
 #   mod_pivot_longer_ui(id)
 #   mod_pivot_longer_server(id, data, fixed = list())  → reactive：參數 list
-#   pivot_longer_code(args, data_name, cols_code = NULL) → 程式碼字串
+#   pivot_longer_code(args, data_name, cols_code = NULL, col_names = NULL) → 程式碼字串
 #   pivot_longer_run(df, args)                          → 長格式資料
+#
+# cols 一律用點選：挑要轉的欄（cols = c(a, b)），或挑不轉的欄（cols = !c(id, sex)）。
 
 # tidyr::pivot_longer() 的預設值（cols 沒有預設，一定要給）
+# cols_exclude = TRUE 時 cols 是「不轉的欄」，其餘全部轉
 PIVOT_LONGER_DEFAULTS <- list(
   cols = character(0),
-  cols_pattern = NULL,
+  cols_exclude = FALSE,
   names_to = "name",
   values_to = "value",
   names_prefix = NULL,
@@ -67,7 +70,11 @@ mod_pivot_longer_server <- function(id, data, fixed = list()) {
         )
       }
       shiny::tagList(
-        if (locked("cols")) pivot_locked_ui(ns, "cols") else pivot_cols_ui(ns),
+        if (locked("cols")) {
+          pivot_locked_ui(ns, "cols")
+        } else {
+          pivot_cols_ui(ns, shiny::isolate(all_cols()), shiny::isolate(input$cols))
+        },
         shiny::tags$div(class = "kit-pivot-row", text("names_to"), text("values_to")),
         shiny::tags$details(
           class = "kit-pivot-advanced",
@@ -86,6 +93,9 @@ mod_pivot_longer_server <- function(id, data, fixed = list()) {
       )
     })
 
+    # 放在收起來的分頁裡也先畫好，選欄框才收得到欄名
+    shiny::outputOptions(output, "controls", suspendWhenHidden = FALSE)
+
     # 固定的參數：顯示目前的值
     for (arg in names(fixed)) {
       local({
@@ -97,12 +107,42 @@ mod_pivot_longer_server <- function(id, data, fixed = list()) {
     }
 
     # cols 的選項跟著資料變；保留還在的選擇
+    all_cols <- shiny::reactive({
+      df <- data()
+      if (is.null(df)) character(0) else names(df)
+    })
     shiny::observe({
       if (locked("cols")) return()
-      df <- data()
-      cols <- if (is.null(df)) character(0) else names(df)
+      cols <- all_cols()
       keep <- intersect(shiny::isolate(input$cols) %||% character(0), cols)
       shiny::updateSelectizeInput(session, "cols", choices = cols, selected = keep)
+    })
+    groups <- shiny::reactive(pivot_name_groups(all_cols()))
+
+    # 換模式：標題跟著換；已選的欄換成另一半，轉的欄不變
+    last_mode <- "include"
+    shiny::observeEvent(input$cols_mode, {
+      mode <- input$cols_mode
+      if (identical(mode, last_mode)) return()
+      last_mode <<- mode
+      now <- input$cols %||% character(0)
+      flip <- if (length(now) > 0) pivot_order_cols(setdiff(all_cols(), now), all_cols())
+      shiny::updateSelectizeInput(
+        session, "cols", label = PIVOT_COLS_PICK[[mode]], selected = flip
+      )
+    })
+
+    # 快速選欄的按鈕：全選、清除、加入一組
+    shiny::observeEvent(input$cols_pick, {
+      sel <- pivot_quick_pick(input$cols_pick, input$cols, all_cols(), groups())
+      shiny::updateSelectizeInput(session, "cols", selected = sel)
+    })
+    output$cols_quick <- shiny::renderUI(pivot_quick_ui(ns("cols_pick"), groups()))
+    output$cols_count <- shiny::renderUI({
+      shiny::tags$div(
+        class = "small mb-3",
+        pivot_cols_count_text(all_cols(), input$cols, identical(input$cols_mode, "exclude"))
+      )
     })
 
     shiny::reactive({
@@ -111,10 +151,10 @@ mod_pivot_longer_server <- function(id, data, fixed = list()) {
         if (is.null(v) || !nzchar(trimws(v))) NULL else trimws(v)
       }
       args <- PIVOT_LONGER_DEFAULTS
-      if (identical(input$cols_mode, "pattern")) {
-        args$cols_pattern <- typed("cols_pattern")
-      } else {
-        args$cols <- input$cols %||% character(0)
+      if (!locked("cols")) {
+        # 依資料的欄位順序（和 starts_with()、!c() 選出來的順序一樣）
+        args$cols <- pivot_order_cols(input$cols %||% character(0), all_cols())
+        args$cols_exclude <- identical(input$cols_mode, "exclude")
       }
       names_to <- typed("names_to")
       if (!is.null(names_to)) args$names_to <- trimws(strsplit(names_to, ",")[[1]])
@@ -128,23 +168,126 @@ mod_pivot_longer_server <- function(id, data, fixed = list()) {
   })
 }
 
-# cols：逐欄挑選，或用欄名規則（tidyselect 的 matches()）
-pivot_cols_ui <- function(ns) {
+# 選欄框的標題（跟著模式換）
+PIVOT_COLS_PICK <- c(
+  include = "要轉的欄（點選，可多選）",
+  exclude = "不轉的欄（通常是 id、性別這類每人一個值的欄；其餘全部轉）"
+)
+
+# cols：全部用點選。挑要轉的欄，或挑不轉的欄（其餘全部轉）
+pivot_cols_ui <- function(ns, choices = NULL, selected = NULL) {
   shiny::tagList(
     shiny::radioButtons(
       ns("cols_mode"), pivot_label("cols"),
-      choices = c("逐欄挑選" = "list", "用欄名規則挑（matches()）" = "pattern"),
+      choices = c("挑要轉的欄" = "include", "挑不轉的欄（其餘全部轉）" = "exclude"),
       inline = TRUE
     ),
-    shiny::conditionalPanel(
-      "input.cols_mode == 'list'", ns = ns,
-      shiny::selectizeInput(ns("cols"), NULL, choices = NULL, multiple = TRUE, width = "100%")
+    shiny::selectizeInput(
+      ns("cols"), PIVOT_COLS_PICK[["include"]], choices = choices, selected = selected,
+      multiple = TRUE,
+      width = "100%",
+      options = list(placeholder = "點這裡選欄", plugins = list("remove_button"))
     ),
-    shiny::conditionalPanel(
-      "input.cols_mode == 'pattern'", ns = ns,
-      shiny::textInput(ns("cols_pattern"), NULL, placeholder = "例如 ^score_", width = "60%")
-    )
+    shiny::uiOutput(ns("cols_quick")),
+    shiny::uiOutput(ns("cols_count"))
   )
+}
+
+# 快速選欄的按鈕；按下時送出 cols_pick = "all"、"none" 或 "g1"、"g2"…
+pivot_quick_ui <- function(input_id, groups) {
+  btn <- function(key, label, cls = "btn-outline-secondary") {
+    shiny::tags$button(
+      type = "button", class = paste("btn btn-sm", cls), style = "text-transform: none;",
+      onclick = sprintf(
+        "Shiny.setInputValue('%s', '%s', {priority: 'event'})", input_id, key
+      ),
+      label
+    )
+  }
+  group_btns <- purrr::map(seq_len(nrow(groups)), function(i) {
+    label <- paste0(groups$prefix[i], " 開頭（", groups$n[i], " 欄）")
+    btn(paste0("g", i), label, "btn-outline-primary")
+  })
+  shiny::tags$div(
+    class = "d-flex flex-wrap align-items-center gap-1 mb-2",
+    shiny::tags$span(class = "small text-muted me-1", "快速選："),
+    btn("all", "全選"), btn("none", "清除"),
+    if (length(group_btns) > 0) {
+      shiny::tags$span(class = "small text-muted ms-2 me-1", "加入一組：")
+    },
+    group_btns
+  )
+}
+
+#' 快速選欄：按鈕代號 → 新的選擇（依資料的欄位順序）
+#' @param key "all"、"none" 或 "g1"、"g2"…（第幾組）
+#' @param now 目前的選擇
+#' @param all 資料的全部欄名
+#' @param groups pivot_name_groups() 的結果
+#' @noRd
+pivot_quick_pick <- function(key, now, all, groups) {
+  now <- now %||% character(0)
+  i <- suppressWarnings(as.integer(sub("^g", "", key)))
+  sel <- if (identical(key, "all")) {
+    all
+  } else if (identical(key, "none")) {
+    character(0)
+  } else if (!is.na(i) && i >= 1 && i <= nrow(groups)) {
+    union(now, groups$cols[[i]])
+  } else {
+    now
+  }
+  pivot_order_cols(sel, all)
+}
+
+# 依資料的欄位順序排好（只留資料裡有的欄）
+pivot_order_cols <- function(cols, all) {
+  if (length(all) == 0) return(cols %||% character(0))
+  all[all %in% cols]
+}
+
+#' 選欄的效果：「會轉 N 欄，保留 M 欄不動」（文字）
+#' @noRd
+pivot_cols_count_text <- function(all, picked, exclude) {
+  picked <- picked %||% character(0)
+  if (length(all) == 0) return("還沒有資料。")
+  conv <- if (exclude) setdiff(all, picked) else intersect(all, picked)
+  keep <- setdiff(all, conv)
+  if (length(conv) == 0) {
+    return(if (exclude) "每一欄都挑成不轉了，沒有欄可以轉。" else "還沒選要轉的欄。")
+  }
+  few <- function(x, n) {
+    paste0("（", paste(utils::head(x, n), collapse = "、"), if (length(x) > n) "…", "）")
+  }
+  paste0(
+    "會轉 ", length(conv), " 欄", few(conv, 4), "，",
+    "保留 ", length(keep), " 欄不動", if (length(keep) > 0) few(keep, 6), "。"
+  )
+}
+
+#' 欄名分組：開頭相同的欄（例如 lan01…lan10、score_lan、score_cog）
+#'
+#' 每欄的開頭 = 第一個數字之前，或到第一個「_」為止（含 _），取先到的。
+#' 一組 = 欄名以這個開頭開始的所有欄（不分大小寫，和 tidyselect 的 starts_with() 一樣）。
+#' 只留 2 欄以上的組；成員一樣的組只留一個；欄多的在前（一樣多時照欄位順序）。
+#' @param cols 欄名
+#' @param max_groups 最多幾組
+#' @return tibble(prefix, n, cols)；cols 是 list，成員依原本的欄位順序
+#' @noRd
+pivot_name_groups <- function(cols, max_groups = 8L) {
+  empty <- tibble::tibble(prefix = character(0), n = integer(0), cols = list())
+  heads <- sub("^([^0-9_]*_?).*$", "\\1", cols)
+  prefixes <- unique(heads[nzchar(heads) & heads != cols])
+  prefixes <- prefixes[!duplicated(tolower(prefixes))]
+  if (length(prefixes) == 0) return(empty)
+  low <- tolower(cols)
+  members <- purrr::map(prefixes, function(p) cols[startsWith(low, tolower(p))])
+  n <- lengths(members)
+  keep <- n >= 2 & !duplicated(members)
+  if (!any(keep)) return(empty)
+  out <- tibble::tibble(prefix = prefixes[keep], n = n[keep], cols = members[keep])
+  out <- out[order(-out$n, seq_len(nrow(out))), ]
+  utils::head(out, max_groups)
 }
 
 # 固定的參數：中文標題 + 目前的值（不能改）
@@ -177,7 +320,7 @@ pivot_locked_text <- function(arg, value) {
 
 #' 依參數執行 tidyr::pivot_longer()
 #'
-#' cols_pattern 有值時用欄名規則選欄。轉換前先檢查：沒有欄、新欄名和留下的欄撞名、
+#' cols_exclude = TRUE 時 cols 是不轉的欄。轉換前先檢查：沒有欄、新欄名和留下的欄撞名、
 #' 好幾個 names_to 卻沒有 names_pattern。tidyr 的錯誤（例如數字與文字混在一起）改成中文。
 #' @noRd
 pivot_longer_run <- function(df, args) {
@@ -200,11 +343,12 @@ pivot_longer_run <- function(df, args) {
   )
 }
 
-#' 實際要轉的欄：cols_pattern 有值時用欄名規則，否則用 cols（只留資料裡有的）
+#' 實際要轉的欄：cols_exclude = TRUE 時是 cols 以外的全部欄（依資料順序），
+#' 否則是 cols（只留資料裡有的，順序照 cols）
 #' @noRd
 pivot_longer_cols <- function(df, args) {
-  if (!is.null(args$cols_pattern)) {
-    names(df)[grepl(args$cols_pattern, names(df))]
+  if (isTRUE(args$cols_exclude)) {
+    setdiff(names(df), args$cols)
   } else {
     intersect(args$cols, names(df))
   }
@@ -230,16 +374,13 @@ pivot_longer_problem <- function(df, cols, args) {
 #' @param args mod_pivot_longer_server() 的參數 list
 #' @param data_name 資料物件名稱
 #' @param cols_code NULL 或 cols 的寫法（例如 "any_of(items)"）；NULL 時依 args 產生
+#' @param col_names NULL 或資料的全部欄名；有給時，選到的剛好是整組欄就寫 starts_with()
 #' @return 字串（多行）
 #' @noRd
-pivot_longer_code <- function(args, data_name, cols_code = NULL) {
+pivot_longer_code <- function(args, data_name, cols_code = NULL, col_names = NULL) {
   args <- utils::modifyList(PIVOT_LONGER_DEFAULTS, args)
   d <- PIVOT_LONGER_DEFAULTS
-  cols_code <- cols_code %||% if (!is.null(args$cols_pattern)) {
-    paste0("matches(", r_str(args$cols_pattern), ")")
-  } else {
-    r_cols_vector(args$cols)
-  }
+  cols_code <- cols_code %||% pivot_cols_code(args, col_names)
   str_arg <- function(name) {
     v <- args[[name]]
     if (is.null(v) || identical(v, d[[name]])) return(NULL)
@@ -259,12 +400,63 @@ pivot_longer_code <- function(args, data_name, cols_code = NULL) {
   )
 }
 
+#' cols 的寫法
+#'
+#' 不轉的欄：!c(id, sex)（沒挑就是 everything()）。要轉的欄：剛好是整組欄時寫
+#' starts_with("score_")，否則逐欄列出 c(a, b)。starts_with() 先用資料的欄名試選一次，
+#' 選出來的欄和順序都一樣才用。
+#' @noRd
+pivot_cols_code <- function(args, col_names = NULL) {
+  cols <- args$cols %||% character(0)
+  if (!is.null(col_names)) cols <- intersect(cols, col_names)
+  if (isTRUE(args$cols_exclude)) {
+    if (length(cols) == 0) return("everything()")
+    return(paste0("!", if (length(cols) == 1) r_col(cols) else r_cols_vector(cols)))
+  }
+  pivot_cols_by_group(cols, col_names) %||% r_cols_vector(cols)
+}
+
+# 選到的欄剛好是幾組整組欄時：starts_with() 的寫法；不是時 NULL
+pivot_cols_by_group <- function(cols, col_names) {
+  if (is.null(col_names) || length(cols) == 0) return(NULL)
+  groups <- pivot_name_groups(col_names, max_groups = Inf)
+  groups <- groups[purrr::map_lgl(groups$cols, function(g) all(g %in% cols)), ]
+  picked <- integer(0)
+  covered <- character(0)
+  for (i in seq_len(nrow(groups))) {
+    if (length(setdiff(groups$cols[[i]], covered)) == 0) next
+    picked <- c(picked, i)
+    covered <- union(covered, groups$cols[[i]])
+  }
+  if (length(picked) == 0 || !setequal(covered, cols)) return(NULL)
+  # 照每組第一欄在資料中的位置排
+  first <- purrr::map_int(groups$cols[picked], function(g) match(g[1], col_names))
+  calls <- paste0("starts_with(", r_str_each(groups$prefix[picked[order(first)]]), ")")
+  code <- if (length(calls) == 1) calls else r_wrap_c(calls)
+  # 用資料的欄名試選一次：欄和順序都一樣才用
+  empty <- stats::setNames(rep(list(logical(0)), length(col_names)), col_names)
+  template <- tibble::as_tibble(empty, .name_repair = "minimal")
+  got <- tryCatch(
+    names(dplyr::select(template, !!str2lang(code))),
+    error = function(e) NULL
+  )
+  if (identical(got, cols)) code else NULL
+}
+
+# 每個字串各自寫成 "x"
+r_str_each <- function(x) vapply(x, r_str, character(1), USE.NAMES = FALSE)
+
 #' 欄名向量的寫法：c(a, b, c)，太長時換行（每行不超過 100 字）
 #' @param quote TRUE 時寫成文字 c("a", "b")
 #' @noRd
 r_cols_vector <- function(cols, indent = "      ", quote = FALSE) {
   if (length(cols) == 0) return("c()")
   items <- if (quote) paste0('"', cols, '"') else r_col(cols)
+  r_wrap_c(items, indent)
+}
+
+# c(a, b, c)：太長時換行
+r_wrap_c <- function(items, indent = "      ") {
   one <- paste0("c(", paste(items, collapse = ", "), ")")
   if (nchar(one) <= 70) return(one)
   lines <- character(0)

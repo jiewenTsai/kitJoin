@@ -30,21 +30,28 @@ stream_dfs <- function() {
   list(a, b, c)
 }
 
-stream_spec <- function(dfs, steps = list(), map_drop = character(0)) {
+# 題目設定：題目表給領域，bodyef01（題目表沒有）自己設 motor；fun 是計分對照的批次動作
+stream_settings <- function(dfs, map, fun = NULL, map_drop = character(0)) {
   table <- tibble::tibble(
     item_id = c("lana01", "lana02", "bodyaf01", "cogd01", "coga01"),
     domain = c("lan", "lan", "motor", "cog", "cog")
   )
+  cand <- kits_candidate_cols(dfs, c(kits_mapped_cols(map), "co"))
+  s <- kits_item_settings(dfs, cand$numeric) |>
+    kits_settings_apply(list(type = "table", data = table)) |>
+    kits_bulk_domain("bodyef01", "motor") |>
+    kits_bulk_include(map_drop, FALSE)   # 沒對應的欄（例如 age_m）不是題目：排除
+  if (!is.null(fun)) s <- fun(s)
+  s
+}
+
+stream_spec <- function(dfs, fun = NULL, map_drop = character(0)) {
   map <- kits_guess_map(unique(unlist(purrr::map(dfs, names))))
   map[map_drop] <- ""
-  cand <- kits_candidate_cols(dfs, c(kits_mapped_cols(map), "co"))
-  rules <- kits_parse_rules("^body = motor")$rules
-  dom <- kits_item_domains(cand$numeric, table, rules)
+  s <- stream_settings(dfs, map, fun, map_drop)
   cohorts <- list(list(type = "text", value = "M03"), list(type = "text", value = "M36"),
                   list(type = "column", value = "co"))
-  # 沒對應的欄（例如 age_m）不是題目：排除
-  kits_spec(cohorts, map, dom[!is.na(dom$domain), c("column", "domain")],
-            setdiff(dom$column[is.na(dom$domain)], map_drop), steps)
+  kits_spec(cohorts, map, kits_settings_items(s), kits_settings_undecided(s))
 }
 
 # 舊做法的結果寫成 .csv.gz（和舊的 write_kits_long_gz() 相同：write_csv 到 gzfile）
@@ -73,24 +80,36 @@ after_missing_all <- function(dfs) {
   purrr::map(dfs, function(df) replace_na_codes(df, c(7777, 9999), exclude = "release_id")$data)
 }
 
-all_steps <- list(
-  shift = c("lana01", "lana02", "bodyaf01", "bodyef01", "cogd01r", "coga01"),
-  reverse = list(items = c("lana02", "coga01"), max = 4, add_r = TRUE)
-)
+shifted <- c("lana01", "lana02", "bodyaf01", "bodyef01", "cogd01r", "coga01")
+reversed <- c("lana02", "coga01")
+# 計分對照：全部平移 −1，再把 lana02、coga01 反向（最高分 4）
+all_maps <- function(s) {
+  s |> kits_bulk_shift(shifted, -1) |> kits_bulk_reverse(reversed, 4)
+}
+# 同樣的計分，直接在資料上算（獨立的參考做法）
+by_hand <- function(dfs) {
+  purrr::map(dfs, function(df) {
+    for (col in intersect(shifted, names(df))) df[[col]] <- df[[col]] - 1
+    for (col in intersect(reversed, names(df))) df[[col]] <- 4 - df[[col]]
+    df
+  })
+}
 
-test_that("分段寫出和整張長表一列一列相同：多個檔案、r 題、步驟 1–2、各種分段大小", {
+test_that("分段寫出和整張長表一列一列相同：多個檔案、r 題、平移與反向、各種分段大小", {
   dfs <- after_missing_all(stream_dfs())
-  spec <- stream_spec(dfs, all_steps)
-  old <- kits_build_old(dfs, c("a", "b", "c"), spec)
+  old <- kits_build_old(by_hand(dfs), c("a", "b", "c"), stream_spec(dfs))
   expect_length(old$problems, 0)
   want <- old_lines(old$long)
   expect_gt(length(want), 100)
+  spec <- stream_spec(dfs, all_maps)
   for (chunk in c(1, 2, 7, 5000)) {
     expect_identical(new_lines(dfs, spec, chunk), want)
   }
-  # 加了 r 的題、原本就是 r 的題都在
-  expect_true(any(grepl(",lana02r,", want)))
   expect_true(any(grepl(",cogd01r,", want)))
+  # 沒改計分（原分數 = 計分）時也相同
+  plain <- stream_spec(dfs)
+  expect_identical(new_lines(dfs, plain, 3), old_lines(kits_build_old(dfs, c("a", "b", "c"),
+                                                                      plain)$long))
 })
 
 test_that("分段寫出相同：沒對應的選填欄（sex、age_m）、沒有波次標籤（用 wave_m）", {
@@ -105,16 +124,15 @@ test_that("分段寫出相同：沒對應的選填欄（sex、age_m）、沒有�
 
 test_that("摘要、列數、預覽、檔案大小估計和舊做法相同", {
   dfs <- after_missing_all(stream_dfs())
-  spec <- stream_spec(dfs, all_steps)
-  old <- kits_build_old(dfs, c("a", "b", "c"), spec)
-  new <- kits_build(dfs, c("a", "b", "c"), spec)
+  old <- kits_build_old(by_hand(dfs), c("a", "b", "c"), stream_spec(dfs))
+  new <- kits_build(dfs, c("a", "b", "c"), stream_spec(dfs, all_maps))
   expect_equal(new$summary, old$summary)
   expect_equal(new$n_rows, nrow(old$long))
   expect_equal(new$n_visits, dplyr::n_distinct(old$long$visit_id))
   expect_equal(new$n_items, dplyr::n_distinct(old$long$item_id))
   expect_equal(new$preview, utils::head(old$long, nrow(new$preview)))
   expect_equal(new$csv_mb, kits_csv_mb_old(old$long))
-  expect_equal(new$notes, old$notes)
+  expect_equal(new$notes[!grepl("^計分對照", new$notes)], old$notes)
 })
 
 test_that("在寬資料上檢查：擋下的情況和舊做法相同", {

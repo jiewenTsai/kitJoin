@@ -37,7 +37,8 @@ wider_args <- function(id_cols = NULL, names_from = character(0),
 
 #' pivot_longer 的設定（預設值同 tidyr）
 #'
-#' @param cols 要收起來的欄
+#' @param cols 要收起來的欄（cols_exclude = TRUE 時是不轉的欄）
+#' @param cols_exclude TRUE = cols 以外的全部欄都轉（程式碼寫成 !c(...)）
 #' @param names_to 欄名放到哪一欄（可多個，搭配 names_pattern）
 #' @param values_to 值放到哪一欄
 #' @param names_prefix,names_pattern 同 tidyr；"" = 不用
@@ -45,11 +46,13 @@ wider_args <- function(id_cols = NULL, names_from = character(0),
 #' @noRd
 longer_args <- function(cols = character(0), names_to = "name",
                         values_to = "value", names_prefix = NULL,
-                        names_pattern = NULL, values_drop_na = FALSE) {
+                        names_pattern = NULL, values_drop_na = FALSE,
+                        cols_exclude = FALSE) {
   blank <- function(x) is.null(x) || length(x) == 0 || !nzchar(x[1])
   names_to <- if (blank(names_to)) "name" else names_to
   list(
     cols = cols %||% character(0),
+    cols_exclude = isTRUE(cols_exclude),
     names_to = names_to[nzchar(names_to)],
     values_to = if (blank(values_to)) "value" else values_to,
     names_prefix = if (blank(names_prefix)) NULL else names_prefix,
@@ -393,4 +396,110 @@ kitsui_score_preset <- function(cols) {
     names_glue = "{.value}_{domain}",
     names_vary = "slowest"
   )
+}
+
+
+# ── 轉換前：看起來是長格式還是寬格式 ─────────────────────────────────────────
+
+# 長格式裡常見、同一個 ID 內會變的欄（可能就是 names_from）
+RESHAPE_NAMES_FROM_HINTS <- c(
+  "item_id", "item", "name", "domain", "wave", "wave_m", "time", "visit",
+  "visit_id", "occasion", "variable", "key", "scale"
+)
+
+#' 猜哪一欄是 ID：subj_id、id、child_id → 其他 *_id → 欄名有 id 的欄；item_id 不算
+#' @return 欄名；找不到時 NULL
+#' @noRd
+reshape_guess_id <- function(cols) {
+  low <- tolower(cols)
+  exact <- match(c("subj_id", "id", "child_id"), low)
+  if (any(!is.na(exact))) return(cols[exact[!is.na(exact)][1]])
+  other <- cols[grepl("_id$", low) & !low %in% c("item_id", "visit_id")]
+  if (length(other) > 0) return(other[1])
+  hit <- setdiff(guess_id_cols(cols), cols[low == "item_id"])
+  if (length(hit) > 0) hit[1] else NULL
+}
+
+#' 轉換前掃一下：資料看起來是長格式還是寬格式（只是提示，不會自動換方向）
+#'
+#' 同一個 ID 有好幾列 → 長格式；每個 ID 一列、又有成組的欄名（lan01…、score_…）→ 寬格式；
+#' 其他 → 看不出來。只用 vctrs 數不重複的值，幾千萬列也很快。
+#' @param df 資料框
+#' @param id_col NULL（自動猜）或使用者選的 ID 欄
+#' @return list(format = "long"/"wide"/"unknown", suggest = "wider"/"longer"/NULL,
+#'   id_col, n_rows, n_ids, reps, groups, varying, reason)
+#' @noRd
+reshape_guess_format <- function(df, id_col = NULL) {
+  cols <- names(df)
+  if (is.null(id_col) || !id_col %in% cols) id_col <- reshape_guess_id(cols)
+  out <- list(
+    format = "unknown", suggest = NULL, id_col = id_col, n_rows = nrow(df),
+    n_ids = NA_integer_, reps = NA_real_, groups = pivot_name_groups(character(0)),
+    varying = character(0), reason = NULL
+  )
+  if (is.null(id_col)) {
+    out$reason <- "找不到像 ID 的欄（例如 subj_id、id）"
+    return(out)
+  }
+  ids <- df[[id_col]]
+  if (nrow(df) == 0 || all(is.na(ids))) {
+    out$reason <- paste0(id_col, " 沒有值")
+    return(out)
+  }
+  out$n_ids <- vctrs::vec_unique_count(ids)
+  out$reps <- nrow(df) / out$n_ids
+  if (out$n_ids < nrow(df)) {
+    out$format <- "long"
+    out$suggest <- "wider"
+    out$varying <- reshape_varying_cols(df, id_col, out$n_ids)
+    return(out)
+  }
+  out$groups <- pivot_name_groups(setdiff(cols, id_col))
+  if (nrow(out$groups) > 0) {
+    out$format <- "wide"
+    out$suggest <- "longer"
+  } else {
+    out$reason <- "每個 ID 只有一列，但沒有成組的欄名（例如 lan01、lan02…）"
+  }
+  out
+}
+
+# 同一個 ID 內會變的欄（只看常見的欄名，最多 3 欄）
+reshape_varying_cols <- function(df, id_col, n_ids) {
+  low <- tolower(names(df))
+  cand <- names(df)[low %in% RESHAPE_NAMES_FROM_HINTS & names(df) != id_col]
+  cand <- cand[order(match(tolower(cand), RESHAPE_NAMES_FROM_HINTS))]
+  varies <- purrr::map_lgl(utils::head(cand, 6), function(col) {
+    vctrs::vec_unique_count(df[c(id_col, col)]) > n_ids
+  })
+  utils::head(utils::head(cand, 6)[varies], 3)
+}
+
+#' 猜測結果的白話說明
+#' @noRd
+reshape_guess_text <- function(g) {
+  big <- function(x) format(x, big.mark = ",", scientific = FALSE, trim = TRUE)
+  if (identical(g$format, "long")) {
+    reps <- format(round(g$reps, 1), nsmall = 0, trim = TRUE)
+    return(paste0(
+      "目前看起來是長格式：同一個 ", g$id_col, " 有好幾列（", big(g$n_rows), " 列、",
+      big(g$n_ids), " 個 ", g$id_col, "，平均每個 ", reps, " 列）",
+      if (length(g$varying) > 0) {
+        paste0(
+          "；同一個 ", g$id_col, " 內會變的欄：", paste(g$varying, collapse = "、"),
+          "（可能就是「新欄名來自哪一欄」）"
+        )
+      },
+      "。通常要選「長轉寬」。"
+    ))
+  }
+  if (identical(g$format, "wide")) {
+    shown <- paste0(utils::head(g$groups$prefix, 3), " 開頭 ", utils::head(g$groups$n, 3), " 欄")
+    return(paste0(
+      "目前看起來是寬格式：每個 ", g$id_col, " 一列（", big(g$n_ids), " 個），",
+      "有 ", nrow(g$groups), " 組題目欄（", paste(shown, collapse = "、"),
+      if (nrow(g$groups) > 3) "…", "）。通常要選「寬轉長」。"
+    ))
+  }
+  paste0("看不出是長格式還是寬格式：", g$reason, "。可以換一欄當 ID 再看看。")
 }

@@ -151,9 +151,10 @@ test_that("pivot_longer：基本轉換與檢查", {
   expect_equal(dim(out$result), c(4, 3))
   expect_named(out$result, c("id", "name", "value"))
   expect_match(out$summary[2], "每一列變成 2 列")
-  # 欄名規則（cols_pattern）和 ⑥ 共用
-  out <- reshape_longer(wide, list(cols_pattern = "^score_"))
+  # 挑不轉的欄（其餘全部轉）
+  out <- reshape_longer(wide, longer_args(cols = "id", cols_exclude = TRUE))
   expect_equal(dim(out$result), c(4, 3))
+  expect_match(out$summary[2], "轉換 2 欄")
 
   args <- longer_args(
     cols = c("score_t1", "score_t2"), names_to = c(".value", "wave"),
@@ -202,4 +203,77 @@ test_that("教學程式碼執行結果和 app 相同", {
   ))
   eval(parse(text = code), envir = env)
   expect_equal(env$wide, reshape_wider(scores, preset)$result)
+})
+
+test_that("轉換前猜格式：寬格式", {
+  wide <- tibble::tibble(
+    subj_id = sprintf("s%02d", 1:5), sex = c(1, 2, 1, 2, 1),
+    lan01 = 1, lan02 = 0, lan03 = 1, score_lan = 10, score_cog = 11
+  )
+  g <- reshape_guess_format(wide)
+  expect_equal(g$format, "wide")
+  expect_equal(g$suggest, "longer")
+  expect_equal(g$id_col, "subj_id")
+  expect_equal(g$n_ids, 5)
+  expect_equal(g$groups$prefix, c("lan", "score_"))
+  txt <- reshape_guess_text(g)
+  expect_match(txt, "寬格式：每個 subj_id 一列（5 個）")
+  expect_match(txt, "lan 開頭 3 欄、score_ 開頭 2 欄")
+  expect_match(txt, "寬轉長")
+})
+
+test_that("轉換前猜格式：長格式（kitsUI 分數表）", {
+  scores <- sim_kitsui_scores()
+  g <- reshape_guess_format(scores)
+  expect_equal(g$format, "long")
+  expect_equal(g$suggest, "wider")
+  expect_equal(g$id_col, "subj_id")
+  expect_equal(g$n_ids, 4)
+  expect_equal(g$n_rows, 11)
+  expect_equal(g$varying, c("domain", "wave_m", "visit_id"))
+  txt <- reshape_guess_text(g)
+  expect_match(txt, "長格式：同一個 subj_id 有好幾列（11 列、4 個 subj_id，平均每個 2.8 列）")
+  expect_match(txt, "domain、wave_m、visit_id")
+  expect_match(txt, "長轉寬")
+
+  # 自己選 ID 欄：visit_id 也重複（每個領域一列）
+  g <- reshape_guess_format(scores, id_col = "visit_id")
+  expect_equal(g$id_col, "visit_id")
+  expect_equal(g$format, "long")
+  expect_equal(g$varying, c("domain", "scale"))
+  # 選的欄不存在時用猜的
+  expect_equal(reshape_guess_format(scores, id_col = "nope")$id_col, "subj_id")
+})
+
+test_that("轉換前猜格式：看不出來", {
+  # 沒有像 ID 的欄
+  g <- reshape_guess_format(tibble::tibble(a = 1:3, b = 4:6))
+  expect_equal(g$format, "unknown")
+  expect_null(g$suggest)
+  expect_match(reshape_guess_text(g), "找不到像 ID 的欄")
+  # 每個 ID 一列，但沒有成組的欄
+  g <- reshape_guess_format(tibble::tibble(id = 1:3, sex = 1, age = 2))
+  expect_equal(g$format, "unknown")
+  expect_match(reshape_guess_text(g), "沒有成組的欄名")
+  # ID 欄全是空白
+  g <- reshape_guess_format(tibble::tibble(id = NA, x1 = 1, x2 = 2))
+  expect_equal(g$format, "unknown")
+  # 自己選一欄當 ID：b 有重複 → 長格式
+  df <- tibble::tibble(a = 1:4, b = c(1, 1, 2, 2), w = c("t1", "t2", "t1", "t2"))
+  expect_equal(reshape_guess_format(df, id_col = "b")$format, "long")
+})
+
+test_that("猜 ID 欄：subj_id、id 優先，item_id 不算", {
+  expect_equal(reshape_guess_id(c("item_id", "ID", "x")), "ID")
+  expect_equal(reshape_guess_id(c("visit_id", "child_no", "family_id")), "family_id")
+  expect_equal(reshape_guess_id(c("item_id", "visit_id")), "visit_id")
+  expect_null(reshape_guess_id(c("item_id", "valid", "width")))
+})
+
+test_that("方向和猜測相反時提醒", {
+  expect_match(reshape_direction_note("long", "longer"), "已經是長格式")
+  expect_match(reshape_direction_note("wide", "wider"), "已經是寬格式")
+  expect_null(reshape_direction_note("long", "wider"))
+  expect_null(reshape_direction_note("unknown", "longer"))
+  expect_null(reshape_direction_note(NULL, "longer"))
 })

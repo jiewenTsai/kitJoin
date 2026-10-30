@@ -1,26 +1,22 @@
 # ⑥ 轉成 kits 作答檔的教學程式碼（tidyverse 版）
 #
 # 和其他分頁一樣：每個檔案一個物件（data_t1、data_t2…），逐行寫出；
-# 只列出勾了的進階調整，pivot_longer() 由 pivot_longer_code() 產生（只寫非預設的參數）。
+# 只列出計分對照有改的題（一樣的對照寫在一起），pivot_longer() 由 pivot_longer_code() 產生。
 
 #' ⑥ 的程式碼
 #'
 #' @param f code_files_from(files)
 #' @param spec kits_spec()
-#' @param item_file 題目表的檔名（NULL 表示沒有上傳）
-#' @param rules kits_parse_rules()$rules
-#' @param assigned tibble（column、domain）：手動指定領域的欄
 #' @param na_applied TRUE 時資料已經過「② 遺漏值轉 NA」（加一行註解）
 #' @return 字串
 #' @noRd
-code_kitsdata <- function(f, spec, item_file = NULL, rules = NULL, assigned = NULL,
-                          na_applied = FALSE) {
+code_kitsdata <- function(f, spec, na_applied = FALSE) {
+  # 自己填的值：每個檔案先 mutate() 成一欄（欄名就是 kits 的欄名），後面當成那一欄
+  typed <- spec$typed %||% list()
   map <- spec$map
-  items <- spec$items$column
-  if (length(items) == 0) items <- c("lana01", "lana02", "bodyaf01")
+  for (field in names(typed)) map[[field]] <- field
   idx <- seq_along(f$obj)
   long <- paste0("long_", sub("^data_", "", f$obj))
-  steps <- spec$steps
   per_file <- function(fun) paste(vapply(idx, fun, character(1)), collapse = "\n")
 
   code_lines(
@@ -31,14 +27,20 @@ code_kitsdata <- function(f, spec, item_file = NULL, rules = NULL, assigned = NU
         "# 請先執行 ② 的「用 R 怎麼做？」裡的程式碼，再接著跑下面的程式")
     },
     "",
-    "# 題目欄（各檔的聯集；某個檔案沒有的題會略過）",
-    paste0("items <- ", r_cols_vector(items, indent = "  ", quote = TRUE)),
-    code_kitsdata_steps(f, steps, map, items),
+    "# 題目設定：⑥ 下載的 kits_item_settings.csv（item_id、include、domain、",
+    "# map_raw_to_score = 計分對照，寫成「原分數=計分」）",
+    paste0("item_settings <- read_csv(", r_str(KITS_SETTINGS_FILE), ")"),
+    "items <- item_settings$item_id[item_settings$include]",
+    code_kitsdata_maps(f, spec$items),
     "",
     "# 轉成長格式：一列一個孩子的一個波次的一題",
-    per_file(function(i) code_kitsdata_long(f$obj[i], long[i], spec$cohort[[i]], map)),
+    per_file(function(i) {
+      code_kitsdata_long(f$obj[i], long[i], spec$cohort[[i]], map, purrr::map(typed, i))
+    }),
     "",
-    code_kitsdata_domain(long, item_file, rules, assigned),
+    "# 合併各檔，接上領域",
+    paste0("kits_long <- bind_rows(", paste(long, collapse = ", "), ") |>"),
+    "  left_join(select(item_settings, item_id, domain), by = \"item_id\")",
     "",
     code_kitsdata_finish(map),
     "",
@@ -50,39 +52,50 @@ code_kitsdata <- function(f, spec, item_file = NULL, rules = NULL, assigned = NU
   )
 }
 
-# 勾了的進階調整（固定順序 1 → 2；遺漏值代碼由 ② 處理）
-code_kitsdata_steps <- function(f, steps, map, items) {
-  each <- function(expr) {
-    paste(paste0(f$obj, " <- ", f$obj, " |>\n  mutate(", expr, ")"), collapse = "\n")
-  }
-  out <- character(0)
-  if (!is.null(steps$shift)) {
-    shift <- if (setequal(steps$shift, items)) "items" else
-      r_cols_vector(steps$shift, indent = "  ", quote = TRUE)
-    out <- c(out, "", "# 步驟 1：分數減 1（kits 的分數要從 0 開始）",
-             paste0("shift_items <- ", shift),
-             each("across(any_of(shift_items), \\(x) x - 1)"))
-  }
-  rev <- steps$reverse
-  if (!is.null(rev)) {
-    max <- if (is.null(rev$max) || is.na(rev$max)) "最高分" else rev$max
-    out <- c(out, "", "# 步驟 2：反向計分（0 起算的分數上，最高分 − 分數）",
-             paste0("reverse_items <- ", r_cols_vector(rev$items, indent = "  ", quote = TRUE)),
-             each(paste0("across(any_of(reverse_items), \\(x) ", max, " - x)")))
-    if (isTRUE(rev$add_r)) {
-      out <- c(out,
-        "# 題號後面加 r",
-        paste(paste0(f$obj, " <- rename_with(", f$obj,
-                     ", \\(x) paste0(x, \"r\"), any_of(reverse_items))"), collapse = "\n"),
-        "items <- c(setdiff(items, reverse_items), paste0(reverse_items, \"r\"))"
-      )
-    }
-  }
-  out
+# 計分對照：只寫有改的題；一樣的對照寫在一起
+# 平移寫成 \(x) x - 1，反向寫成 \(x) 4 - x，其他用 case_when()
+code_kitsdata_maps <- function(f, items) {
+  if (!all(c("raw", "score") %in% names(items)) || nrow(items) == 0) return(NULL)
+  exprs <- purrr::map2_chr(items$raw, items$score, code_map_expr)
+  keep <- !is.na(exprs)
+  if (!any(keep)) return(NULL)
+  groups <- split(items$column[keep], factor(exprs[keep], levels = unique(exprs[keep])))
+  lines <- purrr::imap_chr(groups, function(cols, expr) {
+    paste0("  mutate(across(any_of(", r_cols_vector(cols, indent = "      ", quote = TRUE),
+           "), \\(x) ", expr, "))")
+  })
+  per_file <- vapply(f$obj, function(obj) {
+    code_lines(paste0(obj, " <- ", obj, " |>"),
+               paste0(lines, c(rep(" |>", length(lines) - 1), "")))
+  }, character(1))
+  c("", "# 計分對照（原分數 → 計分；只列出有改的題）", per_file)
+}
+
+#' 一題計分對照的寫法：沒改時 NA；平移 x - 1、x + 2；反向 4 - x；其他 case_when()
+#' @noRd
+code_map_expr <- function(raw, score) {
+  ok <- !is.na(score)
+  raw <- raw[ok]
+  score <- score[ok]
+  if (length(raw) == 0 || all(score == raw)) return(NA_character_)
+  num <- function(x) format(x, trim = TRUE, drop0trailing = TRUE, scientific = FALSE)
+  d <- unique(score - raw)
+  if (length(d) == 1) return(if (d < 0) paste0("x - ", num(-d)) else paste0("x + ", num(d)))
+  k <- unique(score + raw)
+  if (length(k) == 1) return(paste0(num(k), " - x"))
+  changed <- score != raw
+  pairs <- split(raw[changed], score[changed])
+  cases <- purrr::imap_chr(pairs, function(r, sc) {
+    lhs <- if (length(r) == 1) paste0("x == ", num(r)) else
+      paste0("x %in% c(", paste(num(r), collapse = ", "), ")")
+    paste0(lhs, " ~ ", num(as.numeric(sc)))
+  })
+  # 一般的對照用 case_when()（寫成好幾行，每行不超過 100 字）
+  paste0("case_when(\n      ", paste(cases, collapse = ", "), ", .default = x\n    )")
 }
 
 # 一個檔案：世代、visit_id、pivot_longer()
-code_kitsdata_long <- function(obj, long, cohort, map) {
+code_kitsdata_long <- function(obj, long, cohort, map, typed = list()) {
   co <- if (identical(cohort$type, "column")) {
     paste0("cohort = as.character(", r_col(cohort$value), ")")
   } else {
@@ -99,53 +112,11 @@ code_kitsdata_long <- function(obj, long, cohort, map) {
   piv <- pivot_longer_code(args, "", cols_code = "any_of(items)")
   code_lines(
     paste0(long, " <- ", obj, " |>"),
+    code_kitsdata_typed(typed),
     paste0("  mutate(", co, ", ", visit, ") |>"),
     sub("^ \\|>\\n", "", piv)
   )
 }
-
-# 接上領域：題目表（結尾 r 的題查不到時查原題）、規則、手動指定
-code_kitsdata_domain <- function(long, item_file, rules, assigned = NULL) {
-  rules <- rules %||% tibble::tibble(pattern = character(0), domain = character(0))
-  cases <- c(
-    if (nrow(rules) > 0) {
-      paste0("    grepl(", r_str_each(rules$pattern), ", item_id) ~ ", r_str_each(rules$domain))
-    },
-    if (!is.null(assigned) && nrow(assigned) > 0) {
-      purrr::map_chr(split(assigned$column, assigned$domain), function(cols) {
-        dom <- assigned$domain[match(cols[1], assigned$column)]
-        paste0("    item_id %in% ", r_str(cols), " ~ ", r_str(dom), "   # 手動指定")
-      })
-    }
-  )
-  bind <- paste0("kits_long <- bind_rows(", paste(long, collapse = ", "), ")")
-  out <- c("# 合併各檔，接上領域", bind)
-  if (!is.null(item_file)) {
-    out <- c(
-      out,
-      paste0("item_domain <- read_csv(", r_str(item_file), ")   # 題目表：item_id、domain"),
-      "kits_long <- kits_long |>",
-      "  mutate(item_base = if_else(item_id %in% item_domain$item_id, item_id,",
-      "                             sub(\"r$\", \"\", item_id))) |>   # cogd01r 查 cogd01",
-      "  left_join(item_domain, by = join_by(item_base == item_id))"
-    )
-  } else {
-    out <- c(out, "kits_long <- mutate(kits_long, domain = NA_character_)")
-  }
-  if (length(cases) > 0) {
-    out <- c(
-      out,
-      "kits_long <- kits_long |>",
-      "  mutate(domain = coalesce(domain, case_when(",
-      paste0(cases, c(rep(",", length(cases) - 1), "")),
-      "  )))"
-    )
-  }
-  code_lines(out)
-}
-
-# 每個值各自加引號
-r_str_each <- function(x) paste0('"', gsub("\\\\", "\\\\\\\\", x), '"')
 
 # 固定 9 欄、固定順序與型別（依 KITS_COLUMNS）；沒有對應的欄寫成空白
 code_kitsdata_finish <- function(map) {
@@ -179,4 +150,20 @@ code_kitsdata_finish <- function(map) {
     paste0("    ", c(lines, line)),
     "  )"
   )
+}
+
+# 自己填的值：mutate(wave = "m018", wave_m = 18)（數字的欄不加引號）
+code_kitsdata_typed <- function(typed) {
+  if (length(typed) == 0) return(NULL)
+  parts <- purrr::imap_chr(typed, function(v, field) {
+    v <- trimws(v %||% "")
+    num <- KITS_MAP_ROWS$type[KITS_MAP_ROWS$field == field] == "d"
+    value <- if (num && !is.na(suppressWarnings(as.numeric(v)))) {
+      format(as.numeric(v), trim = TRUE, drop0trailing = TRUE, scientific = FALSE)
+    } else {
+      r_str(v)
+    }
+    paste0(field, " = ", value)
+  })
+  paste0("  mutate(", paste(parts, collapse = ", "), ") |>   # 自己填的值")
 }

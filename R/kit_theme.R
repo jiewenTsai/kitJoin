@@ -15,6 +15,11 @@ kit_theme <- function() {
     ),
     "sans-serif"
   )
+  # 程式碼與等寬字：M PLUS Code Latin（只有拉丁字母；中文註解退回 app 的中文字型）
+  code_font <- bslib::font_collection(
+    bslib::font_google("M PLUS Code Latin", local = FALSE, wght = c(400, 700)),
+    "Chiron GoRound TC", "Menlo", "Consolas", "monospace"
+  )
 
   bslib::bs_theme(
     bootswatch = "lumen",
@@ -26,6 +31,7 @@ kit_theme <- function() {
     danger = "#d9534f",
     base_font = kit_font,
     heading_font = kit_font,
+    code_font = code_font,
     "navbar-bg" = "#2d7535",
     "body-bg" = "#f5f5f5"
   )

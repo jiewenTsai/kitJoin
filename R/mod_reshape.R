@@ -47,11 +47,13 @@ mod_reshape_ui <- function(id) {
         )
       )
     ),
+    shiny::uiOutput(ns("guess")),
     shiny::conditionalPanel(is_wider, ns = ns, wider_controls_ui(ns)),
     shiny::conditionalPanel(
       "input.direction == 'longer'", ns = ns,
       mod_pivot_longer_ui(ns("longer"))
     ),
+    shiny::uiOutput(ns("direction_note")),
     shiny::actionButton(ns("run"), "執行轉換", class = "btn-primary"),
     shiny::uiOutput(ns("status")),
     shiny::uiOutput(ns("blocked")),
@@ -259,6 +261,54 @@ mod_reshape_server <- function(id, files, working, goto) {
     # 寬轉長的設定：和 ⑥ 共用的元件（mod_pivot_longer.R）
     longer <- mod_pivot_longer_server("longer", data = src)
 
+    # 轉換前掃一下：看起來是長格式還是寬格式（只提示，不自動換方向）
+    guess <- shiny::reactive({
+      df <- src()
+      if (is.null(df)) return(NULL)
+      id <- input$guess_id
+      reshape_guess_format(df, if (isTRUE(id %in% names(df))) id)
+    })
+    output$guess <- shiny::renderUI({
+      all <- cols()
+      if (length(all) == 0) return(NULL)
+      shiny::tags$div(
+        class = "kit-callout",
+        shiny::uiOutput(ns("guess_text")),
+        shiny::tags$div(
+          class = "d-flex flex-wrap align-items-end gap-3 mt-2",
+          shiny::selectizeInput(
+            ns("guess_id"), "用哪一欄當 ID", choices = c("（請選）" = "", all),
+            selected = reshape_guess_id(all) %||% "", width = "16em"
+          ),
+          shiny::tags$div(class = "mb-3", shiny::uiOutput(ns("guess_flip")))
+        )
+      )
+    })
+    output$guess_text <- shiny::renderUI({
+      g <- guess()
+      if (is.null(g)) return(NULL)
+      shiny::tags$div(reshape_guess_text(g))
+    })
+    output$guess_flip <- shiny::renderUI({
+      to <- guess()$suggest
+      if (is.null(to) || identical(to, input$direction)) return(NULL)
+      label <- c(wider = "長轉寬", longer = "寬轉長")[[to]]
+      shiny::actionButton(
+        ns("guess_flip_btn"), paste0("改選「", label, "」"),
+        class = "btn-sm btn-outline-primary"
+      )
+    })
+    shiny::observeEvent(input$guess_flip_btn, {
+      to <- guess()$suggest
+      if (!is.null(to)) shiny::updateRadioButtons(session, "direction", selected = to)
+    })
+    # 方向和猜測相反時，在執行鈕旁邊提醒（不擋）
+    output$direction_note <- shiny::renderUI({
+      note <- reshape_direction_note(guess()$format, input$direction)
+      if (is.null(note)) return(NULL)
+      shiny::tags$div(class = "kit-callout kit-callout-warning", note)
+    })
+
     output$id_note <- shiny::renderUI({
       df <- src()
       if (is.null(df)) return(NULL)
@@ -422,7 +472,7 @@ mod_reshape_server <- function(id, files, working, goto) {
       striped = TRUE, spacing = "s"
     )
     output$preview_meta <- shiny::renderText({
-      res <- result()
+      res <- shiny::req(result())
       paste0(
         "轉換前 ", format_dims(res$before[1], res$before[2]), "；轉換後 ",
         format_dims(nrow(res$result), ncol(res$result), KIT_PREVIEW_COLS),
@@ -440,7 +490,7 @@ mod_reshape_server <- function(id, files, working, goto) {
       p <- picked()
       obj <- p$obj %||% "data_t1"
       snips <- if (identical(input$direction, "longer")) {
-        code_longer(longer(), obj)
+        code_longer(longer(), obj, names(p$data))
       } else {
         code_wider(wider(), p$data %||% tibble::tibble(), obj)
       }
@@ -458,6 +508,18 @@ run_wider <- function(df, args, blocked) {
     if (!dup$ok) blocked(dup)
   }
   reshape_wider(df, args)
+}
+
+#' 方向和資料格式的猜測相反時的提醒；沒有問題時 NULL
+#' @noRd
+reshape_direction_note <- function(format, direction) {
+  if (identical(format, "long") && identical(direction, "longer")) {
+    return("資料看起來已經是長格式，確定要再轉成長格式嗎？")
+  }
+  if (identical(format, "wide") && identical(direction, "wider")) {
+    return("資料看起來已經是寬格式，確定要再轉成寬格式嗎？")
+  }
+  NULL
 }
 
 #' 目前使用哪一份資料；只要 1 個檔案就能用
