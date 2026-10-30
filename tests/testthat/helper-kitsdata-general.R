@@ -16,7 +16,7 @@ kg_run_code <- function(dfs, spec, settings, sav = FALSE, labels = NULL) {
   side <- kits_side_codes(dfs, kits_side_cols(spec$map, spec$per_file %||% list()), spec$na_codes)
   code <- code_kitsdata(code_files(names, labels %||% paste0("t", seq_along(dfs))), spec,
                         side_codes = side)
-  env <- new.env()
+  env <- new.env(parent = globalenv())   # 和使用者在 Console 執行一樣
   withr::with_dir(dir, suppressMessages(eval(parse(text = code), envir = env)))
   list(long = env$kits_long, code = code)
 }
