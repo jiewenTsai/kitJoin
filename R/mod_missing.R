@@ -206,15 +206,79 @@ mod_missing_server <- function(id, files) {
       )
     }, ignoreNULL = FALSE)
 
-    # 檔案變動後，舊的轉換結果失效
+    # 舊結果失效時記下來：③～⑦ 才能告訴使用者「② 要重新執行」，而不是默默改用原始資料
+    stale <- shiny::reactiveVal(FALSE)
+    invalidate <- function() {
+      if (is.null(result())) return()
+      result(NULL)
+      stale(TRUE)
+      status(kit_stale_status("執行轉換"))
+    }
+
+    # 檔案變動：只是移除或調整順序時，其他檔案的轉換結果仍然有效，直接保留；
+    # 加入新檔案時舊結果失效（新檔案還沒轉換）
     shiny::observeEvent(files$data(), {
-      if (!is.null(result())) {
+      res <- result()
+      if (is.null(res)) return()
+      keys <- files$keys()
+      if (length(keys) == 0) {
         result(NULL)
-        status(kit_stale_status("執行轉換"))
+        stale(FALSE)
+        status(kit_status())
+        return()
       }
+      if (!all(keys %in% res$keys)) {
+        invalidate()
+        return()
+      }
+      idx <- match(keys, res$keys)
+      if (identical(idx, seq_along(res$keys))) return()
+      result(list(
+        keys = res$keys[idx],
+        names = res$names[idx],
+        data = res$data[idx],
+        detail = res$detail[idx],
+        summary = res$summary[idx, , drop = FALSE],
+        settings = res$settings
+      ))
+      status(kit_done_status(paste0(
+        "檔案已移除或調整順序；其他 ", length(keys), " 個檔案的轉換結果保留，不用重新執行。"
+      )))
     }, ignoreInit = TRUE)
 
+    # 實際影響轉換的設定（另一種判斷方式的輸入框改了不算）
+    current_settings <- function() {
+      list(
+        mode = mode(),
+        codes = if (mode() == "codes") codes()$codes,
+        match_text = if (mode() == "codes") isTRUE(input$match_text),
+        keywords = if (mode() == "labels") keywords(),
+        exclude = sort(input$exclude_cols %||% character(0))
+      )
+    }
+    same_settings <- function(a, b) {
+      # 排除欄只比對目前檔案裡有的欄：移除檔案時，它的 ID 從清單消失不算改設定
+      cols <- all_cols()
+      a$exclude <- intersect(a$exclude, cols)
+      b$exclude <- intersect(b$exclude, cols)
+      identical(a, b)
+    }
+
+    # 代碼、判斷方式、關鍵字、排除欄、文字比對改了：舊結果失效
+    shiny::observeEvent(
+      list(
+        input$na_mode, input$codes, input$keywords, input$exclude_cols,
+        input$match_text, all_cols()
+      ),
+      {
+        res <- result()
+        if (!is.null(res) && !same_settings(res$settings, current_settings())) invalidate()
+      },
+      ignoreInit = TRUE, ignoreNULL = FALSE
+    )
+
     shiny::observeEvent(input$run, {
+      stale(FALSE)
       result(NULL)
       dfs <- files$data()
       st <- tryCatch({
@@ -239,7 +303,8 @@ mod_missing_server <- function(id, files) {
           names = files$names(),
           data = purrr::map(converted, "data"),
           detail = purrr::map(converted, "detail"),
-          summary = na_summary_table(files$names(), dfs, converted)
+          summary = na_summary_table(files$names(), dfs, converted),
+          settings = current_settings()
         ))
         n_cells <- sum(purrr::map_int(converted, function(x) {
           if (is.null(x$detail)) 0L else as.integer(sum(x$detail$合計))
@@ -349,7 +414,16 @@ mod_missing_server <- function(id, files) {
       data = shiny::reactive(
         if (use_processed()) result()$data else files$data()
       ),
-      source = shiny::reactive(if (use_processed()) "na" else "raw"),
+      # "stale"：② 的結果因為設定或檔案改了而清除，還沒重新執行（後面的分頁用原始資料並提醒）
+      source = shiny::reactive({
+        if (use_processed()) {
+          "na"
+        } else if (stale() && isTRUE(input$use_downstream)) {
+          "stale"
+        } else {
+          "raw"
+        }
+      }),
       code_cells = shiny::reactive(count_code_cells(files$data(), keywords = keywords()))
     )
   })

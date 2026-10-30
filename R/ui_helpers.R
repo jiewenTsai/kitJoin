@@ -202,7 +202,7 @@ kit_summary_ui <- function(sentences, title = "結果摘要") {
 #' 目前使用哪一份資料（原始 / 遺漏值處理後），以及檔案數不足的提醒
 #'
 #' @param n_files 已上傳檔案數
-#' @param source "raw" 或 "na"
+#' @param source "raw"、"na" 或 "stale"（② 的結果已清除、等待重新執行）
 #' @param code_cells 原始資料中等於遺漏值代碼的格數
 #' @param ns 模組的 namespace 函式（連結按鈕用）
 #' @noRd
@@ -218,6 +218,14 @@ kit_source_note_ui <- function(n_files, source, code_cells, ns) {
     return(shiny::tags$p(
       class = "kit-source-note",
       "目前使用：「② 遺漏值轉 NA」處理後的資料。"
+    ))
+  }
+  if (identical(source, "stale")) {
+    return(shiny::tags$div(
+      class = "kit-callout kit-callout-warning",
+      "目前使用：原始資料。「② 遺漏值轉 NA」的代碼、設定或檔案改過了，舊的轉換結果已清除，",
+      shiny::actionLink(ns("goto_missing"), "請回 ② 重新按「執行轉換」"),
+      "；在那之前，這裡用的是還沒轉換的原始資料。"
     ))
   }
   if (code_cells > 0) {

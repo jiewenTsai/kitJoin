@@ -268,3 +268,52 @@ test_that("② 依數值標籤轉換；沒有 KIT 代碼時自動建議這個方
     expect_null(output[["missing-mode_note"]])
   })
 })
+
+test_that("② 改了代碼、排除欄或文字比對後，舊結果失效，③ 會提醒（A8）", {
+  dir <- withr::local_tempdir()
+  w1 <- write_wave(dir, "w1.csv", data.frame(release_id = 1:3, score = c(1, 9999, 3)))
+  w2 <- write_wave(dir, "w2.csv", data.frame(release_id = 2:4, score = c(9999, 5, 6)))
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = upload_df(c(w1, w2)))
+    session$setInputs(`missing-codes` = "9999", `missing-match_text` = TRUE,
+                      `missing-use_downstream` = TRUE, `missing-exclude_cols` = "release_id")
+    session$setInputs(`missing-run` = 1)
+    expect_match(output[["join-source_note"]]$html, "處理後的資料")
+
+    session$setInputs(`missing-codes` = "9999, 8888")
+    expect_match(output[["missing-status"]]$html, "需要重新執行")
+    expect_match(output[["join-source_note"]]$html, "請回 ② 重新按")
+
+    session$setInputs(`missing-run` = 2)
+    expect_match(output[["join-source_note"]]$html, "處理後的資料")
+    session$setInputs(`missing-exclude_cols` = c("release_id", "score"))
+    expect_match(output[["join-source_note"]]$html, "請回 ② 重新按")
+
+    session$setInputs(`missing-exclude_cols` = "release_id", `missing-run` = 3)
+    session$setInputs(`missing-match_text` = FALSE)
+    expect_match(output[["missing-status"]]$html, "需要重新執行")
+  })
+})
+
+test_that("在 ① 移除檔案：其他檔案的 ② 結果保留；加入新檔案時提醒重新執行（A8）", {
+  dir <- withr::local_tempdir()
+  w1 <- write_wave(dir, "w1.csv", data.frame(w1_id = 1:3, score = c(1, 9999, 3)))
+  w2 <- write_wave(dir, "w2.csv", data.frame(release_id = 2:4, score = c(9999, 5, 6)))
+  w3 <- write_wave(dir, "w3.csv", data.frame(release_id = 2:4, score = c(9999, 5, 6)))
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = upload_df(c(w1, w2, w3)))
+    session$setInputs(`missing-codes` = "9999", `missing-match_text` = TRUE,
+                      `missing-use_downstream` = TRUE,
+                      `missing-exclude_cols` = c("w1_id", "release_id"))
+    session$setInputs(`missing-run` = 1)
+    session$setInputs(`upload-remove_f1` = 1)
+    # 瀏覽器會把排除欄更新成目前還有的欄
+    session$setInputs(`missing-exclude_cols` = "release_id")
+    expect_match(output[["missing-status"]]$html, "結果保留")
+    expect_match(output[["join-source_note"]]$html, "處理後的資料")
+
+    session$setInputs(`upload-files` = upload_df(w1))
+    expect_match(output[["missing-status"]]$html, "需要重新執行")
+    expect_match(output[["stack-source_note"]]$html, "請回 ② 重新按")
+  })
+})
