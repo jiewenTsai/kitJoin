@@ -156,6 +156,8 @@ a { color: var(--nb-green); text-decoration-thickness: 2px; text-underline-offse
 .table > :not(caption) > * > * { border-bottom-width: 1.5px; }
 
 /* 程式碼：米白底、黑框，沒有陰影（它通常在收合框裡） */
+.kit-code-block,
+.kit-code-panel,
 .well, pre {
   border: 2px solid var(--nb-ink);
   border-radius: var(--nb-radius);
@@ -392,24 +394,31 @@ details > summary {
 .kit-status-action { margin-top: 0.5rem; font-size: 0.95rem; }
 .kit-status-notes { font-weight: 400; font-size: 0.88rem; margin-top: 0.4rem; }
 .kit-status-raw code { display: block; white-space: pre-wrap; font-size: 0.85rem; }
+.kit-status .kit-status-line { margin-bottom: 0.2rem; }
+.kit-status .btn { margin-top: 0.4rem; }
+.kit-status details { font-weight: 400; }
 
 /* ── 新元件：進階設定、細節、設定摘要、下一步 ── */
-/* 進階設定：一行小字的收合標題，打開後內容不加框 */
-.kit-advanced { margin: 0.2rem 0 1rem; }
+/* 進階設定：預設收起，一行小字標題；打開後左邊一條淡線，和其他設定分開（不加框） */
+.kit-advanced { margin: 0.8rem 0 0.4rem; }
 .kit-advanced > summary { font-size: 0.9rem; color: #4d4d4d; cursor: pointer; }
-.kit-advanced-body { padding: 0.6rem 0 0 1rem; }
-/* 一排細節：結果下面一排同樣的收合標題（詳細核對、預覽、用 R 怎麼做…） */
-.kit-details { display: flex; flex-direction: column; gap: 0.35rem; margin: 1.2rem 0; }
+.kit-advanced-body { margin: 0.5rem 0 0.8rem; padding-left: 1rem; border-left: 1.5px solid #d9d4c5; }
+/* 一排細節：結果下面一排收起來的標題（▸ 預覽　▸ 用 R 怎麼做…）；
+   打開的那一個佔一整行，內容不加框 */
+.kit-details {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 1.6rem; margin: 1.6rem 0 1rem;
+}
 .kit-details > .shiny-html-output { display: contents; }
+.kit-details .kit-detail[open] { flex-basis: 100%; }
 .kit-detail > summary { font-size: 0.9rem; color: #4d4d4d; cursor: pointer; }
-.kit-detail-body { padding: 0.6rem 0 0.8rem 1rem; }
+.kit-detail-body { padding: 0.6rem 0 1rem; }
 .kit-detail-body h6 { margin-top: 0.8rem; }
-/* 設定摘要：主要按鈕上面一行小字 */
-.kit-settings-line { font-size: 0.88rem; color: #4d4d4d; margin: 0.8rem 0 0.6rem; }
-/* 下一步：頁面最下面，靠右 */
+/* 設定摘要：結果（或主要按鈕）上面一行小字 */
+.kit-settings-line { font-size: 0.85rem; color: #5a5a5a; margin: 1.2rem 0 0.6rem; }
+/* 下一步：頁面最下面、靠右：一句小字＋「下一步：××× →」 */
 .kit-next {
-  display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.6rem 1.2rem;
-  margin: 2rem 0 1rem; padding-top: 1rem; border-top: 1.5px solid #d9d4c5;
+  display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.6rem 1rem;
+  margin: 2.4rem 0 1rem;
 }
 .kit-next .kit-hint { margin: 0; flex: 1 1 22rem; }
 .kit-next .kit-hint ul { margin: 0.3rem 0 0.3rem 1.2rem; padding: 0; }
@@ -431,12 +440,17 @@ details > summary {
   font-size: 0.85rem; padding: 0.75rem; margin: 0 0 0.6rem; white-space: pre; overflow-x: auto;
 }
 .kit-detail-body pre code { padding: 0; background: none; color: inherit; }
+/* kitsUI：一個版本時，「複製」靠右放在程式碼框上面 */
+.kit-code-copy { display: flex; justify-content: flex-end; margin-bottom: 0.3rem; }
 
 /* ── 新元件：步驟分頁的進度 ── */
 /* 做完的分頁打 ✓；還不能用的分頁灰色（滑過時 title 說明要先做什麼）；
    要重新執行時 ✓ 拿掉（kit-tab-stale 沒有額外的樣子） */
 .nav-tabs .nav-link.kit-tab-done::after { content: " ✓"; color: var(--nb-green); font-weight: 700; }
 .nav-tabs .nav-link.active.kit-tab-done::after { color: var(--nb-ink); }
+/* kitsUI 的 ✓ 是分頁裡的 .kit-tab-mark（kit_tabs_js()）；kitJoin 用 ::after */
+.nav-tabs .nav-link .kit-tab-mark { margin-left: 0.35rem; font-weight: 900; }
+.nav-tabs .nav-link.kit-tab-locked:not(.active):hover { transform: none; box-shadow: none; }
 .nav-tabs .nav-link.kit-tab-locked:not(.active) {
   background: #ece8dc; color: #6b6b6b; border-color: #8a8a8a; box-shadow: none;
 }
@@ -526,6 +540,11 @@ details > summary {
 .kit-items tr.kit-row-off td { color: #9a9a9a; }
 .kit-muted { color: #8a8a8a; }
 .kit-bulk { margin-top: .6rem; }
+/* 第 2 步：像題目的欄一組一列（勾選、題目內容、領域） */
+.kit-groups td { vertical-align: middle; }
+.kit-groups .kit-group-label { font-size: .92rem; max-width: 22rem; }
+.kit-groups input[type="checkbox"] { width: 1.25rem; height: 1.25rem; }
+.kit-groups .form-group { margin-bottom: 0; }
 
 /* ── 新元件：圖解（前 → 後） ── */
 /* 「這一頁做什麼」下面的小圖解（kit_diagram()）：幾張小表 → 結果，下面一行白話說明。
