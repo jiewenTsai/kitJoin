@@ -90,7 +90,9 @@ sav_text_sample <- function(df, n = 200L) {
 }
 
 count_matches <- function(text, pattern) {
-  sum(lengths(regmatches(text, gregexpr(pattern, text, perl = TRUE))))
+  # (*UTF)：文字全是 ASCII 時 PCRE 不會自動切到 UTF-8 模式，\\x{9FFF} 會變成不合法
+  hits <- gregexpr(paste0("(*UTF)", pattern), text, perl = TRUE)
+  sum(vapply(hits, function(h) sum(h > 0), integer(1)))
 }
 
 #' 看起來是被當成 Latin1 解讀的 BIG5（例如「¼Ë¥»¬y¤ô¥N½X」）

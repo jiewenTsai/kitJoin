@@ -135,3 +135,11 @@ test_that("TDCYP w1_jsq 的 SAV 匯出讀得回來", {
   expect_true("w1a8_k" %in% written$fixed)
   expect_equal(dim(haven::read_sav(out)), dim(df))
 })
+
+test_that("只有英文的 SAV 也能讀（編碼判斷不會出錯）", {
+  path <- withr::local_tempfile(fileext = ".sav")
+  haven::write_sav(tibble::tibble(id = c("1", "2"), a = 1:2), path)
+  expect_true(is.na(read_data_file(path, "ascii.sav")$encoding))
+  expect_equal(count_matches(c("abc", "a"), "[\\x{3400}-\\x{9FFF}]"), 0)
+  expect_equal(count_matches(c("中文a", "字"), "[\\x{3400}-\\x{9FFF}]"), 3)
+})
