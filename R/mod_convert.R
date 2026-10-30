@@ -1,4 +1,4 @@
-# ⑧ 檔案格式轉換：一個檔案進、一個檔案出
+# 檔案格式轉換：一個檔案進、一個檔案出
 #
 # 完全獨立的小工具：有自己的上傳，不讀也不改 ①～⑦ 的檔案或任何共用狀態。
 
@@ -15,7 +15,7 @@ mod_convert_ui <- function(id) {
       ),
       output = paste0(
         "內容相同、格式不同的新檔。",
-        "這一頁和其他分頁無關：這裡上傳的檔案不會出現在 ①～⑦。"
+        "這一頁和其他分頁無關：這裡上傳的檔案不會出現在其他分頁。"
       ),
       technical = paste0(
         "CSV 與 CSV.GZ 互轉時逐段處理、不讀成表格，大檔也不會佔用太多記憶體；",
@@ -41,7 +41,8 @@ mod_convert_ui <- function(id) {
       )
     ),
     shiny::uiOutput(ns("target_ui")),
-    shiny::actionButton(ns("run"), "開始轉換", class = "btn-primary"),
+    shiny::uiOutput(ns("settings_line")),
+    kit_button(ns("run"), "開始轉換", "primary"),
     shiny::uiOutput(ns("status")),
     shiny::uiOutput(ns("result"))
   )
@@ -79,8 +80,7 @@ mod_convert_server <- function(id) {
           choices = choices, selected = choices[[1]], width = "100%"
         ),
         if (identical(kind(), "sav")) {
-          shiny::tags$div(
-            class = "kit-callout",
+          kit_callout(
             shiny::checkboxInput(ns("labels_as_text"), "數值標籤轉成文字（例如 1 → 男）"),
             shiny::tags$small(
               class = "kit-hint",
@@ -90,6 +90,16 @@ mod_convert_server <- function(id) {
           )
         }
       )
+    })
+
+    # 設定摘要：「本次：w1.sav → CSV（數值標籤轉成文字）」
+    output$settings_line <- shiny::renderUI({
+      if (is.null(input$file)) return(NULL)
+      if (!isTRUE(input$target %in% convert_targets(kind()))) return(NULL)
+      kit_settings_line(paste0(
+        input$file$name, " → ", toupper(input$target),
+        if (identical(kind(), "sav") && isTRUE(input$labels_as_text)) "（數值標籤轉成文字）"
+      ))
     })
 
     shiny::observeEvent(list(input$file, input$target, input$labels_as_text), {
@@ -115,7 +125,7 @@ mod_convert_server <- function(id) {
           )
           result(res)
           kit_done_status(
-            paste0("轉換完成！", res$name, " → ", res$out_name, "。"),
+            paste0("轉換完成：", res$name, " → ", res$out_name, "。"),
             notes = res$notes
           )
         }),
@@ -140,7 +150,7 @@ mod_convert_server <- function(id) {
           kit_download_button(
             session, "download_file", paste0("下載 ", res$out_name), res$out_name,
             function(file) file.copy(res$out_path, file, overwrite = TRUE),
-            class = "btn-primary"
+            class = KIT_BTN[["secondary"]]
           )
         )
       )
@@ -149,5 +159,8 @@ mod_convert_server <- function(id) {
       convert_summary_table(shiny::req(result())),
       striped = TRUE, spacing = "s"
     )
+
+    # 這一頁的狀態（步驟分頁打 ✓ 用）
+    list(state = shiny::reactive(status()$state))
   })
 }

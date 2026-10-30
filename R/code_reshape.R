@@ -1,4 +1,4 @@
-# ⑦ 長寬互轉的教學程式碼：只寫出和 tidyr 預設不同的參數（只有 tidyverse 版）
+# 長/寬格式轉換的教學程式碼：只寫出和 tidyr 預設不同的參數（只有 tidyverse 版）
 
 #' 單一字串轉成 R 程式碼（含跳脫）："a"
 #' @noRd
@@ -71,7 +71,7 @@ code_wider <- function(args, data, data_name = "data_t1") {
     tidy = code_lines(
       "library(dplyr)",
       "library(tidyr)", "",
-      paste0("# ", data_name, "：「① 上傳檔案」讀進來的資料（讀檔方式見 ① 分頁）"),
+      paste0("# ", data_name, "：「檔案上傳」讀進來的資料（讀檔方式見「檔案上傳」分頁的「用 R 怎麼做」）"),
       "# 先確認 id_cols × names_from 沒有重複（有重複時 pivot_wider 會產生 list 欄）",
       paste0(data_name, " |>"),
       "  count(",
@@ -106,7 +106,7 @@ code_longer <- function(args, data_name = "data_t1", col_names = NULL, labels = 
   list(
     tidy = code_lines(
       if (!is.null(zap)) "library(dplyr)", "library(tidyr)", "",
-      paste0("# ", data_name, "：「① 上傳檔案」讀進來的資料（讀檔方式見 ① 分頁）"),
+      paste0("# ", data_name, "：「檔案上傳」讀進來的資料（讀檔方式見「檔案上傳」分頁的「用 R 怎麼做」）"),
       zap,
       note,
       paste0("long <- ", pivot_longer_code(args, data_name, cols_code)),

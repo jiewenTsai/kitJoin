@@ -1,4 +1,4 @@
-# ③ 寬格式串接
+# 橫向資料串接
 
 #' @noRd
 mod_join_ui <- function(id) {
@@ -52,16 +52,22 @@ mod_join_ui <- function(id) {
       choices = KIT_JOIN_METHODS, selected = "left_join", width = "100%"
     ),
     join_method_example(),
-    shiny::checkboxInput(
-      ns("keys_as_text"),
-      "ID 型別不一致時（例如一波是數字、一波是文字），自動轉成文字再比對",
-      value = TRUE, width = "100%"
+    kit_advanced(
+      shiny::checkboxInput(
+        ns("keys_as_text"),
+        "ID 型別不一致時（例如一波是數字、一波是文字），自動轉成文字再比對",
+        value = TRUE, width = "100%"
+      )
     ),
-    shiny::actionButton(ns("run"), "執行串接", class = "btn-primary"),
+    shiny::uiOutput(ns("settings_line")),
+    kit_button(ns("run"), "執行串接", "primary"),
     shiny::uiOutput(ns("status")),
-    kit_download_ui(ns),
     shiny::uiOutput(ns("result")),
-    kit_code_panel(ns("code"))
+    kit_download_ui(ns),
+    kit_details_row(
+      shiny::uiOutput(ns("result_details"), inline = TRUE),
+      kit_code_panel(ns("code"))
+    )
   )
 }
 
@@ -178,6 +184,24 @@ mod_join_server <- function(id, files, working, goto) {
       )
     })
 
+    # 設定摘要：「本次：5 個檔案 · ID：各檔各自 · 全勤樣本 · 原始資料」
+    output$settings_line <- shiny::renderUI({
+      n <- length(files$keys())
+      if (n < 2) return(NULL)
+      spec <- id_spec()
+      id_text <- if (isTRUE(input$id_per_file)) {
+        "ID：各檔各自指定"
+      } else if (length(spec$by_vars) > 0) {
+        paste0("ID：", paste(spec$by_vars, collapse = "＋"))
+      } else {
+        "ID：還沒選"
+      }
+      kit_settings_line(c(
+        paste0(n, " 個檔案"), id_text, kit_join_method_short(input$method),
+        kit_source_short(working$source())
+      ))
+    })
+
     # 檔案或設定變動後，舊結果失效
     shiny::observeEvent(
       list(
@@ -211,7 +235,7 @@ mod_join_server <- function(id, files, working, goto) {
           result(out)
           kit_done_status(
             paste0(
-              "串接完成！結果共 ",
+              "串接完成：結果共 ",
               format_dims(nrow(out$result), ncol(out$result)),
               "。"
             ),
@@ -225,14 +249,16 @@ mod_join_server <- function(id, files, working, goto) {
             conditionMessage(e),
             footer = shiny::tagList(
               shiny::modalButton("取消，回去改 ID"),
-              shiny::actionButton(ns("run_confirm"), "仍要執行", class = "btn-danger")
+              kit_button(ns("run_confirm"), "仍要執行", "danger")
             ),
             easyClose = TRUE
           ))
           asked <<- TRUE
           kit_status("error", conditionMessage(e))
         },
-        error = function(e) kit_error_status(e, "串接")
+        error = function(e) {
+          kit_error_status(e, "串接", kit_upload_todo(ns, length(files$keys()), 2L))
+        }
       )
       status(st)
       if (!asked) kit_notify(st)
@@ -255,35 +281,36 @@ mod_join_server <- function(id, files, working, goto) {
       run_label = "執行串接"
     )
 
+    # 重點：結果摘要；預覽與詳細核對收在下面一排細節裡
     output$result <- shiny::renderUI({
       res <- result()
       if (is.null(res)) return(NULL)
+      kit_summary_ui(res$summary)
+    })
+    output$result_details <- shiny::renderUI({
+      res <- result()
+      if (is.null(res)) return(NULL)
       shiny::tagList(
-        kit_summary_ui(res$summary),
-        shiny::h4("結果預覽"),
-        shiny::textOutput(ns("preview_meta")),
-        shiny::tags$div(
-          class = "kit-table-scroll",
-          shiny::tableOutput(ns("preview"))
+        kit_detail(
+          "結果預覽",
+          shiny::tags$p(class = "kit-hint", shiny::textOutput(ns("preview_meta"), inline = TRUE)),
+          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
         ),
-        kit_audit_accordion(
-          shiny::tags$p(class = "text-muted", res$audit$rule),
+        kit_audit_detail(
+          shiny::tags$p(class = "kit-hint", res$audit$rule),
           shiny::h6("最終核對"),
           shiny::tableOutput(ns("audit_checks")),
           shiny::h6("各檔案的列數與 ID"),
-          shiny::tableOutput(ns("audit_files")),
+          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("audit_files"))),
           shiny::h6("逐步合併"),
-          shiny::tableOutput(ns("audit_steps"))
+          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("audit_steps")))
         )
       )
     })
 
     output$preview_meta <- shiny::renderText({
       df <- result()$result
-      paste0(
-        format_dims(nrow(df), ncol(df), KIT_PREVIEW_COLS),
-        "；以下為前 ", KIT_PREVIEW_ROWS, " 列。"
-      )
+      kit_rows_note(nrow(df), ncol(df), KIT_PREVIEW_ROWS, KIT_PREVIEW_COLS)
     })
     output$preview <- shiny::renderTable(
       kit_preview_table(result()$result, priority_cols = result()$by_vars),
@@ -292,10 +319,15 @@ mod_join_server <- function(id, files, working, goto) {
     output$audit_checks <- shiny::renderTable(
       result()$audit$checks,
       digits = 0,
-      na = "—"
+      na = "—",
+      format.args = list(big.mark = ",")
     )
-    output$audit_files <- shiny::renderTable(result()$audit$files, digits = 0)
-    output$audit_steps <- shiny::renderTable(result()$audit$steps, digits = 0)
+    output$audit_files <- shiny::renderTable(
+      result()$audit$files, digits = 0, format.args = list(big.mark = ",")
+    )
+    output$audit_steps <- shiny::renderTable(
+      result()$audit$steps, digits = 0, format.args = list(big.mark = ",")
+    )
 
     output$code <- shiny::renderUI({
       spec <- id_spec()
@@ -306,28 +338,36 @@ mod_join_server <- function(id, files, working, goto) {
         id_cols = spec$id_cols
       ))
     })
+
+    # 這一頁的狀態（步驟分頁打 ✓ 用）
+    list(state = shiny::reactive(status()$state))
   })
 }
 
-#' 「詳細核對（進階）」收合區
+#' 「詳細核對」：結果下面那一排細節的一個（預設收起）
 #' @noRd
-kit_audit_accordion <- function(...) {
-  shiny::tags$div(
-    class = "kit-audit",
-    bslib::accordion(
-      open = FALSE,
-      bslib::accordion_panel(
-        title = "詳細核對（進階）",
-        icon = shiny::icon("list-check"),
-        ...
-      )
-    )
-  )
+kit_audit_detail <- function(...) {
+  kit_detail("詳細核對（進階）", ...)
 }
 
-#' 各分頁的「到 ① 上傳檔案」「到 ② 遺漏值轉 NA」連結
+#' 設定摘要用的串接方法簡稱：「全勤樣本」
+#' @noRd
+kit_join_method_short <- function(method) {
+  label <- names(KIT_JOIN_METHODS)[match(method %||% "", KIT_JOIN_METHODS)]
+  if (is.na(label)) return(NULL)
+  sub("：.*$", "", label)
+}
+
+#' 設定摘要用的資料來源：「原始資料」或「② 處理後的資料」
+#' @noRd
+kit_source_short <- function(source) {
+  if (identical(source, "na")) "遺漏值處理後的資料" else "原始資料"
+}
+
+#' 各分頁的「到 檔案上傳」「到 遺漏值處理」連結
 #' @noRd
 watch_goto_links <- function(input, goto) {
   shiny::observeEvent(input$goto_upload, goto("upload"))
+  shiny::observeEvent(input$goto_upload_status, goto("upload"))
   shiny::observeEvent(input$goto_missing, goto("missing"))
 }

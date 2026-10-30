@@ -1,4 +1,4 @@
-# ⑦ 長寬互轉模組：用假的 files / working 直接驅動
+# 長/寬格式轉換模組：用假的 files / working 直接驅動
 
 fake_files <- function(dfs) {
   n <- length(dfs)
@@ -47,7 +47,7 @@ test_that("kitsUI 分數表：顯示預設按鈕，轉換後可下載並看到�
       expect_equal(dim(result()$result), c(6, 13))
       expect_match(output$downloads$html, "download_csv")
       expect_match(output$preview_meta, "11 列 × 17 欄.*6 列 × 13 欄")
-      expect_match(output$result$html, "空白格從哪裡來")
+      expect_match(output$result_details$html, "空白格從哪裡來")
       expect_match(output$empty_table, "motor")
       expect_match(output$code$html, 'names_vary = "slowest"')
       expect_no_match(output$code$html, "base R 版")
@@ -77,7 +77,7 @@ test_that("id × names_from 重複時停下並列出重複列", {
   shiny::testServer(mod_reshape_server, args = reshape_args(list(doubled)), {
     set_preset_inputs(session)
     session$setInputs(run = 1)
-    expect_match(output$status$html, "沒有完成")
+    expect_match(output$status$html, "停下來")
     expect_null(result())
     expect_match(output$blocked$html, "重複的列（共 2 列")
     expect_match(output$blocked_rows, "M03_001_12")
@@ -97,7 +97,7 @@ test_that("round 在同一個 visit 內不同：提醒並列出不一致的列",
     session$setInputs(run = 1)
     expect_match(output$status$html, "完成，但請注意")
     expect_match(output$status$html, "round")
-    expect_match(output$result$html, "id 欄不一致的列")
+    expect_match(output$result_details$html, "id 欄不一致的列")
     expect_match(output$id_rows, "M03_001_12")
   })
 })
@@ -119,7 +119,7 @@ test_that("寬轉長（暫時控制項）與換方向後結果失效", {
     expect_match(output$code$html, "pivot_longer")
 
     session$setInputs(direction = "wider")
-    expect_match(output$status$html, "需要重新執行")
+    expect_match(output$status$html, "要重新執行")
     expect_null(result())
   })
 })
@@ -137,7 +137,7 @@ test_that("選第二個檔案、② 處理後的資料也會被使用", {
       names_from = "k", values_from = "x", name_mode = "sep",
       names_sep = "_", names_prefix = "", names_vary = "fastest", values_fill = ""
     )
-    expect_match(output$source_note$html, "遺漏值轉 NA")
+    expect_match(output$source_note$html, "遺漏值處理")
     session$setInputs(run = 1)
     expect_equal(result()$result$a, NA_real_)
     expect_equal(result()$result$b, 2)
@@ -154,7 +154,7 @@ test_that("沒有檔案時提示先上傳", {
 })
 
 test_that("整個 app：⑦ 分頁存在，只上傳 1 個檔案也能轉換", {
-  expect_match(as.character(kit_ui(NULL)), "⑦ 長寬互轉")
+  expect_match(as.character(kit_ui(NULL)), "長/寬格式轉換")
   dir <- withr::local_tempdir()
   path <- file.path(dir, "scores.csv")
   readr::write_csv(sim_kitsui_scores(), path, na = "")

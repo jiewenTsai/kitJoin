@@ -20,7 +20,7 @@ test_that("⑧ 只列出另外兩種格式，轉換後可下載", {
     expect_equal(back$id, c("0012", "0013"))
 
     session$setInputs(target = "sav")
-    expect_match(output$status$html, "需要重新執行")
+    expect_match(output$status$html, "要重新執行")
     expect_null(result())
   })
 })
@@ -61,5 +61,5 @@ test_that("⑧ 與其他分頁完全獨立：① 沒有檔案也能轉，轉完 
 })
 
 test_that("⑧ 分頁在 app 裡", {
-  expect_match(as.character(kit_ui(NULL)), "⑧ 檔案格式轉換")
+  expect_match(as.character(kit_ui(NULL)), "檔案格式轉換")
 })

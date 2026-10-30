@@ -1,4 +1,4 @@
-# ④ 長格式疊加
+# 直向波次疊加
 
 #' @noRd
 mod_stack_ui <- function(id) {
@@ -7,7 +7,7 @@ mod_stack_ui <- function(id) {
     kit_tab_guide(
       goal = "把各波資料上下疊起來：每個人在每一波各佔一列，並用 wave 欄標示是哪一波。",
       steps = kit_steps(
-        "確認「① 上傳檔案」中每個檔案的波次名稱（會填進 wave 欄）",
+        "確認「檔案上傳」中每個檔案的波次名稱（會填進 wave 欄）",
         "按「執行疊加」，看結果摘要與預覽",
         "下載 CSV 或 SAV"
       ),
@@ -18,11 +18,15 @@ mod_stack_ui <- function(id) {
       )
     ),
     shiny::uiOutput(ns("source_note")),
-    shiny::actionButton(ns("run"), "執行疊加", class = "btn-primary"),
+    shiny::uiOutput(ns("settings_line")),
+    kit_button(ns("run"), "執行疊加", "primary"),
     shiny::uiOutput(ns("status")),
-    kit_download_ui(ns),
     shiny::uiOutput(ns("result")),
-    kit_code_panel(ns("code"))
+    kit_download_ui(ns),
+    kit_details_row(
+      shiny::uiOutput(ns("result_details"), inline = TRUE),
+      kit_code_panel(ns("code"))
+    )
   )
 }
 
@@ -44,6 +48,19 @@ mod_stack_server <- function(id, files, working, goto) {
       )
     })
 
+    # 設定摘要：「本次：5 個檔案 · wave 欄填 t1、t2… · 原始資料」
+    output$settings_line <- shiny::renderUI({
+      n <- length(files$keys())
+      if (n < 2) return(NULL)
+      labels <- files$labels()
+      kit_settings_line(c(
+        paste0(n, " 個檔案"),
+        paste0("wave 欄填 ", paste(utils::head(labels, 6), collapse = "、"),
+               if (length(labels) > 6) "…"),
+        kit_source_short(working$source())
+      ))
+    })
+
     shiny::observeEvent(list(working$data(), files$labels()), {
       if (!is.null(result())) {
         result(NULL)
@@ -59,14 +76,16 @@ mod_stack_server <- function(id, files, working, goto) {
           result(out)
           kit_done_status(
             paste0(
-              "疊加完成！結果共 ",
+              "疊加完成：結果共 ",
               format_dims(nrow(out$result), ncol(out$result)),
               "。"
             ),
             warnings = out$warnings
           )
         }),
-        error = function(e) kit_error_status(e, "疊加")
+        error = function(e) {
+          kit_error_status(e, "疊加", kit_upload_todo(ns, length(files$keys()), 2L))
+        }
       )
       status(st)
       kit_notify(st)
@@ -92,32 +111,32 @@ mod_stack_server <- function(id, files, working, goto) {
       run_label = "執行疊加"
     )
 
+    # 重點：結果摘要；預覽與詳細核對收在下面一排細節裡
     output$result <- shiny::renderUI({
       res <- result()
       if (is.null(res)) return(NULL)
+      kit_summary_ui(res$summary)
+    })
+    output$result_details <- shiny::renderUI({
+      if (is.null(result())) return(NULL)
       shiny::tagList(
-        kit_summary_ui(res$summary),
-        shiny::h4("結果預覽"),
-        shiny::textOutput(ns("preview_meta")),
-        shiny::tags$div(
-          class = "kit-table-scroll",
-          shiny::tableOutput(ns("preview"))
+        kit_detail(
+          "結果預覽",
+          shiny::tags$p(class = "kit-hint", shiny::textOutput(ns("preview_meta"), inline = TRUE)),
+          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
         ),
-        kit_audit_accordion(
+        kit_audit_detail(
           shiny::h6("最終核對"),
           shiny::tableOutput(ns("audit_checks")),
           shiny::h6("各檔案的列數"),
-          shiny::tableOutput(ns("audit_files"))
+          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("audit_files")))
         )
       )
     })
 
     output$preview_meta <- shiny::renderText({
       df <- result()$result
-      paste0(
-        format_dims(nrow(df), ncol(df), KIT_PREVIEW_COLS),
-        "；以下為前 ", KIT_PREVIEW_ROWS, " 列。"
-      )
+      kit_rows_note(nrow(df), ncol(df), KIT_PREVIEW_ROWS, KIT_PREVIEW_COLS)
     })
     output$preview <- shiny::renderTable({
       res <- result()
@@ -126,12 +145,18 @@ mod_stack_server <- function(id, files, working, goto) {
     output$audit_checks <- shiny::renderTable(
       result()$audit$checks,
       digits = 0,
-      na = "—"
+      na = "—",
+      format.args = list(big.mark = ",")
     )
-    output$audit_files <- shiny::renderTable(result()$audit$files, digits = 0)
+    output$audit_files <- shiny::renderTable(
+      result()$audit$files, digits = 0, format.args = list(big.mark = ",")
+    )
 
     output$code <- shiny::renderUI({
       kit_code_blocks(code_stack(code_files_from(files, 2L)))
     })
+
+    # 這一頁的狀態（步驟分頁打 ✓ 用）
+    list(state = shiny::reactive(status()$state))
   })
 }

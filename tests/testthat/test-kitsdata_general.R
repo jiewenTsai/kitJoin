@@ -99,7 +99,7 @@ test_that("A1：TDCYP 的 98、99 照原樣寫進作答檔並提醒到 ②；平
   expect_match(w, "3 題有疑似遺漏值代碼，共 5 格")
   expect_match(w, "q1：98（值標籤「跳答」）、99（值標籤「遺漏值」）")
   expect_match(w, "會照原樣寫進作答檔")
-  expect_match(w, "請先到「② 遺漏值轉 NA」把它們改成 NA")
+  expect_match(w, "請先到「遺漏值處理」把它們改成 NA")
   expect_no_match(w, "合併")
   expect_no_match(w, "中間有缺")                   # 代碼不算分數的空隙
   # 狀態不是綠色的「完成」
@@ -158,7 +158,7 @@ test_that("A1：分數有缺而且最高的值像代碼時，提醒不要合併�
   w <- paste(out$warnings, collapse = "\n")
   expect_match(w, "最高的值像遺漏值代碼（q1：9）")
   expect_match(w, "請不要用「合併」")
-  expect_match(w, "請先到「② 遺漏值轉 NA」")
+  expect_match(w, "請先到「遺漏值處理」")
   expect_no_match(w, "用「合併」把分數接起來")
   expect_no_match(w, "當成遺漏值")
 })
@@ -173,7 +173,7 @@ test_that("A1：性別、wave_m、age_m 的疑似遺漏值代碼照原樣輸出�
   out <- kits_build(dfs, "a.csv", spec)
   expect_match(out$warnings, "age_m（age_m）有 1 格疑似遺漏值代碼 9999（7777 以上）",
                all = FALSE)
-  expect_match(out$warnings, "② 遺漏值轉 NA", all = FALSE)
+  expect_match(out$warnings, "遺漏值處理", all = FALSE)
   long <- kits_long_of(out)
   expect_equal(unique(long$age_m[long$subj_id == "2"]), 9999)
   expect_named(kits_side_codes(dfs, map[c("wave_m", "age_m")]), "age_m")

@@ -1,4 +1,4 @@
-# ⑥ 轉成 kits 作答檔：寬格式（一列一個孩子的一個波次、一題一欄）→ kits 的長格式
+# 轉成 kits 作答檔：寬格式（一列一個孩子的一個波次、一題一欄）→ kits 的長格式
 #
 # 輸出固定 9 欄、固定順序（kits 與 kitsUI 的資料約定）：
 #   visit_id、subj_id、cohort、sex、wave_m、age_m、item_id、item_score、domain
@@ -354,7 +354,7 @@ kits_item_ranges <- function(dfs, items, below = Inf) {
 #
 # ⑥ 不自己把值改成 NA（預設資料是對的）。下面這幾種值是疑似遺漏值代碼，只用來提醒：
 #   1. 值標籤是「遺漏值」「跳答」「不適用」「拒答」這類（KITS_CODE_LABEL_PATTERN）
-#   2. ② 的代碼清單（「遺漏值轉 NA」上方填的代碼；沒有用 ② 時也會看）
+#   2. ② 的代碼清單（「遺漏值處理」上方填的代碼；沒有用 ② 時也會看）
 #   3. 7777 以上（KIT 的代碼）
 #   4. 和分數明顯分開的值：例如分數是 1–5，又有 95–99（kits_separated_codes()）
 # 這些值不在計分對照裡（平移、反向不會動到它們），照原樣寫進作答檔；每一題的代碼列在
@@ -421,7 +421,7 @@ kits_value_codes <- function(vals, labels = NULL, na_codes = NULL) {
     hit <- !is.na(lab) & grepl(KITS_CODE_LABEL_PATTERN, lab, ignore.case = TRUE)
     why[hit] <- paste0("值標籤「", lab[hit], "」")
   }
-  why[is.na(why) & vals %in% na_codes] <- "遺漏值轉 NA 的代碼"
+  why[is.na(why) & vals %in% na_codes] <- "遺漏值處理 的代碼"
   why[is.na(why) & vals >= KITS_CODE_MIN] <- paste0(KITS_CODE_MIN, " 以上")
   sep <- kits_separated_codes(vals[is.na(why)])
   why[is.na(why) & vals %in% sep] <- "和分數分開"
@@ -807,7 +807,7 @@ kits_settings_alerts <- function(settings) {
           like <- kits_code_like(sc)
           out <- c(out, if (length(like) > 0) {
             paste0("分數有缺（", paste(kits_id_text(like), collapse = "、"),
-                   " 像遺漏值代碼：請先用「遺漏值轉 NA」改成 NA，不要合併）")
+                   " 像遺漏值代碼：請先用「遺漏值處理」改成 NA，不要合併）")
           } else {
             "分數有缺"
           })
@@ -927,7 +927,7 @@ kits_apply_score_map <- function(x, raw, score) {
 #' @noRd
 kits_spec_problems <- function(dfs, file_names, spec) {
   out <- character(0)
-  if (length(dfs) == 0) return("請先到「① 上傳檔案」加入檔案。")
+  if (length(dfs) == 0) return("請先到「檔案上傳」加入檔案。")
   for (i in seq_along(dfs)) {
     co <- spec$cohort[[i]]
     if (is.null(co) || !nzchar(co$value %||% "")) {
@@ -1175,8 +1175,8 @@ kits_items_with_codes <- function(dfs, items, na_codes = NULL) {
 
 # 疑似遺漏值代碼的提醒都用這一句收尾（連到 ② 的按鈕在畫面最上面）
 KITS_CODES_ADVICE <- paste0(
-  "⑥ 不會改這些值，會照原樣寫進作答檔（當成分數）。如果它們是遺漏值，",
-  "請先到「遺漏值轉 NA」把它們改成 NA（SPSS 檔可以選「依 SPSS 數值標籤」），再回來執行轉換。"
+  "這一頁不會改這些值，會照原樣寫進作答檔（當成分數）。如果它們是遺漏值，",
+  "請先到「遺漏值處理」把它們改成 NA（SPSS 檔可以選「依 SPSS 數值標籤」），再回來執行轉換。"
 )
 
 #' 題目裡的疑似遺漏值代碼：提醒（不改資料）
@@ -1379,7 +1379,7 @@ kits_cohort_codes <- function(dfs, file_names, cohorts, na_codes = NULL) {
       file_names[i], "：世代欄 ", co$value, " 有遺漏值代碼 ", kits_codes_text(codes), "，共 ",
       sum(vals %in% codes$value), " 列，這些列的世代會是「",
       paste(kits_id_text(codes$value), collapse = "」「"), "」。",
-      "請先到「遺漏值轉 NA」把它們改成 NA（世代空白的列不能轉換），或換一個世代欄。"
+      "請先到「遺漏值處理」把它們改成 NA（世代空白的列不能轉換），或換一個世代欄。"
     ))
   }
   out
@@ -1626,7 +1626,7 @@ kits_score_problems <- function(dfs, items) {
   if (length(neg) > 0) {
     out <- c(out, paste0(
       "這些題有負分：", paste(utils::head(neg, 8), collapse = "、"),
-      "。如果負數（例如 -1）代表遺漏，請先到「遺漏值轉 NA」處理；",
+      "。如果負數（例如 -1）代表遺漏，請先到「遺漏值處理」處理；",
       "如果是計分對照造成的，請在「3. 題目設定」修改。"
     ))
   }
@@ -1717,7 +1717,7 @@ kits_wide_checks <- function(prep, spec) {
   if (length(neg) > 0) {
     problems <- c(problems, paste0(
       length(neg), " 個列次的 wave_m 是負的（例如 ", kits_id_text(neg[1]), "）。",
-      "時間點要是 0 以上的數字；如果負數是遺漏值代碼，請先到「遺漏值轉 NA」處理。"
+      "時間點要是 0 以上的數字；如果負數是遺漏值代碼，請先到「遺漏值處理」處理。"
     ))
   }
 
@@ -1827,7 +1827,7 @@ kits_score_warnings <- function(stats, persons, spec) {
     shown <- paste0(like, "：", per_item$code_like[match(like, per_item$item_id)])
     out <- c(out, paste0(
       length(like), " 題的分數中間有缺，而且最高的值像遺漏值代碼（", some(shown), "）。",
-      "請不要用「合併」把它接起來；如果是遺漏值，請先到「遺漏值轉 NA」把它們改成 NA，",
+      "請不要用「合併」把它接起來；如果是遺漏值，請先到「遺漏值處理」把它們改成 NA，",
       "再回來執行轉換。"
     ))
     gap <- setdiff(gap, like)

@@ -1,9 +1,9 @@
-# 寬格式串接：每人一列，各波變項加上後綴並排
+# 橫向資料串接：每人一列，各波變項加上後綴並排
 
 # 串接結果（列數 × 欄數）超過這個格數就直接拒絕：多對多暴增時 R 會用光記憶體
 KIT_JOIN_MAX_CELLS <- 2e8
 
-#' 寬格式串接（含檢查、核對與白話摘要）
+#' 橫向資料串接（含檢查、核對與白話摘要）
 #'
 #' @param dfs 各波資料框（依串接順序）
 #' @param file_names 各檔檔名
@@ -80,7 +80,7 @@ join_waves <- function(dfs, file_names, wave_labels, by_vars,
 check_join_inputs <- function(dfs, file_names, wave_labels, by_vars,
                               id_cols = rep(list(by_vars), length(dfs))) {
   if (length(dfs) < 2) {
-    kit_abort("需要至少 2 個檔案才能串接。請到「① 上傳檔案」再加入一個波次的檔案。")
+    kit_abort("需要至少 2 個檔案才能串接。請到「檔案上傳」再加入一個波次的檔案。")
   }
   if (length(by_vars) == 0) {
     kit_abort("請先選擇用來辨識同一個人的 ID 欄位。")
@@ -293,14 +293,14 @@ check_wave_labels <- function(
   if (length(empty) > 0) {
     return(paste0(
       "第 ", empty[1], " 個檔案（", file_names[empty[1]], "）沒有填波次名稱。",
-      "請到「① 上傳檔案」填寫，例如 t", empty[1], "；每個檔案都需要波次名稱，", why
+      "請到「檔案上傳」填寫，例如 t", empty[1], "；每個檔案都需要波次名稱，", why
     ))
   }
   normalized <- join_suffix(wave_labels)
   dup <- unique(wave_labels[duplicated(normalized)])
   if (length(dup) > 0) {
     return(paste0(
-      "波次名稱「", dup[1], "」重複了。請到「① 上傳檔案」把每個檔案的波次名稱改成不同的，",
+      "波次名稱「", dup[1], "」重複了。請到「檔案上傳」把每個檔案的波次名稱改成不同的，",
       why
     ))
   }
@@ -311,7 +311,7 @@ check_wave_labels <- function(
     return(paste0(
       "波次名稱「", other, "」和「", wave_labels[case_dup[1]], "」只差在大小寫，",
       "容易混淆，而且 SPSS 不分大小寫，匯出 SAV 時欄名會衝突。",
-      "請到「① 上傳檔案」改成明顯不同的名稱。"
+      "請到「檔案上傳」改成明顯不同的名稱。"
     ))
   }
   NULL

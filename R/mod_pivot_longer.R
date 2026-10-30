@@ -1,7 +1,7 @@
 # 共用元件：pivot_longer() 的設定（寬轉長）
 #
 # 每個控制項對應 tidyr::pivot_longer() 的一個參數，畫面上寫中文與參數名稱；
-# 預設值和 tidyr 相同。⑥ 轉成 kits 作答檔用它（參數全部固定），⑦ 長寬互轉也用它。
+# 預設值和 tidyr 相同。轉成 kits 作答檔用它（參數全部固定），長/寬格式轉換也用它。
 #
 # 介面：
 #   mod_pivot_longer_ui(id)
@@ -76,12 +76,8 @@ mod_pivot_longer_server <- function(id, data, fixed = list()) {
           pivot_cols_ui(ns, shiny::isolate(all_cols()), shiny::isolate(input$cols))
         },
         shiny::tags$div(class = "kit-pivot-row", text("names_to"), text("values_to")),
-        shiny::tags$details(
-          class = "kit-pivot-advanced",
-          open = if (any(c("names_prefix", "names_pattern", "values_drop_na") %in% names(fixed))) {
-            NA
-          },
-          shiny::tags$summary("進階參數"),
+        kit_advanced(
+          open = any(c("names_prefix", "names_pattern", "values_drop_na") %in% names(fixed)),
           text("names_prefix", "例如 score_"),
           text("names_pattern", "例如 (.*)_t(\\d)"),
           if (locked("values_drop_na")) {
@@ -195,9 +191,9 @@ pivot_cols_ui <- function(ns, choices = NULL, selected = NULL) {
 
 # 快速選欄的按鈕；按下時送出 cols_pick = "all"、"none" 或 "g1"、"g2"…
 pivot_quick_ui <- function(input_id, groups) {
-  btn <- function(key, label, cls = "btn-outline-secondary") {
+  btn <- function(key, label) {
     shiny::tags$button(
-      type = "button", class = paste("btn btn-sm", cls), style = "text-transform: none;",
+      type = "button", class = paste("btn", KIT_BTN[["secondary"]]), style = "text-transform: none;",
       onclick = sprintf(
         "Shiny.setInputValue('%s', '%s', {priority: 'event'})", input_id, key
       ),
@@ -206,7 +202,7 @@ pivot_quick_ui <- function(input_id, groups) {
   }
   group_btns <- purrr::map(seq_len(nrow(groups)), function(i) {
     label <- paste0(groups$prefix[i], " 開頭（", groups$n[i], " 欄）")
-    btn(paste0("g", i), label, "btn-outline-primary")
+    btn(paste0("g", i), label)
   })
   shiny::tags$div(
     class = "d-flex flex-wrap align-items-center gap-1 mb-2",

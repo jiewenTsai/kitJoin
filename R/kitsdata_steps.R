@@ -1,4 +1,4 @@
-# ⑥ 轉成 kits 作答檔：三個步驟用到的純函式（畫面在 mod_kitsdata.R）
+# 轉成 kits 作答檔：三個步驟用到的純函式（畫面在 mod_kitsdata.R）
 #
 # 第 1 步：一列一個檔案，每一格是「檔案裡的一欄」或「自己填的值」→ kits_spec() 要的
 #          cohort、map、per_file、typed。
@@ -159,7 +159,7 @@ kits_pick_cols <- function(cols, text) {
 #'
 #' @param settings 題目設定
 #' @param side_cells 性別、wave_m、age_m 裡疑似遺漏值代碼的格數
-#' @param na_applied TRUE 時資料已經過「遺漏值轉 NA」
+#' @param na_applied TRUE 時資料已經過「遺漏值處理」
 #' @param ack list(codes = 使用者說「它們是真的分數」時的格數, shift = 「不用改」時的最低分,
 #'   shifted = 已經減掉的分數)
 #' @param reverse_used TRUE 時用了題目表（反向題才有意義）
@@ -180,7 +180,7 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   val_txt <- paste(kits_id_text(utils::head(vals, 6)), collapse = "、")
   if (length(vals) > 6) val_txt <- paste0(val_txt, "…")
   if (n_cells == 0) {
-    out$codes <- row("codes", "ok", if (na_applied) "遺漏值代碼已經用「遺漏值轉 NA」改成 NA" else
+    out$codes <- row("codes", "ok", if (na_applied) "遺漏值代碼已經用「遺漏值處理」改成 NA" else
       "沒有看起來像遺漏值代碼的值")
   } else if (identical(ack$codes, n_cells)) {
     out$codes <- row("codes", "ok", paste0(n_cols, " 欄的 ", val_txt, " 照原樣當成分數（你選的）"))
@@ -241,7 +241,7 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   neg <- purrr::map_lgl(inc$score, function(s) any(s < 0, na.rm = TRUE))
   if (any(neg)) {
     out$neg <- row("neg", "note", paste0(sum(neg), " 欄有負分"),
-                   "如果負數是遺漏值代碼，請先用「遺漏值轉 NA」改成 NA。")
+                   "如果負數是遺漏值代碼，請先用「遺漏值處理」改成 NA。")
   }
 
   # 反向題（用了題目表時才看）

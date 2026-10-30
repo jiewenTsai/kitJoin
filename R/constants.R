@@ -3,7 +3,7 @@
 # 預覽表最多顯示幾欄、幾列
 KIT_PREVIEW_COLS <- 20L
 KIT_PREVIEW_ROWS <- 10L
-KIT_RESHAPE_PREVIEW_ROWS <- 20L   # ⑦ 長寬互轉
+KIT_RESHAPE_PREVIEW_ROWS <- 20L   # 長/寬格式轉換
 
 # 單檔上傳上限（MB）
 KIT_UPLOAD_MB <- 500
@@ -11,7 +11,7 @@ KIT_UPLOAD_MB <- 500
 # kitsUI 雲端版（⑥ 的作答檔、CSV.GZ 可以直接上傳）
 KITSUI_URL <- "https://jiewentsai-kitsui.share.connect.posit.cloud/"
 
-# 寬格式串接方法：值為 dplyr 函式名稱，名稱為給使用者看的中文說明
+# 橫向資料串接方法：值為 dplyr 函式名稱，名稱為給使用者看的中文說明
 KIT_JOIN_METHODS <- c(
   "向後追蹤樣本：只保留第一波次有出席的人，後續新加入的不會被納入（left join）" = "left_join",
   "全勤樣本：只保留每個波次都有出席的人（inner join）" = "inner_join",

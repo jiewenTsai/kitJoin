@@ -56,7 +56,7 @@ read_data_file <- function(path, name, sav_encoding = "auto") {
     if (ext %in% c("xlsx", "xls")) {
       "Excel 檔請先在 Excel 用「另存新檔 → CSV UTF-8（逗號分隔）」存成 CSV 再上傳。"
     } else if (ext == "gz") {
-      "壓縮過的 CSV（.csv.gz）請先到「⑧ 檔案格式轉換」解壓縮成 .csv 再上傳。"
+      "壓縮過的 CSV（.csv.gz）請先到「檔案格式轉換」解壓縮成 .csv 再上傳。"
     }
   )
 }

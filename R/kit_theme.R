@@ -141,29 +141,11 @@ kit_css <- function() {
       top: 0;
       background: #fff;
     }
-    .kit-code-panel {
-      margin-top: 2rem;
-    }
-    .kit-code-block {
-      margin-bottom: 1rem;
-    }
     .kit-code-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 0.3rem;
-    }
-    .kit-code-block pre {
-      font-size: 0.8rem;
-      padding: 0.75rem;
-      margin: 0;
-      white-space: pre;
-      overflow-x: auto;
-    }
-    .kit-code-block pre code {
-      padding: 0;
-      background: none;
-      color: inherit;
     }
     .alert.kit-cloud-banner {
       margin-bottom: 1rem;

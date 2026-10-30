@@ -32,5 +32,5 @@ test_that("下載區有 CSV.GZ 按鈕，下載的檔案是壓縮過的 CSV", {
 test_that("① 不收 .csv.gz：請使用者先到 ⑧ 轉成 CSV", {
   path <- withr::local_tempfile(fileext = ".gz")
   readr::write_csv(data.frame(x = 1), path)
-  expect_error(read_data_file(path, "w1.csv.gz"), "⑧", class = "kit_user_error")
+  expect_error(read_data_file(path, "w1.csv.gz"), "檔案格式轉換", class = "kit_user_error")
 })

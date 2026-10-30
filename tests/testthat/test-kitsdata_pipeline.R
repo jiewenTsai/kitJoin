@@ -123,7 +123,7 @@ test_that("visit_id 直接用某一欄時，兩個世代撞號會擋下", {
   expect_match(out$problems, "兩個世代", all = FALSE)
 })
 
-# ② 遺漏值轉 NA 的結果（⑥ 不處理遺漏值代碼）
+# 遺漏值處理 的結果（⑥ 不處理遺漏值代碼）
 after_missing <- function(df, codes = c(7777, 9999)) {
   replace_na_codes(df, codes, exclude = "release_id")$data
 }
@@ -172,7 +172,7 @@ test_that("負分擋下並建議當成遺漏值代碼；文字的題目欄擋下
   dfs[[1]]$lana01[1] <- -1
   out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs))
   expect_match(out$problems, "負分", all = FALSE)
-  expect_match(out$problems, "② 遺漏值轉 NA", all = FALSE)
+  expect_match(out$problems, "遺漏值處理", all = FALSE)
   dfs <- purrr::map(dfs, after_missing, codes = -1)
   out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs))
   expect_length(out$problems, 0)
@@ -263,7 +263,7 @@ test_that("沒改的題不會出現在計分對照的程式碼裡", {
   expect_match(code, "kits_item_settings.csv")
   code <- code_kitsdata(code_files(c("a.csv", "b.csv"), c("t1", "t2")), sim_spec(dfs),
                         na_applied = TRUE)
-  expect_match(code, "「② 遺漏值轉 NA」已經把遺漏值代碼改成 NA")
+  expect_match(code, "「遺漏值處理」已經把遺漏值代碼改成 NA")
 })
 
 test_that("疑似遺漏值代碼：數格數；減 1 的建議不被 7777 以上的值誤導", {
@@ -276,7 +276,7 @@ test_that("疑似遺漏值代碼：數格數；減 1 的建議不被 7777 以上
   expect_equal(kits_item_ranges(dfs, "lana01")$max, 9999)
   out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs))
   expect_match(out$warnings, "lana01：9999（7777 以上）", all = FALSE)
-  expect_match(out$warnings, "請先到「② 遺漏值轉 NA」把它們改成 NA", all = FALSE)
+  expect_match(out$warnings, "請先到「遺漏值處理」把它們改成 NA", all = FALSE)
   # KIT 的 9999 照原樣寫進作答檔（以前也是；0.5.0 起多了提醒）
   expect_true(9999 %in% kits_long_of(out)$item_score)
 })

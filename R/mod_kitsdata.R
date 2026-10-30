@@ -1,4 +1,4 @@
-# ⑥ 轉成 kits 作答檔
+# 轉成 kits 作答檔
 #
 # 三個步驟，做完一步收成一行（KIT 設計語言：步驟卡）：
 #   1. 每個檔案是哪個世代、哪個波次（一列一個檔案）
@@ -25,7 +25,7 @@ mod_kitsdata_ui <- function(id) {
         " ", htmltools::tagAppendAttributes(kit_kitsui_button("開啟 kitsUI"), class = "btn-sm")
       ),
       note = paste0(
-        "只要一個波次或一個領域時，請在「上傳檔案」只上傳那一個檔案。",
+        "只要一個波次或一個領域時，請在「檔案上傳」只上傳那一個檔案。",
         "沒有作答的題不會放進作答檔。"
       ),
       technical = paste0(
@@ -34,8 +34,8 @@ mod_kitsdata_ui <- function(id) {
         "檢查都在寬資料上做；長格式在下載時每 5,000 列寬資料轉一段、寫進 .csv.gz，不會整張放進記憶體。",
         "visit_id 由 {cohort}_{subj_id}_{波次標籤} 組成；沒有波次標籤欄時改用 wave_m。",
         "這一頁不把任何值改成 NA：疑似遺漏值代碼（值標籤是「遺漏值」「跳答」這類、",
-        "「遺漏值轉 NA」的代碼、7777 以上、和分數明顯分開的值）要在第 3 步決定：",
-        "先用「遺漏值轉 NA」改成 NA，或照原樣當成分數。"
+        "「遺漏值處理」的代碼、7777 以上、和分數明顯分開的值）要在第 3 步決定：",
+        "先用「遺漏值處理」改成 NA，或照原樣當成分數。"
       )
     ),
     shiny::uiOutput(ns("source_note")),
@@ -58,7 +58,7 @@ mod_kitsdata_ui <- function(id) {
             shiny::uiOutput(ns("visit_note"))
           ),
           shiny::uiOutput(ns("wave_unit_note")),
-          kitsdata_detail(
+          kit_detail(
             "還有性別、實際月齡、波次標籤（不一定要）",
             shiny::uiOutput(ns("more_table")),
             shiny::radioButtons(
@@ -84,7 +84,7 @@ mod_kitsdata_ui <- function(id) {
             accept = c(".csv", ".sav"), buttonLabel = "選擇檔案…", placeholder = "還沒有上傳",
             width = "34rem"
           ),
-          kitsdata_detail(
+          kit_detail(
             "沒有題目表：用欄名挑",
             shiny::tags$div(
               class = "kit-inline",
@@ -98,9 +98,9 @@ mod_kitsdata_ui <- function(id) {
             shiny::actionLink(ns("pick_clear"), "全部清掉，重新挑")
           ),
           shiny::uiOutput(ns("items_status")),
-          kitsdata_details_row(
-            kitsdata_detail("看挑出來的題目", shiny::uiOutput(ns("items_list"))),
-            kitsdata_detail(
+          kit_details_row(
+            kit_detail("看挑出來的題目", shiny::uiOutput(ns("items_list"))),
+            kit_detail(
               "題目表的格式",
               shiny::tags$p(class = "kit-hint",
                 "CSV 或 SAV，一列一題：item_id（資料裡的欄名）、domain（領域）；",
@@ -111,7 +111,7 @@ mod_kitsdata_ui <- function(id) {
                 choices = KITS_REVERSE_RULES, selected = "suffix", width = "24rem"
               )
             ),
-            kitsdata_detail("不能當題目的欄", shiny::uiOutput(ns("text_cols")))
+            kit_detail("不能當題目的欄", shiny::uiOutput(ns("text_cols")))
           ),
           shiny::actionButton(ns("ok2"), "對，下一步", class = "btn-default")
         )
@@ -125,7 +125,7 @@ mod_kitsdata_ui <- function(id) {
           open_is(3), ns = ns, class = "kit-stepbody",
           shiny::tags$p("kits 要的分數是 0、1、2…。轉換前，看下面每一件事："),
           shiny::uiOutput(ns("checks")),
-          kitsdata_details_row(kitsdata_detail(
+          kit_details_row(kit_detail(
             shiny::textOutput(ns("items_title"), inline = TRUE),
             kitsdata_items_tools(ns),
             shiny::uiOutput(ns("items_table")),
@@ -141,16 +141,6 @@ mod_kitsdata_ui <- function(id) {
     )
   )
 }
-
-# 收合的細節（一行小字標題）與一排細節
-kitsdata_detail <- function(title, ..., open = FALSE) {
-  shiny::tags$details(
-    class = "kit-detail", open = if (open) NA,
-    shiny::tags$summary(title),
-    shiny::tags$div(class = "kit-detail-body", ...)
-  )
-}
-kitsdata_details_row <- function(...) shiny::tags$div(class = "kit-details", ...)
 
 # 逐題表上面：找欄名、要不要顯示沒挑的欄、換頁、勾選
 kitsdata_items_tools <- function(ns) {
@@ -204,7 +194,7 @@ kitsdata_bulk_tools <- function(ns) {
     shiny::tags$small(
       class = "kit-hint",
       "加減、反向都在目前的計分上做。遺漏值代碼（例如 98、99）不要用合併接起來，",
-      "請先用「遺漏值轉 NA」改成 NA。輸出題號是作答檔的 item_id：各波次欄名不同、其實是同一題時，",
+      "請先用「遺漏值處理」改成 NA。輸出題號是作答檔的 item_id：各波次欄名不同、其實是同一題時，",
       "給它們同一個題號（例如 w1d5_1、w2d5_1 去掉 ^w[0-9]+ 都是 d5_1）。"
     )
   )
@@ -212,8 +202,8 @@ kitsdata_bulk_tools <- function(ns) {
 
 #' @param files mod_upload_server() 的回傳值
 #' @param working mod_missing_server() 的回傳值
-#' @param goto function(tab) 切換分頁（到「遺漏值轉 NA」）
-#' @param na_codes NULL 或 reactive：「遺漏值轉 NA」的代碼清單（只用來找疑似遺漏值代碼）
+#' @param goto function(tab) 切換分頁（到「遺漏值處理」）
+#' @param na_codes NULL 或 reactive：「遺漏值處理」的代碼清單（只用來找疑似遺漏值代碼）
 #' @noRd
 mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
@@ -244,22 +234,23 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     output$source_note <- shiny::renderUI({
       if (!has_files()) {
         return(shiny::tags$div(
-          class = "kit-callout kit-callout-warning",
-          "請先到「上傳檔案」加入寬格式的資料檔（一個或多個）。"
+          class = "kit-callout kit-callout-warn",
+          "請先到「檔案上傳」加入寬格式的資料檔（一個或多個）。"
         ))
       }
-      # 「遺漏值轉 NA」的設定或檔案改過、還沒重新執行
+      # 「遺漏值處理」的設定或檔案改過、還沒重新執行
       if (identical(working$source(), "stale")) {
         shiny::tags$div(
-          class = "kit-callout kit-callout-warning",
-          "「遺漏值轉 NA」的設定改過了，請",
-          shiny::actionLink(ns("goto_missing_stale"), "重新執行「遺漏值轉 NA」"),
+          class = "kit-callout kit-callout-warn",
+          "「遺漏值處理」的設定改過了，請",
+          shiny::actionLink(ns("goto_missing_stale"), "重新執行「遺漏值處理」"),
           "，這一頁才會用到新的結果。"
         )
       }
     })
     shiny::observeEvent(input$goto_missing, goto("missing"))
     shiny::observeEvent(input$goto_missing_stale, goto("missing"))
+    shiny::observeEvent(input$goto_upload_status, goto("upload"))
 
     all_cols <- shiny::reactive(unique(unlist(purrr::map(dfs(), names))))
 
@@ -538,7 +529,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       btn <- function(id, label) shiny::actionButton(ns(id), label, class = "btn-default btn-choice")
       actions <- list(
         codes = function(x) if (x$state == "todo") list(
-          btn("goto_missing", "到「遺漏值轉 NA」改掉（建議）"),
+          btn("goto_missing", "到「遺漏值處理」改掉（建議）"),
           btn("ack_codes", "它們是真的分數")
         ) else if (!is.null(ack$codes)) list(shiny::actionLink(ns("unack_codes"), "改回來")),
         shift = function(x) if (x$state == "todo") list(
@@ -754,7 +745,9 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
             )
           }
         }),
-        error = function(e) kit_error_status(e, "轉換")
+        error = function(e) {
+          kit_error_status(e, "轉換", kit_upload_todo(ns, length(files$keys())))
+        }
       )
       status(st)
       kit_notify(st)
@@ -779,19 +772,19 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         ),
         shiny::h5("每個世代、每個領域有幾列"),
         shiny::tableOutput(ns("summary")),
-        kitsdata_details_row(
-          kitsdata_detail(
+        kit_details_row(
+          kit_detail(
             "作答檔預覽",
             shiny::tags$small(class = "kit-hint", paste0("前 ", KIT_PREVIEW_ROWS * 2, " 列。")),
             shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
           ),
-          kitsdata_detail(
+          kit_detail(
             "這次的設定（下次直接上傳）",
             shiny::tags$p(class = "kit-hint",
               "下一波在第 2 步上傳這個檔，就會套用同樣的題目、領域與計分對照。"),
             shiny::uiOutput(ns("settings_dl_ui"), inline = TRUE)
           ),
-          kitsdata_detail(
+          kit_detail(
             "其他下載",
             kit_download_button(
               session, "download_csv", "下載未壓縮的 CSV", kits_name("csv"),
@@ -804,8 +797,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
               "kitsUI 可以直接讀 .csv.gz（單檔上限 ", KITSUI_UPLOAD_MB, " MB）。"
             )
           ),
-          kitsdata_detail("kits 作答檔的格式", kitsdata_spec_ui()),
-          kitsdata_detail("用 R 怎麼做", shiny::uiOutput(ns("code")))
+          kit_detail("kits 作答檔的格式", kitsdata_spec_ui()),
+          kit_code_panel(ns("code"))
         )
       )
     })
@@ -828,6 +821,9 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         text_fix = text_fix
       ), base = NULL))
     })
+
+    # 這一頁的狀態（步驟分頁打 ✓ 用）
+    list(state = shiny::reactive(status()$state))
   })
 }
 

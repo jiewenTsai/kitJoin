@@ -1,4 +1,4 @@
-# ⑦ 長寬互轉：tidyr::pivot_wider() / pivot_longer() 的檢查與執行
+# 長/寬格式轉換：tidyr::pivot_wider() / pivot_longer() 的檢查與執行
 #
 # 設定一律用 tidyr 的參數名稱存成 list，介面、檢查、教學程式碼共用同一份。
 

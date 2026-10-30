@@ -156,8 +156,6 @@ a { color: var(--nb-green); text-decoration-thickness: 2px; text-underline-offse
 .table > :not(caption) > * > * { border-bottom-width: 1.5px; }
 
 /* 程式碼：米白底、黑框，沒有陰影（它通常在收合框裡） */
-.kit-code-block,
-.kit-code-panel,
 .well, pre {
   border: 2px solid var(--nb-ink);
   border-radius: var(--nb-radius);
@@ -363,6 +361,77 @@ details > summary {
   .nav-tabs .nav-link { white-space: nowrap; }
 }
 
+/* ── 新元件：狀態框 ── */
+/* 第一行是標籤＋一句結論（大字粗體）；條列最多 3 點，其他收在「還有 N 點」；
+   停下來時的「怎麼辦」連結；原始訊息收起來 */
+.kit-status-line { font-size: 1.08rem; font-weight: 700; }
+.kit-status ul { margin: 0.45rem 0 0; }
+.kit-status details { margin-top: 0.4rem; font-weight: 400; }
+.kit-status details > summary { font-size: 0.85rem; color: var(--nb-ink); }
+.kit-status-action { margin-top: 0.5rem; font-size: 0.95rem; }
+.kit-status-notes { font-weight: 400; font-size: 0.88rem; margin-top: 0.4rem; }
+.kit-status-raw code { display: block; white-space: pre-wrap; font-size: 0.85rem; }
+
+/* ── 新元件：進階設定、細節、設定摘要、下一步 ── */
+/* 進階設定：一行小字的收合標題，打開後內容不加框 */
+.kit-advanced { margin: 0.2rem 0 1rem; }
+.kit-advanced > summary { font-size: 0.9rem; color: #4d4d4d; cursor: pointer; }
+.kit-advanced-body { padding: 0.6rem 0 0 1rem; }
+/* 一排細節：結果下面一排同樣的收合標題（詳細核對、預覽、用 R 怎麼做…） */
+.kit-details { display: flex; flex-direction: column; gap: 0.35rem; margin: 1.2rem 0; }
+.kit-details > .shiny-html-output { display: contents; }
+.kit-detail > summary { font-size: 0.9rem; color: #4d4d4d; cursor: pointer; }
+.kit-detail-body { padding: 0.6rem 0 0.8rem 1rem; }
+.kit-detail-body h6 { margin-top: 0.8rem; }
+/* 設定摘要：主要按鈕上面一行小字 */
+.kit-settings-line { font-size: 0.88rem; color: #4d4d4d; margin: 0.8rem 0 0.6rem; }
+/* 下一步：頁面最下面，靠右 */
+.kit-next {
+  display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.6rem 1.2rem;
+  margin: 2rem 0 1rem; padding-top: 1rem; border-top: 1.5px solid #d9d4c5;
+}
+.kit-next .kit-hint { margin: 0; flex: 1 1 22rem; }
+.kit-next .kit-hint ul { margin: 0.3rem 0 0.3rem 1.2rem; padding: 0; }
+/* 下載區：次要按鈕排成一排 */
+.kit-downloads .btn { margin: 0 0.5rem 0.4rem 0; }
+/* 上傳是這一頁的主要動作時，「選擇檔案…」畫成主要按鈕 */
+.kit-file-primary .btn-file {
+  background: var(--nb-lime); font-size: 1.1rem; box-shadow: var(--nb-shadow);
+}
+
+/* ── 新元件：用 R 怎麼做 ── */
+/* 一行小字的收合標題（.kit-detail）；打開後只有程式碼本身有框：
+   版本名稱與「複製」在同一行、沒有框，下面的 <pre> 才有框 */
+.kit-code-head {
+  display: flex; justify-content: flex-start; align-items: center; gap: 0.6rem;
+  margin: 0.9rem 0 0.35rem; border: 0; background: transparent;
+}
+.kit-detail-body pre {
+  font-size: 0.85rem; padding: 0.75rem; margin: 0 0 0.6rem; white-space: pre; overflow-x: auto;
+}
+.kit-detail-body pre code { padding: 0; background: none; color: inherit; }
+
+/* ── 新元件：步驟分頁的進度 ── */
+/* 做完的分頁打 ✓；還不能用的分頁灰色（滑過時 title 說明要先做什麼）；
+   要重新執行時 ✓ 拿掉（kit-tab-stale 沒有額外的樣子） */
+.nav-tabs .nav-link.kit-tab-done::after { content: " ✓"; color: var(--nb-green); font-weight: 700; }
+.nav-tabs .nav-link.active.kit-tab-done::after { color: var(--nb-ink); }
+.nav-tabs .nav-link.kit-tab-locked:not(.active) {
+  background: #ece8dc; color: #6b6b6b; border-color: #8a8a8a; box-shadow: none;
+}
+
+/* ── 新元件：分頁分組 ── */
+/* 分頁分成三組，不編號：準備 → 做出資料（選一個）→ 其他工具；每組上面一行灰色小字。
+   其他工具（獨立的小工具）用虛線框、沒有陰影 */
+.kit-navgroups {
+  display: flex; flex-wrap: wrap; gap: 0.8rem 1.6rem; align-items: flex-end; margin: 0 0 1.2rem;
+}
+.kit-navgroup-label { font-size: 0.82rem; color: #5a5a5a; margin-bottom: 0.3rem; }
+.kit-navgroup .nav-tabs { gap: 0.5rem; flex-wrap: wrap; }
+.kit-navgroup .nav-link { padding: 0.45rem 0.9rem; }
+.kit-navgroup.tools .nav-link,
+.kit-navgroup.tools .nav-link:hover { border-style: dashed; box-shadow: none; }
+.kit-navgroup.tools .nav-link.active { transform: none; }
 /* ── 新元件：步驟卡、檢查清單、細節列（kitJoin ⑥ 起） ── */
 /* 表格跟著內容寬度，最寬到版面寬度（KIT 設計語言 3.8） */
 .table { width: auto; max-width: 100%; }
@@ -425,12 +494,6 @@ td.kit-guess .selectize-input { background: #fffbe6; }
 .kit-next-link { font-weight: 700; margin-left: .8rem; }
 .kit-downloads { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; margin: .6rem 0 1.4rem; }
 
-/* 細節列：結果或一步下面一排收起來的區塊，一行小字標題 */
-.kit-details { display: flex; flex-wrap: wrap; gap: .4rem 1.6rem; margin: 1rem 0;
-  padding-top: .8rem; border-top: 1px solid #d8d2c4; }
-.kit-detail[open] { flex-basis: 100%; }
-.kit-detail > summary { font-size: .9rem; color: #4d4d4d; cursor: pointer; }
-.kit-detail-body { padding: .6rem 0 .4rem; }
 
 /* 一排小控制項（標籤在上） */
 .kit-inline { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: flex-end; margin: .4rem 0; }

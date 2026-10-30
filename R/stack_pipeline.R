@@ -1,6 +1,6 @@
-# 長格式疊加：每人每波一列，以 wave 欄標記波次
+# 直向波次疊加：每人每波一列，以 wave 欄標記波次
 
-#' 長格式疊加（含檢查、核對與白話摘要）
+#' 直向波次疊加（含檢查、核對與白話摘要）
 #'
 #' 同名欄對齊，不同欄新增並填 NA；同名欄型別不一致時轉成文字。
 #' 原檔已有 wave 欄時，波次標記欄改名為 kit_wave（不覆蓋原資料）。
@@ -12,7 +12,7 @@
 #' @noRd
 stack_waves <- function(dfs, file_names, wave_labels) {
   if (length(dfs) < 2) {
-    kit_abort("需要至少 2 個檔案才能疊加。請到「① 上傳檔案」再加入一個波次的檔案。")
+    kit_abort("需要至少 2 個檔案才能疊加。請到「檔案上傳」再加入一個波次的檔案。")
   }
   problem <- check_wave_labels(wave_labels, file_names, purpose = "stack")
   if (!is.null(problem)) kit_abort(problem)

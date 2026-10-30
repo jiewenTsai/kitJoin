@@ -75,7 +75,7 @@ new_lines <- function(dfs, spec, chunk_rows) {
   read_gz_lines(path)
 }
 
-# ② 遺漏值轉 NA 的結果（⑥ 不處理遺漏值代碼）
+# 遺漏值處理 的結果（⑥ 不處理遺漏值代碼）
 after_missing_all <- function(dfs) {
   purrr::map(dfs, function(df) replace_na_codes(df, c(7777, 9999), exclude = "release_id")$data)
 }
