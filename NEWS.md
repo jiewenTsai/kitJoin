@@ -1,4 +1,4 @@
-# kitJoin (development version)
+# kitJoin 0.5.0
 
 Generality fixes found by running every tab on another panel survey (TDCYP, five waves of
 SPSS files whose ID column, item names and missing-value codes differ from KIT's).
