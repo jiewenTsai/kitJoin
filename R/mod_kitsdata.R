@@ -11,7 +11,7 @@ mod_kitsdata_ui <- function(id) {
       ),
       steps = kit_steps(
         "替每個檔案填世代（例如 M03），或選世代所在的欄",
-        "確認孩子編號、波次、月齡等欄位的對應",
+        "確認孩子編號、波次、時間點等欄位的對應（各檔欄名不同時，每個檔案各選一欄）",
         "在「3. 題目設定」給每一題領域（可以上傳題目表），不是題目的欄排除；需要時調整計分對照",
         "按「執行轉換」，看檢查結果，下載 .csv.gz"
       ),
@@ -50,7 +50,9 @@ mod_kitsdata_ui <- function(id) {
     shiny::h4("2. 對應欄位"),
     shiny::tags$small(
       class = "kit-hint",
-      "已依欄名預先猜好，可以改。對應的欄會套用到每個檔案（各檔欄名要相同）。"
+      "已依欄名預先猜好，可以改。選「某一欄」時，同一個欄名套用到每個檔案；",
+      "各檔欄名不同時（例如 w1_id、w2_id、w3id），選「各檔各選一欄」，",
+      "再到上面「1.」的表裡替每個檔案選一欄。"
     ),
     shiny::tags$div(class = "kit-table-scroll", kitsdata_map_ui(ns)),
     shiny::uiOutput(ns("visit_note")),
@@ -100,30 +102,32 @@ mod_kitsdata_ui <- function(id) {
 
 # 對應欄位的表：kits 的欄 | 說明 | 用哪一欄
 kitsdata_map_ui <- function(ns) {
-  rows <- purrr::pmap(KITS_MAP_ROWS, function(field, type, required, meaning, typed, label) {
+  rows <- purrr::pmap(KITS_MAP_ROWS, function(field, type, required, meaning, typed, per_file,
+                                               label) {
     none <- if (field == "visit_id") "（自動組成）" else "（還沒選）"
     col_select <- shiny::selectInput(
       ns(paste0("map_", field)), NULL, choices = stats::setNames("", none), width = "14rem"
     )
-    src <- if (typed) {
+    has_src <- typed || per_file
+    src <- if (has_src) {
       shiny::selectInput(
-        ns(paste0("src_", field)), NULL, width = "9rem",
-        choices = c("某一欄" = "column", "自己填" = "typed", if (!required) c("不用" = "none"))
+        ns(paste0("src_", field)), NULL, width = "10rem",
+        choices = c("某一欄" = "column", if (per_file) c("各檔各選一欄" = "per_file"),
+                    if (typed) c("自己填" = "typed"), if (typed && !required) c("不用" = "none"))
       )
     }
     cond <- function(value) paste0("input['", ns(paste0("src_", field)), "'] == '", value, "'")
+    hint <- function(value, text) {
+      shiny::conditionalPanel(cond(value), shiny::tags$small(class = "text-muted", text))
+    }
     shiny::tags$tr(
       shiny::tags$td(shiny::tags$code(field)),
       shiny::tags$td(meaning, if (required) shiny::tags$strong("（必填）")),
       shiny::tags$td(src),
       shiny::tags$td(
-        if (typed) shiny::conditionalPanel(cond("column"), col_select) else col_select,
-        if (typed) {
-          shiny::conditionalPanel(
-            cond("typed"),
-            shiny::tags$small(class = "text-muted", "在上面「1.」的表裡，每個檔案各填一個值。")
-          )
-        }
+        if (has_src) shiny::conditionalPanel(cond("column"), col_select) else col_select,
+        if (typed) hint("typed", "在上面「1.」的表裡，每個檔案各填一個值。"),
+        if (per_file) hint("per_file", "在上面「1.」的表裡，每個檔案各選一欄。")
       )
     )
   })
@@ -264,7 +268,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       if (length(working$data()) == 0) return(NULL)
       s <- settings()
       n_items <- sum(s$n_codes[s$include] %||% 0)
-      n_side <- kits_code_cells(working$data(), c(map()$wave_m, map()$age_m), codes_2())
+      n_side <- kits_code_cells(working$data(), unlist(kits_side_cols(map(), per_file())),
+                                codes_2())
       n <- n_items + n_side
       if (n == 0) return(NULL)
       shiny::tags$div(
@@ -289,8 +294,11 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       if (length(keys) == 0) return(NULL)
       dfs <- working$data()
       fields <- typed_fields()
+      pf <- pf_fields()
+      guess <- kits_guess_per_file(dfs)
       labels <- files$labels()
-      rows <- purrr::pmap(list(keys, files$names(), dfs, labels), function(key, name, df, wl) {
+      rows <- purrr::pmap(list(keys, files$names(), dfs, labels, seq_along(keys)),
+                          function(key, name, df, wl, k) {
         src_id <- paste0("cohort_src_", key)
         txt_id <- paste0("cohort_txt_", key)
         src <- shiny::isolate(input[[src_id]]) %||% "__text__"
@@ -311,6 +319,15 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
             shiny::textInput(ns(txt_id), NULL, value = shiny::isolate(input[[txt_id]]) %||% "",
                              placeholder = "例如 M03", width = "10rem")
           )),
+          purrr::map(pf, function(field) {
+            id <- pf_id(field, key)
+            prev <- shiny::isolate(input[[id]])
+            selected <- if (!is.null(prev) && prev %in% names(df)) prev else guess[[field]][k]
+            shiny::tags$td(shiny::selectInput(
+              ns(id), NULL, width = "10rem", selected = selected,
+              choices = c(stats::setNames("", "（沒有）"), names(df))
+            ))
+          }),
           purrr::map(fields, function(field) {
             id <- typed_id(field, key)
             shiny::tags$td(shiny::textInput(
@@ -328,6 +345,10 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
             class = "table table-sm align-middle kit-file-table",
             shiny::tags$thead(shiny::tags$tr(
               shiny::tags$th("檔案"), shiny::tags$th("世代從哪裡來"), shiny::tags$th("世代"),
+              purrr::map(pf, function(field) {
+                shiny::tags$th(KITS_MAP_ROWS$label[KITS_MAP_ROWS$field == field], "的欄",
+                               shiny::tags$code(field))
+              }),
               purrr::map(fields, function(field) {
                 shiny::tags$th(KITS_MAP_ROWS$label[KITS_MAP_ROWS$field == field],
                                shiny::tags$code(field))
@@ -339,7 +360,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         shiny::tags$small(
           class = "kit-hint",
           "世代一定要給（例如 M03、M36）；空白時不能轉換。這一頁不會從檔名猜世代。",
-          if (length(fields) > 0) "「2. 對應欄位」選「自己填」的欄，每個檔案都要填一個值。"
+          if (length(fields) > 0) "「2. 對應欄位」選「自己填」的欄，每個檔案都要填一個值。",
+          if (length(pf) > 0) "「2. 對應欄位」選「各檔各選一欄」的欄，每個檔案選自己的欄。"
         ),
         shiny::uiOutput(ns("typed_note"))
       )
@@ -365,6 +387,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     shiny::observeEvent(all_cols(), {
       cols <- all_cols()
       guess <- kits_guess_map(cols)
+      sources <- kits_guess_sources(working$data())
       for (field in KITS_MAP_ROWS$field) {
         id <- paste0("map_", field)
         prev <- input[[id]]
@@ -373,18 +396,19 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         shiny::updateSelectInput(
           session, id, choices = c(stats::setNames("", none), cols), selected = selected
         )
-        # 來源第一次的預設：猜得到欄時是「某一欄」；猜不到的選填欄是「不用」（不會自動選自己填）
+        # 來源第一次的預設：各檔都有同一欄時是「某一欄」；欄名各檔不同、每個檔案都猜得到時是
+        # 「各檔各選一欄」；猜不到的選填欄是「不用」（不會自動選自己填）
         row <- KITS_MAP_ROWS[KITS_MAP_ROWS$field == field, ]
-        if (row$typed && is.null(input[[paste0("src_", field)]])) {
-          default <- if (nzchar(guess[[field]]) || row$required) "column" else "none"
-          shiny::updateSelectInput(session, paste0("src_", field), selected = default)
+        if ((row$typed || row$per_file) && is.null(input[[paste0("src_", field)]])) {
+          shiny::updateSelectInput(session, paste0("src_", field), selected = sources[[field]])
         }
       }
     })
 
     # 對應欄位的來源：某一欄（column）、自己填（typed）、不用（none）；沒有選時是某一欄
     src_of <- function(field) {
-      if (!KITS_MAP_ROWS$typed[KITS_MAP_ROWS$field == field]) return("column")
+      row <- KITS_MAP_ROWS[KITS_MAP_ROWS$field == field, ]
+      if (!row$typed && !row$per_file) return("column")
       input[[paste0("src_", field)]] %||% "column"
     }
     map <- shiny::reactive({
@@ -395,6 +419,21 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     })
     typed_fields <- shiny::reactive({
       KITS_MAP_ROWS$field[purrr::map_lgl(KITS_MAP_ROWS$field, function(f) src_of(f) == "typed")]
+    })
+    pf_fields <- shiny::reactive({
+      KITS_MAP_ROWS$field[purrr::map_lgl(KITS_MAP_ROWS$field, function(f) src_of(f) == "per_file")]
+    })
+    # 各檔各選一欄：每個檔案一個欄名（還沒顯示選單時用每個檔案自己猜的欄）
+    per_file <- shiny::reactive({
+      keys <- files$keys()
+      fields <- pf_fields()
+      if (length(fields) == 0) return(list())
+      guess <- kits_guess_per_file(working$data())
+      stats::setNames(purrr::map(fields, function(field) {
+        purrr::map2_chr(keys, seq_along(keys), function(key, k) {
+          input[[pf_id(field, key)]] %||% guess[[field]][k]
+        })
+      }), fields)
     })
     # 自己填的值：每個檔案一個（還沒顯示輸入框時用預設值：波次標籤是 ① 的波次名稱）
     typed <- shiny::reactive({
@@ -412,8 +451,9 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       dfs <- working$data()
       if (length(dfs) == 0) return(NULL)
       first <- kits_apply_typed(dfs[1], list(map = map(), typed = purrr::map(typed(), 1)))
-      rule <- kits_visit_rule(first$spec$map)
-      example <- kitsdata_visit_example(first$dfs[[1]], cohorts()[[1]], first$spec$map)
+      rule <- kits_visit_rule(first$spec$map, per_file())
+      example <- kitsdata_visit_example(first$dfs[[1]], cohorts()[[1]],
+                                        kits_file_map(first$spec$map, per_file(), 1))
       cls <- if (is.null(rule$parts) || rule$parts[3] != "wave_m") "kit-source-note" else
         "kit-callout kit-callout-warning"
       shiny::tags$div(
@@ -430,7 +470,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       purrr::map_chr(purrr::keep(cohorts(), function(x) x$type == "column"), "value")
     })
     candidates <- shiny::reactive({
-      kits_candidate_cols(working$data(), c(kits_mapped_cols(map()), cohort_cols()))
+      kits_candidate_cols(working$data(), c(kits_mapped_cols(map(), per_file()), cohort_cols()))
     })
     shiny::observe({
       new <- kits_item_settings(working$data(), candidates()$numeric, codes_2())
@@ -600,7 +640,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
 
     spec <- shiny::reactive({
       kits_spec(cohorts(), map(), items(), kits_settings_undecided(settings()), typed(),
-                codes_2())
+                codes_2(), per_file())
     })
 
     # 設定或資料變動後，舊結果失效
@@ -684,7 +724,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     )
 
     output$code <- shiny::renderUI({
-      side <- kits_side_codes(working$data(), map()[c("wave_m", "age_m")], codes_2())
+      side <- kits_side_codes(working$data(), kits_side_cols(map(), per_file()), codes_2())
       kit_code_blocks(list(tidy = code_kitsdata(
         code_files_from(files), spec(), na_applied = identical(working$source(), "na"),
         side_codes = side
@@ -757,6 +797,9 @@ kitsdata_download <- function(prep, file, writer) {
 
 # 自己填的輸入框 id：typed_<欄>_<檔案>
 typed_id <- function(field, key) paste0("typed_", field, "_", key)
+
+# 各檔各選一欄的選單 id：pf_<欄>_<檔案>
+pf_id <- function(field, key) paste0("pf_", field, "_", key)
 
 # 自己填的預設值：波次標籤用 ① 的波次名稱（t1、t2…），其他空白
 typed_default <- function(field, wave_label) {

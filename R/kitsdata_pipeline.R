@@ -25,7 +25,8 @@ KITS_COLUMNS <- tibble::tribble(
 
 # 「2. 對應欄位」的列：kits 的欄（from = map）加上波次標籤（wave，不會輸出，只用來組 visit_id）
 # typed：可以「自己填」（每個檔案填一個值，例如一個檔案一個波次、檔案裡沒有波次欄時）；
-# label：「1.」的表裡「自己填」那一欄的標題
+# per_file：可以「各檔各選一欄」（各檔欄名不同時，例如 w1_id、w2_id、w3id）；
+# label：「1.」的表裡「自己填」「各檔各選一欄」那一欄的標題
 KITS_MAP_ROWS <- dplyr::bind_rows(
   KITS_COLUMNS[KITS_COLUMNS$from == "map", c("column", "type", "required", "meaning")],
   tibble::tibble(
@@ -37,6 +38,7 @@ KITS_MAP_ROWS <- dplyr::bind_rows(
   dplyr::mutate(
     required = .data$required & .data$field != "visit_id",   # visit_id 預設自動組成
     typed = .data$field %in% c("sex", "wave", "wave_m", "age_m"),
+    per_file = .data$field %in% c("subj_id", "sex", "wave", "wave_m", "age_m"),
     label = unname(c(visit_id = "列次編號", subj_id = "孩子編號", sex = "性別",
                      wave_m = "波次（月齡）", age_m = "實際月齡", wave = "波次標籤")[.data$field])
   ) |>
@@ -82,7 +84,7 @@ kits_guess_map <- function(cols) {
     hit <- cols[grepl(pattern, cols, ignore.case = TRUE)]
     if (length(hit) == 0) "" else hit[[1]]
   }
-  ids <- setdiff(guess_id_cols(cols), cols[tolower(cols) == "visit_id"])
+  ids <- setdiff(kits_guess_id(cols), cols[tolower(cols) == "visit_id"])
   subj <- intersect(c("subj_id", "release_id"), cols)
   list(
     visit_id = first("^visit_id$"),
@@ -95,10 +97,54 @@ kits_guess_map <- function(cols) {
 }
 
 #' 已對應的欄（不會被當成題目）
+#' @param per_file NULL 或具名 list：各檔各選一欄的對應（欄 → 每個檔案一個欄名）
 #' @noRd
-kits_mapped_cols <- function(map) {
-  vals <- unlist(map, use.names = FALSE)
+kits_mapped_cols <- function(map, per_file = NULL) {
+  vals <- c(unlist(map, use.names = FALSE), unlist(per_file, use.names = FALSE))
   unique(vals[!is.na(vals) & nzchar(vals)])
+}
+
+#' 像 ID 的欄：id、ID、release_id、idno、id_2，也包含 w3id、w4id 這種「波次 + id」
+#' @noRd
+kits_guess_id <- function(cols) {
+  cols[grepl("(^|[_.])id(no)?($|[_.0-9])|^[A-Za-z]{0,3}[0-9]{1,2}_?id$", cols,
+             ignore.case = TRUE)]
+}
+
+#' 每個檔案各自猜對應的欄（各檔各選一欄的預設）
+#' @return 具名 list（KITS_MAP_ROWS$field[per_file]）：每個檔案一個欄名（猜不到是 ""）
+#' @noRd
+kits_guess_per_file <- function(dfs) {
+  fields <- KITS_MAP_ROWS$field[KITS_MAP_ROWS$per_file]
+  guesses <- purrr::map(dfs, function(df) kits_guess_map(names(df)))
+  stats::setNames(purrr::map(fields, function(field) {
+    vapply(guesses, function(g) g[[field]] %||% "", character(1))
+  }), fields)
+}
+
+#' 每一個對應欄位的來源預設：各檔都有同一個欄 →「某一欄」；欄名各檔不同、但每個檔案
+#' 都猜得到 →「各檔各選一欄」；都沒有時必填的欄是「某一欄」，選填的欄是「不用」
+#' @return 具名字元向量（column、per_file、none）
+#' @noRd
+kits_guess_sources <- function(dfs) {
+  cols <- unique(unlist(purrr::map(dfs, names)))
+  common <- kits_guess_map(cols)
+  each <- kits_guess_per_file(dfs)
+  vapply(stats::setNames(nm = KITS_MAP_ROWS$field), function(field) {
+    row <- KITS_MAP_ROWS[KITS_MAP_ROWS$field == field, ]
+    g <- common[[field]]
+    in_all <- nzchar(g) && all(vapply(dfs, function(df) g %in% names(df), logical(1)))
+    if (in_all) return("column")
+    if (row$per_file && length(dfs) > 1 && all(nzchar(each[[field]]))) return("per_file")
+    if (nzchar(g) || row$required || field == "subj_id") "column" else "none"
+  }, character(1))
+}
+
+#' 第 i 個檔案的對應欄位：各檔各選一欄的換成這個檔案選的欄
+#' @noRd
+kits_file_map <- function(map, per_file, i) {
+  for (field in names(per_file)) map[[field]] <- per_file[[field]][i] %||% ""
+  map
 }
 
 
@@ -753,17 +799,25 @@ kits_spec_problems <- function(dfs, file_names, spec) {
     }
   }
   map <- spec$map
-  if (!nzchar(map$wave_m %||% "") && is.null(spec$typed$wave_m)) {
-    out <- c(out, "請對應 wave_m（波次，月）：選檔案裡的欄，或每個檔案自己填。kitsUI 一定要這一欄。")
+  per_file <- spec$per_file %||% list()
+  has_wave_m <- nzchar(map$wave_m %||% "") || !is.null(spec$typed[["wave_m"]]) ||
+    !is.null(per_file[["wave_m"]])
+  if (!has_wave_m) {
+    out <- c(out, "請對應 wave_m（時間點）：選檔案裡的欄，或每個檔案自己填。kitsUI 一定要這一欄。")
   }
   out <- c(out, kits_typed_problems(file_names, spec$typed %||% list()))
-  if (!nzchar(map$visit_id %||% "") && !nzchar(map$subj_id %||% "")) {
+  has_subj <- nzchar(map$subj_id %||% "") || !is.null(per_file[["subj_id"]])
+  if (!nzchar(map$visit_id %||% "") && !has_subj) {
     out <- c(out, "請對應 subj_id（孩子編號）：visit_id 要用它組成。")
   }
+  out <- c(out, kits_per_file_problems(dfs, file_names, per_file, map))
   for (i in seq_along(dfs)) {
     miss <- setdiff(kits_mapped_cols(map), names(dfs[[i]]))
     if (length(miss) > 0) {
-      out <- c(out, paste0(file_names[i], "：沒有對應的欄 ", paste(miss, collapse = "、"), "。"))
+      out <- c(out, paste0(
+        file_names[i], "：沒有對應的欄 ", paste(miss, collapse = "、"), "。",
+        "各檔欄名不同時，請在「2. 對應欄位」選「各檔各選一欄」。"
+      ))
     }
   }
   if (length(spec$undecided) > 0) {
@@ -791,11 +845,35 @@ kits_spec_problems <- function(dfs, file_names, spec) {
 #' @param typed 具名 list：自己填的對應欄位（每個檔案一個值）
 #' @param na_codes ② 的代碼清單（items 沒有 codes 欄時用來偵測遺漏值代碼；也用在 wave_m、
 #'   age_m）
+#' @param per_file 具名 list：各檔各選一欄的對應欄位（欄 → 每個檔案一個欄名）；
+#'   這些欄在 map 裡是 ""
 #' @noRd
 kits_spec <- function(cohort, map, items, undecided = character(0), typed = list(),
-                      na_codes = NULL) {
+                      na_codes = NULL, per_file = list()) {
   list(cohort = cohort, map = map, items = items, undecided = undecided, typed = typed,
-       na_codes = na_codes)
+       na_codes = na_codes, per_file = per_file)
+}
+
+#' 「各檔各選一欄」有沒有問題：選的欄要在那個檔案裡；wave_m 每個檔案都要選；
+#' subj_id 沒有 visit_id 欄時每個檔案都要選
+#' @noRd
+kits_per_file_problems <- function(dfs, file_names, per_file, map) {
+  out <- character(0)
+  for (field in names(per_file)) {
+    row <- KITS_MAP_ROWS[KITS_MAP_ROWS$field == field, ]
+    need <- field == "wave_m" || (field == "subj_id" && !nzchar(map$visit_id %||% ""))
+    for (i in seq_along(dfs)) {
+      col <- per_file[[field]][i] %||% ""
+      if (is.na(col) || !nzchar(col)) {
+        if (need) {
+          out <- c(out, paste0(file_names[i], "：還沒有選", row$label, "（", field, "）的欄。"))
+        }
+      } else if (!col %in% names(dfs[[i]])) {
+        out <- c(out, paste0(file_names[i], "：沒有", row$label, "（", field, "）的欄 ", col, "。"))
+      }
+    }
+  }
+  out
 }
 
 #' 「自己填」的值有沒有問題：每個檔案都要填；數字的欄（wave_m、age_m）要是數字
@@ -899,7 +977,8 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   coded <- kits_apply_codes(dfs, kits_items_with_codes(dfs, spec$items, spec$na_codes))
   dfs <- coded$dfs
   warnings <- c(warnings, coded$warning)
-  side <- kits_apply_side_codes(dfs, map[c("wave_m", "age_m")], spec$na_codes)
+  per_file <- spec$per_file %||% list()
+  side <- kits_apply_side_codes(dfs, kits_side_cols(map, per_file), spec$na_codes)
   dfs <- side$dfs
   warnings <- c(warnings, side$warning)
 
@@ -912,9 +991,9 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   if (length(problems) > 0) return(list(problems = problems))
   rename <- character(0)
 
-  visit_rule <- kits_visit_rule(map)
+  visit_rule <- kits_visit_rule(map, per_file)
   files <- purrr::map(seq_along(dfs), function(i) {
-    kits_prepare_file(dfs[[i]], spec$cohort[[i]], map, items)
+    kits_prepare_file(dfs[[i]], spec$cohort[[i]], kits_file_map(map, per_file, i), items)
   })
   out_ids <- kits_out_ids(items, rename)
   list(
@@ -988,15 +1067,22 @@ kits_side_codes <- function(dfs, cols, na_codes = NULL) {
   out
 }
 
+#' wave_m、age_m 對應的欄（各檔各選一欄時是每個檔案選的欄）：具名 list，給 kits_side_codes()
+#' @noRd
+kits_side_cols <- function(map, per_file = list()) {
+  purrr::map(c(wave_m = "wave_m", age_m = "age_m"), function(field) {
+    unique(c(map[[field]] %||% "", per_file[[field]]))
+  })
+}
+
 #' wave_m、age_m 裡的遺漏值代碼改成 NA（kits_side_codes()）
 #' @noRd
 kits_apply_side_codes <- function(dfs, cols, na_codes = NULL) {
   out <- character(0)
   side <- kits_side_codes(dfs, cols, na_codes)
-  for (field in names(cols)) {
-    col <- cols[[field]] %||% ""
+  for (field in names(cols)) for (col in cols[[field]]) {
     codes <- side[[col]]
-    if (!nzchar(col) || is.null(codes)) next
+    if (is.na(col) || !nzchar(col) || is.null(codes)) next
     n <- 0
     dfs <- purrr::map(dfs, function(df) {
       if (!col %in% names(df)) return(df)
@@ -1147,9 +1233,15 @@ kits_prep_or_abort <- function(dfs, spec, pivot_args) {
 #' visit_id 怎麼組：{cohort}_{subj_id}_{波次標籤}；沒有波次標籤時用 wave_m
 #' @return list(parts, note)
 #' @noRd
-kits_visit_rule <- function(map) {
+kits_visit_rule <- function(map, per_file = list()) {
   if (nzchar(map$visit_id %||% "")) {
     return(list(parts = NULL, note = paste0("visit_id 直接用 ", map$visit_id, " 欄。")))
+  }
+  if (!is.null(per_file[["wave"]])) {
+    return(list(
+      parts = c("cohort", "subj_id", "wave"),
+      note = "visit_id 由 {cohort}_{subj_id}_{各檔選的波次標籤欄} 組成。"
+    ))
   }
   if (nzchar(map$wave %||% "")) {
     shown <- if (startsWith(map$wave, KITS_TYPED_PREFIX)) "自己填的波次標籤" else map$wave

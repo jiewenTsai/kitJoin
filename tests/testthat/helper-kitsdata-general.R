@@ -36,6 +36,12 @@ kg_same_long <- function(got, app) {
 kg_spec <- function(settings, map, cohorts, typed = list(), per_file = list()) {
   kits_spec(
     purrr::map(cohorts, function(x) list(type = "text", value = x)), map,
-    kits_settings_items(settings), kits_settings_undecided(settings), typed
+    kits_settings_items(settings), kits_settings_undecided(settings), typed,
+    per_file = per_file
   )
+}
+
+# TDCYP 的路徑（沒有這些檔案時，用到的測試會略過）
+kg_tdcyp <- function(file) {
+  file.path("/Users/jiewentsai/Documents/ClaudePlayMac/lab20261030_kitsui/lab1031/tdcyp_data", file)
 }

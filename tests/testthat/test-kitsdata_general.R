@@ -190,3 +190,149 @@ test_that("A1：app 裡 ② 的代碼清單（沒按執行也算）、按鈕「�
     expect_match(output[["kitsdata-code"]]$html, "replace(x, x %in% 9, NA)", fixed = TRUE)
   })
 })
+
+# ── C1：各檔各選一欄（ID、波次、時間點、性別欄名各檔不同） ─────────────────
+
+# TDCYP 的樣子：w1_id、w2_id、w3id；時間點欄、性別欄名稱也不同；第三個檔案沒有性別
+kg_three <- function() {
+  list(
+    tibble::tibble(w1_id = c(100000, 2, 3), w1_mon = 0, w1_sex = c("boy", "girl", "boy"),
+                   q1 = c(0, 1, 2), q2 = c(1, 1, 0)),
+    tibble::tibble(w2_id = c(100000, 3), w2_mon = 12, w2_sex = c("boy", "boy"),
+                   q1 = c(1, 2), q2 = c(0, 1)),
+    tibble::tibble(w3id = c("2", "3"), w3_mon = c(24, 24), q1 = c(2, 2), q2 = c(1, 0))
+  )
+}
+
+kg_three_spec <- function(dfs, per_file) {
+  map <- kits_guess_map(character(0))
+  s <- kits_item_settings(dfs, c("q1", "q2")) |> kits_bulk_domain(c("q1", "q2"), "a")
+  kg_spec(s, map, c("B85", "B85", "B85"), per_file = per_file)
+}
+
+test_that("C1：猜的來源：各檔 ID 欄名不同時是「各檔各選一欄」；w3id 也猜得到", {
+  dfs <- kg_three()
+  expect_equal(kits_guess_id(c("w1_id", "w3id", "w4id", "idno", "width", "paid")),
+               c("w1_id", "w3id", "w4id", "idno"))
+  each <- kits_guess_per_file(dfs)
+  expect_equal(each$subj_id, c("w1_id", "w2_id", "w3id"))
+  src <- kits_guess_sources(dfs)
+  expect_equal(src[["subj_id"]], "per_file")
+  expect_equal(src[["wave_m"]], "column")   # 猜不到：必填的欄還是「某一欄」
+  # 各檔欄名相同時照舊是「某一欄」
+  same <- list(tibble::tibble(id = 1, wave_m = 3), tibble::tibble(id = 2, wave_m = 6))
+  expect_equal(kits_guess_sources(same)[c("subj_id", "wave_m")],
+               c(subj_id = "column", wave_m = "column"))
+})
+
+test_that("C1：每個檔案用自己的 ID、時間點、性別欄；結果和「先改成同一個欄名」相同", {
+  dfs <- kg_three()
+  per_file <- list(subj_id = c("w1_id", "w2_id", "w3id"),
+                   wave_m = c("w1_mon", "w2_mon", "w3_mon"), sex = c("w1_sex", "w2_sex", ""))
+  spec <- kg_three_spec(dfs, per_file)
+  out <- kits_build(dfs, c("w1.sav", "w2.sav", "w3.sav"), spec)
+  expect_length(out$problems, 0)
+  long <- kits_long_of(out)
+  expect_setequal(unique(long$visit_id),
+                  c("B85_100000_0", "B85_2_0", "B85_3_0", "B85_100000_12", "B85_3_12",
+                    "B85_2_24", "B85_3_24"))
+  expect_true(all(is.na(long$sex[long$wave_m == 24])))
+  expect_equal(unique(long$sex[long$visit_id == "B85_2_0"]), "girl")
+  expect_false(any(c("w1_mon", "w2_sex") %in% long$item_id))
+
+  # 同樣的資料，先把欄名改成一樣、用「某一欄」：寫出來完全相同
+  renamed <- purrr::map(seq_along(dfs), function(i) {
+    df <- dfs[[i]]
+    names(df)[names(df) == per_file$subj_id[i]] <- "id"
+    names(df)[names(df) == per_file$wave_m[i]] <- "wave_m"
+    if (nzchar(per_file$sex[i])) names(df)[names(df) == per_file$sex[i]] <- "sex" else
+      df$sex <- NA_character_
+    df
+  })
+  map <- kits_guess_map(c("id", "wave_m", "sex"))
+  map$subj_id <- "id"
+  s <- kits_item_settings(renamed, c("q1", "q2")) |> kits_bulk_domain(c("q1", "q2"), "a")
+  long2 <- kits_long_of(kits_build(renamed, c("a", "b", "c"), kg_spec(s, map, rep("B85", 3))))
+  kg_same_long(long2, long)
+
+  # 程式碼：每個檔案做出 subj_id、wave_m、sex，再合併；和 app 相同
+  got <- kg_run_code(dfs, spec, kits_item_settings(dfs, c("q1", "q2")) |>
+                       kits_bulk_domain(c("q1", "q2"), "a"))
+  expect_match(got$code, "subj_id = as_id(w3id)", fixed = TRUE)
+  expect_match(got$code, "wave_m = as.numeric(w2_mon)", fixed = TRUE)
+  kg_same_long(got$long, long)
+})
+
+test_that("C1：各檔各選一欄沒選、選錯；一個欄名套到沒有這欄的檔案時提示「各檔各選一欄」", {
+  dfs <- kg_three()
+  spec <- kg_three_spec(dfs, list(subj_id = c("w1_id", "", "w3id"),
+                                  wave_m = c("w1_mon", "w2_mon", "nope")))
+  p <- kits_build(dfs, c("w1", "w2", "w3"), spec)$problems
+  expect_match(p, "w2：還沒有選孩子編號（subj_id）的欄", all = FALSE)
+  expect_match(p, "w3：沒有.*（wave_m）的欄 nope", all = FALSE)
+
+  spec <- kg_three_spec(dfs, list(wave_m = c("w1_mon", "w2_mon", "w3_mon")))
+  spec$map$subj_id <- "w1_id"
+  p <- kits_build(dfs, c("w1", "w2", "w3"), spec)$problems
+  expect_match(p, "w2：沒有對應的欄 w1_id。各檔欄名不同時，請在「2. 對應欄位」選「各檔各選一欄」",
+               all = FALSE)
+})
+
+test_that("C1：波次標籤也可以各檔各選一欄", {
+  dfs <- kg_three()
+  dfs[[1]]$lab1 <- "W1"
+  dfs[[2]]$lab2 <- "W2"
+  dfs[[3]]$lab3 <- "W3"
+  per_file <- list(subj_id = c("w1_id", "w2_id", "w3id"), wave = c("lab1", "lab2", "lab3"),
+                   wave_m = c("w1_mon", "w2_mon", "w3_mon"))
+  spec <- kg_three_spec(dfs, per_file)
+  out <- kits_build(dfs, c("a", "b", "c"), spec)
+  expect_match(out$notes[1], "各檔選的波次標籤欄")
+  long <- kits_long_of(out)
+  expect_true(all(c("B85_100000_W1", "B85_3_W3") %in% long$visit_id))
+  expect_false(any(c("lab1", "lab2") %in% long$item_id))
+  got <- kg_run_code(dfs, spec, kits_item_settings(dfs, c("q1", "q2")) |>
+                       kits_bulk_domain(c("q1", "q2"), "a"))
+  kg_same_long(got$long, long)
+})
+
+test_that("C1：app 裡選「各檔各選一欄」，「1.」的表裡每個檔案各選一欄", {
+  dir <- withr::local_tempdir()
+  dfs <- kg_three()
+  paths <- file.path(dir, c("w1.csv", "w2.csv", "w3.csv"))
+  for (i in 1:3) readr::write_csv(dfs[[i]], paths[i])
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kg_upload(paths))
+    session$setInputs(`kitsdata-src_subj_id` = "per_file", `kitsdata-src_wave_m` = "per_file",
+                      `kitsdata-src_sex` = "none")
+    html <- output[["kitsdata-cohort_table"]]$html
+    expect_match(html, "kitsdata-pf_subj_id_f3")
+    expect_match(html, '<option value="w3id" selected>')
+    # 對應到的欄不是題目
+    table <- output[["kitsdata-settings_table"]]$html
+    expect_no_match(table, 'value="w2_id"')
+    session$setInputs(`kitsdata-pf_wave_m_f1` = "w1_mon", `kitsdata-pf_wave_m_f2` = "w2_mon",
+                      `kitsdata-pf_wave_m_f3` = "w3_mon")
+    expect_no_match(output[["kitsdata-settings_table"]]$html, 'value="w2_mon"')
+    expect_match(output[["kitsdata-visit_note"]]$html, "\\{wave_m\\}")
+    for (k in 1:3) {
+      do.call(session$setInputs, stats::setNames(
+        list("__text__", "B85"), paste0("kitsdata-cohort_", c("src", "txt"), "_f", k)
+      ))
+    }
+    session$setInputs(`kitsdata-sel` = c("q1", "q2", "w1_sex", "w2_sex"),
+                      `kitsdata-bulk_domain` = "a", `kitsdata-do_domain` = 1)
+    session$setInputs(`kitsdata-sel` = c("w1_sex", "w2_sex"), `kitsdata-do_exclude` = 1)
+    session$setInputs(`kitsdata-run` = 1)
+    expect_match(output[["kitsdata-status"]]$html, "檢查完成")
+    expect_match(output[["kitsdata-code"]]$html, "subj_id = as_id(w3id)", fixed = TRUE)
+  })
+})
+
+test_that("C1：TDCYP W1–W3 jsq 猜得到各檔的 ID 欄（有檔案時才跑）", {
+  paths <- kg_tdcyp(sprintf("w%d_jsq.sav", 1:3))
+  skip_if_not(all(file.exists(paths)))
+  dfs <- purrr::map(paths, function(p) read_data_file(p, basename(p))$data)
+  expect_equal(kits_guess_per_file(dfs)$subj_id, c("w1_id", "w2_id", "w3id"))
+  expect_equal(kits_guess_sources(dfs)[["subj_id"]], "per_file")
+})

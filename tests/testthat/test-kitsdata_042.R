@@ -92,7 +92,7 @@ test_that("程式碼：自己填的值寫成 mutate()，平移量寫成 x - 1、
   code <- code_kitsdata(code_files(c("a.csv", "b.csv"), c("t1", "t2")), spec)
   expect_match(code, 'mutate\\(wave = "m018", wave_m = 18\\)')
   expect_match(code, 'mutate\\(wave = "m024", wave_m = 24\\)')
-  expect_match(code, "paste\\(cohort, as_id\\(release_id\\), as_id\\(wave\\), sep")
+  expect_match(code, "paste\\(cohort, subj_id, as_id\\(wave\\), sep")
   expect_match(code, "\\\\\\(x\\) x \\+ 2")
   spec <- typed_spec(dfs, list(wave = c("m018", "m024"), wave_m = c("18", "24")),
                      fun = function(st) kits_bulk_shift(st, "lana01", -1))
