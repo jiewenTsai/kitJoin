@@ -1,7 +1,8 @@
 #' KIT Shiny 主題與版面元件
 #'
 #' 配色參考 KIT 資料跨波次串連平臺（https://kitwaves.hdfs.ntnu.edu.tw/）。
-#' Bootswatch Brite 尚未納入 bslib，改以 Lumen 為底並覆寫 KIT 品牌色。
+#' 以 Bootswatch Brite 為底（bslib 0.11.0 起才有），套 KIT 的顏色與 neo-brutalism 樣式
+#' （kit_css_brite()，在 R/kit_brite.R；kitJoin 與 kitsUI 共用同一份）。
 
 #' @return A [bslib::bs_theme()] object.
 #' @export
@@ -11,7 +12,7 @@ kit_theme <- function() {
   # 未指定 wght 時只提供 400，需列出 CSS 用到的字重
   kit_font <- bslib::font_collection(
     bslib::font_google(
-      "Chiron GoRound TC", local = FALSE, wght = c(400, 500, 700)
+      "Chiron GoRound TC", local = FALSE, wght = c(400, 500, 700, 900)
     ),
     "sans-serif"
   )
@@ -22,18 +23,29 @@ kit_theme <- function() {
   )
 
   bslib::bs_theme(
-    bootswatch = "lumen",
+    version = 5,
+    bootswatch = "brite",
     primary = "#2d7535",
     secondary = "#616161",
     success = "#2d7535",
     info = "#2778c4",
-    warning = "#c6d033",
+    warning = "#d9730d",
     danger = "#d9534f",
     base_font = kit_font,
+    # 全文統一用圓體；標題靠字重（700）和內文分開
     heading_font = kit_font,
     code_font = code_font,
     "navbar-bg" = "#2d7535",
-    "body-bg" = "#f5f5f5"
+    "body-bg" = "#faf7f0",
+    "headings-font-weight" = 700,
+    # neo-brutalism：2px 近黑線條（Brite 預設 2px 純黑）
+    "border-width" = "2px",
+    "border-color" = "#141414",
+    # 連結用 KIT 綠（萊姆色當文字太淡）
+    "link-color" = "#2d7535",
+    "link-hover-color" = "#1d4f23",
+    # 內文 1rem（Brite 預設 0.875rem）；html 的基準字級在 kit_css_brite() 設成 17px
+    "font-size-base" = "1rem"
   )
 }
 
@@ -120,6 +132,15 @@ kit_css <- function() {
       font-size: 0.85rem;
       white-space: nowrap;
     }
+    .kit-table-tall {
+      max-height: 26rem;
+      overflow-y: auto;
+    }
+    .kit-table-tall thead th {
+      position: sticky;
+      top: 0;
+      background: #fff;
+    }
     .kit-code-panel {
       margin-top: 2rem;
     }
@@ -144,18 +165,28 @@ kit_css <- function() {
       background: none;
       color: inherit;
     }
-    .kit-cloud-banner {
+    .alert.kit-cloud-banner {
       margin-bottom: 1rem;
       padding: 0.5rem 0.9rem;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
+      background: #fff8e1;
+      border: 1px solid #e6c65c;
+      border-left: 4px solid #b38600;
+      color: #3d2c00;
+    }
+    .alert.kit-cloud-banner a {
+      color: #3d2c00;
+    }
+    .kit-pandoc-notice {
+      margin-bottom: 1rem;
     }
     .kit-cloud-footer {
       margin: 2.5rem 0 1.5rem;
       padding-top: 1rem;
       border-top: 1px solid %6$s;
-      font-size: 0.7rem;
+      font-size: 13px;
       line-height: 1.6;
-      color: #757575;
+      color: #4f4f4f;
     }
     .kit-cloud-footer p {
       margin: 0 0 0.45rem;
@@ -202,6 +233,58 @@ kit_css <- function() {
       color: %1$s;
       font-size: 0.85rem;
     }
+    /* 可收合的一整段（標題和 h5 一樣大，預設收起來） */
+    .kit-fold {
+      margin: 0.8rem 0;
+    }
+    .kit-fold > summary {
+      cursor: pointer;
+      font-size: 1.25rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    /* 收合的設定框（④ 通過步驟）：白底框，標題和內文一樣大 */
+    .kit-fold-box {
+      background: #fff;
+      border: 1px solid %6$s;
+      border-radius: 0.375rem;
+      padding: 0.6rem 1.1rem;
+      margin-bottom: 1.2rem;
+    }
+    .kit-fold-box > summary {
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .kit-fold-box[open] > summary {
+      margin-bottom: 0.6rem;
+    }
+    .kit-fold-box details > summary {
+      cursor: pointer;
+      color: %1$s;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+    .kit-steps-pick {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 0 1rem;
+    }
+    .kit-steps-pick .form-group,
+    .kit-steps-pick .btn {
+      margin-bottom: 0.9rem;
+    }
+    .kit-steps-table {
+      --bs-table-bg: transparent;
+      width: auto;
+      font-size: 0.9rem;
+      margin-bottom: 0.6rem;
+    }
+    .kit-steps-table td,
+    .kit-steps-table th {
+      vertical-align: middle;
+      padding-right: 1.2rem;
+    }
     .kit-steps {
       margin: 0.2rem 0 0.4rem 1.2rem;
       padding: 0;
@@ -214,6 +297,9 @@ kit_css <- function() {
     }
     .kit-downloads .kit-hint {
       margin: 0.4rem 0 0;
+    }
+    .kit-hint.kit-tab-caption {
+      margin: 0.7rem 0 0.4rem;
     }
     .kit-example {
       margin: -0.3rem 0 1rem;
@@ -259,10 +345,45 @@ kit_css <- function() {
       padding: 0.8rem 1.1rem;
       margin: 0.8rem 0 1rem;
     }
+    .kit-warn-text {
+      color: #7a3a00;
+      font-weight: 600;
+    }
+    .kit-callout-warn,
     .kit-callout-warning {
-      background: #fff8e1;
-      border-color: #f1d98c;
-      border-left-color: #e0a800;
+      background: #fff1e0;
+      border-color: #f3c58f;
+      border-left-color: #d9730d;
+      color: #5c2b00;
+    }
+    .kit-callout-warn .kit-warn-text {
+      color: #5c2b00;
+    }
+    .kit-columns {
+      font-size: 0.8rem;
+    }
+    .kit-picks .kit-pick-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      margin-bottom: 0.35rem;
+    }
+    .kit-picks .kit-pick-cohort {
+      font-weight: 600;
+      flex: 0 0 2.8rem;
+    }
+    .kit-picks .kit-pick-boxes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.15rem 0.9rem;
+    }
+    .kit-picks label.kit-pick {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin: 0;
+      font-weight: 400;
+      cursor: pointer;
     }
     .kit-callout ul {
       margin: 0.35rem 0 0;
@@ -275,6 +396,19 @@ kit_css <- function() {
     }
     .kit-callout a {
       color: %1$s;
+    }
+    /* 連到 kitJoin 等外部網站的按鈕：維持按鈕的顏色，不加底線、不轉大寫 */
+    a.btn.kit-ext-btn,
+    a.btn.kit-ext-btn:hover {
+      color: var(--bs-btn-color);
+      text-decoration: none;
+      text-transform: none;
+    }
+    a.btn.kit-ext-btn:hover {
+      color: var(--bs-btn-hover-color);
+    }
+    .kit-ext-btn .fa {
+      margin-right: 0.3rem;
     }
     .kit-file-table {
       background: #fff;
@@ -296,7 +430,7 @@ kit_css <- function() {
       margin: -0.5rem 0 1rem;
     }
   ", cols$primary, cols$primary_light, cols$accent,
-     cols$subtitle, cols$text_muted, cols$border), kit_css_guide(cols$primary)))
+     cols$subtitle, cols$text_muted, cols$border), kit_css_guide(cols$primary), kit_css_brite()))
 }
 
 #' 分頁說明框收合的樣式（kit_css() 的 sprintf() 格式字串有 8192 字元的上限，所以另外接上）
