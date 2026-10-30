@@ -50,7 +50,7 @@ test_that("A1：遺漏值代碼來自值標籤、② 的代碼、7777 以上、�
                                                     "99" = "遺漏值"))
   expect_equal(codes$value, c(98, 99))
   expect_match(codes$why, "值標籤「跳答」", all = FALSE)
-  expect_equal(kits_value_codes(c(0, 1, 2, 9), na_codes = 9)$why, "② 的代碼")
+  expect_equal(kits_value_codes(c(0, 1, 2, 9), na_codes = 9)$why, "遺漏值處理 的代碼")
   expect_equal(kits_value_codes(c(0, 1, 9999))$why, "7777 以上")
   expect_equal(kits_value_codes(c(1:5, 95, 97, 98, 99))$value, c(95, 97, 98, 99))
   expect_equal(kits_value_codes(c(1:5, 95, 99, 999))$value, c(95, 99, 999))
@@ -128,7 +128,7 @@ test_that("A1：沒有「當成遺漏值」按鈕；舊設定檔的 missing_code
   dfs <- list(tibble::tibble(id = 1:5, q1 = c(0, 1, 2, 9, 1), q2 = c(1, 2, 3, 99, 1)))
   s <- kits_item_settings(dfs, c("q1", "q2"))
   expect_equal(nrow(s$codes[[1]]), 0)      # 0–2 加上 9：不確定，不算疑似代碼
-  expect_match(kits_settings_alerts(s)[1], "9 像遺漏值代碼：請先到 ② 改成 NA，不要合併")
+  expect_match(kits_settings_alerts(s)[1], "9 像遺漏值代碼：請先用「遺漏值處理」改成 NA，不要合併")
   expect_no_match(kits_settings_alerts(s)[1], "請用「合併」")
   expect_equal(s$codes[[2]]$value, 99)
   expect_false(exists("kits_bulk_codes", mode = "function"))
@@ -187,39 +187,52 @@ kg_upload <- function(paths) {
              stringsAsFactors = FALSE)
 }
 
-test_that("A1：app 裡 ② 的代碼清單只用來提醒；結果是「完成，但請注意」；用了 ② 就沒有提醒", {
+test_that("A1：app 裡「遺漏值處理」的代碼清單只用來提醒；要決定照原樣當分數或改掉；用了「遺漏值處理」就沒有提醒", {
   dir <- withr::local_tempdir()
   path <- file.path(dir, "w1.csv")
   readr::write_csv(tibble::tibble(id = 1:5, wave_m = 0, q1 = c(0, 1, 2, 9, 1),
                                   q2 = c(1, 2, 3, 99, 1)), path)
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kg_upload(path))
-    session$setInputs(`kitsdata-map_subj_id` = "id", `kitsdata-map_wave_m` = "wave_m",
-                      `kitsdata-cohort_src_f1` = "__text__", `kitsdata-cohort_txt_f1` = "B1")
-    table <- output[["kitsdata-settings_table"]]$html
-    expect_match(table, "9 像遺漏值代碼")
-    expect_match(output[["kitsdata-codes_note"]]$html, "1 格疑似遺漏值代碼")   # q2 的 99
-    expect_match(output[["kitsdata-codes_note"]]$html, "goto_missing")
-    session$setInputs(`missing-codes` = "9, 99")   # ② 還沒執行：只拿來找代碼
-    table <- output[["kitsdata-settings_table"]]$html
-    expect_match(table, "疑似遺漏值代碼 9（② 的代碼）")
-    expect_match(output[["kitsdata-codes_note"]]$html, "2 格疑似遺漏值代碼")
-    session$setInputs(`kitsdata-sel` = c("q1", "q2"), `kitsdata-bulk_domain` = "a",
-                      `kitsdata-do_domain` = 1)
-    session$setInputs(`kitsdata-run` = 1)
-    st <- output[["kitsdata-status"]]$html
-    expect_match(st, "完成，但請注意")
-    expect_match(st, "2 題有疑似遺漏值代碼，共 2 格")
-    expect_match(st, "會照原樣寫進作答檔")
+    kd_cells(session, "cohort", "B1")
+    kd_cells(session, "subj_id", "id")
+    kd_click(session, "ok1")
+    kd_set(session, pick_prefix = "q", pick_domain = "a")
+    kd_click(session, "pick_add")
+    kd_click(session, "ok2")
+    expect_match(kd_out(output, "items_table"), "q1 a 0 1 2 9 分數有缺")
+    expect_match(kd_out(output, "items_table"), "q2 a 1 2 3 代碼 99")   # 99：和分數分開
+    expect_equal(kd_check_state(output, "遺漏值代碼"), "todo")
+    expect_match(kd_out(output, "checks"), "1 欄有遺漏值代碼 99（共 1 格）")
+    expect_match(output[["kitsdata-checks"]]$html, "kitsdata-goto_missing")
+    session$setInputs(`missing-codes` = "9, 99")   # 「遺漏值處理」還沒執行：只拿來找代碼
+    expect_match(kd_out(output, "items_table"), "q1 a 0 1 2 代碼 9")
+    expect_match(kd_out(output, "checks"), "2 欄有遺漏值代碼 9、99（共 2 格）")
+    kd_click(session, "run")
+    expect_match(kd_out(output, "status"), "還不能轉換")   # 要先決定
+    kd_click(session, "ack_codes")
+    kd_click(session, "run")
+    # 已經在第 3 步決定了：結果不再重複提醒代碼；9、99 照原樣寫進作答檔
+    st <- kd_out(output, "status")
+    expect_match(st, "完成")
+    expect_no_match(st, "疑似遺漏值代碼")
     expect_no_match(output[["kitsdata-code"]]$html, "replace(x", fixed = TRUE)
-    # 用 ② 改成 NA、再回來：沒有提醒，9、99 不在作答檔
+    long <- readr::read_csv(kit_test_download_file(session, "kitsdata-download_csv"),
+                            col_types = "ccccddcic")
+    expect_true(all(c(9, 99) %in% long$item_score))
+    # 用「遺漏值處理」改成 NA、再回來：沒有提醒，9、99 不在作答檔
     session$setInputs(`missing-exclude_cols` = "id", `missing-use_downstream` = TRUE)
     session$setInputs(`missing-run` = 1)
-    expect_null(output[["kitsdata-codes_note"]])
-    session$setInputs(`kitsdata-run` = 2)
-    st <- output[["kitsdata-status"]]$html
-    expect_match(st, "檢查完成")
+    expect_equal(kd_check_state(output, "遺漏值"), "ok")
+    expect_match(kd_out(output, "checks"), "遺漏值代碼已經用「遺漏值處理」改成 NA")
+    expect_null(output[["kitsdata-result"]])         # 資料換了：舊結果清除
+    kd_click(session, "run")
+    st <- kd_out(output, "status")
+    expect_match(st, "完成")
     expect_no_match(st, "疑似遺漏值代碼")
+    long <- readr::read_csv(kit_test_download_file(session, "kitsdata-download_csv"),
+                            col_types = "ccccddcic")
+    expect_false(any(c(9, 99) %in% long$item_score))
   })
 })
 
@@ -328,36 +341,38 @@ test_that("C1：波次標籤也可以各檔各選一欄", {
   kg_same_long(got$long, long)
 })
 
-test_that("C1：app 裡選「各檔各選一欄」，「1.」的表裡每個檔案各選一欄", {
+test_that("C1：app 的第 1 步每個檔案一列：各檔猜自己的 ID 欄，時間點、性別各檔各選一欄", {
   dir <- withr::local_tempdir()
   dfs <- kg_three()
   paths <- file.path(dir, c("w1.csv", "w2.csv", "w3.csv"))
   for (i in 1:3) readr::write_csv(dfs[[i]], paths[i])
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kg_upload(paths))
-    session$setInputs(`kitsdata-src_subj_id` = "per_file", `kitsdata-src_wave_m` = "per_file",
-                      `kitsdata-src_sex` = "none")
-    html <- output[["kitsdata-cohort_table"]]$html
-    expect_match(html, "kitsdata-pf_subj_id_f3")
+    html <- output[["kitsdata-files_table"]]$html
+    expect_match(html, "kitsdata-cell_subj_id_f3")
     expect_match(html, '<option value="w3id" selected>')
+    expect_match(html, '<option value="w1_id" selected>')
+    kd_cells(session, "wave_m", c("w1_mon", "w2_mon", "w3_mon"))
+    kd_cells(session, "sex", c("w1_sex", "w2_sex", ""))
+    kd_cells(session, "cohort", rep("B85", 3))
+    kd_click(session, "ok1")
+    expect_equal(kd_out(output, "step1_problems"), "")
+    expect_equal(kd_head_state(output, 1), "done")
+    expect_match(kd_out(output, "head1"), "孩子編號 w1_id 等 3 欄")
+    expect_match(kd_out(output, "visit_note"), "B85_100000_0")
     # 對應到的欄不是題目
-    table <- output[["kitsdata-settings_table"]]$html
+    kd_set(session, tbl_all = TRUE)
+    table <- output[["kitsdata-items_table"]]$html
+    expect_match(table, 'value="q1"')
     expect_no_match(table, 'value="w2_id"')
-    session$setInputs(`kitsdata-pf_wave_m_f1` = "w1_mon", `kitsdata-pf_wave_m_f2` = "w2_mon",
-                      `kitsdata-pf_wave_m_f3` = "w3_mon")
-    expect_no_match(output[["kitsdata-settings_table"]]$html, 'value="w2_mon"')
-    expect_match(output[["kitsdata-visit_note"]]$html, "\\{wave_m\\}")
-    for (k in 1:3) {
-      do.call(session$setInputs, stats::setNames(
-        list("__text__", "B85"), paste0("kitsdata-cohort_", c("src", "txt"), "_f", k)
-      ))
-    }
-    session$setInputs(`kitsdata-sel` = c("q1", "q2", "w1_sex", "w2_sex"),
-                      `kitsdata-bulk_domain` = "a", `kitsdata-do_domain` = 1)
-    session$setInputs(`kitsdata-sel` = c("w1_sex", "w2_sex"), `kitsdata-do_exclude` = 1)
-    session$setInputs(`kitsdata-run` = 1)
-    expect_match(output[["kitsdata-status"]]$html, "檢查完成")
+    expect_no_match(table, 'value="w2_mon"')
+    kd_set(session, pick_prefix = "q", pick_domain = "a")
+    kd_click(session, "pick_add")
+    kd_click(session, "ok2")
+    kd_click(session, "run")
+    expect_match(kd_out(output, "status"), "完成")
     expect_match(output[["kitsdata-code"]]$html, "subj_id = as_id(w3id)", fixed = TRUE)
+    expect_match(output[["kitsdata-code"]]$html, "wave_m = as.numeric(w2_mon)", fixed = TRUE)
   })
 })
 
@@ -400,7 +415,7 @@ test_that("C2：去掉 ^w[0-9]+；題目表的 item_id_out；作答檔用輸出�
   s <- kits_settings_apply(s, tab)
   s <- kits_bulk_out_reset(s, "w3d32_5")
   expect_equal(s$item_id_out[s$column %in% c("w3c5_1", "w3d32_5")], c("d5_1", NA))
-  expect_match(kitsdata_settings_table("x", s), "→ 題號 <code>d5_1</code>", fixed = TRUE)
+  expect_match(as.character(kits_items_page_html("x", s)), "→ 題號 d5_1</span>", fixed = TRUE)
 
   spec <- kg_waves_spec(dfs, s)
   out <- kits_build(dfs, c("w1", "w2", "w3"), spec)
@@ -451,20 +466,28 @@ test_that("C2：變項標籤不同的欄合成同一個題號時，特別提醒"
   expect_match(out$warnings, "變項標籤不一樣，請特別確認：tsup5", all = FALSE)
 })
 
-test_that("C2：app 裡用「去掉」改輸出題號，摘要與表都看得到", {
+test_that("C2：app 裡用「去掉」改輸出題號，表與題目清單都看得到；同檔撞號會提醒", {
   dir <- withr::local_tempdir()
   dfs <- kg_waves()[1:2]
   paths <- file.path(dir, c("w1.csv", "w2.csv"))
   for (i in 1:2) readr::write_csv(dfs[[i]], paths[i])
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kg_upload(paths))
-    session$setInputs(`kitsdata-sel` = c("w1d5_1", "w2d5_1"), `kitsdata-out_pattern` = "^w[0-9]+",
-                      `kitsdata-do_out_prefix` = 1)
-    expect_match(output[["kitsdata-settings_table"]]$html, "→ 題號 <code>d5_1</code>")
-    expect_match(output[["kitsdata-settings_summary"]]$html, "2 題改了輸出題號，合成 1 個題號")
-    session$setInputs(`kitsdata-sel` = c("w1d5_1", "w1d5_2"), `kitsdata-out_pattern` = "[0-9]$",
-                      `kitsdata-do_out_prefix` = 2)
-    expect_match(output[["kitsdata-settings_summary"]]$html, "都輸出成題號 w1d5_")
+    kd_set(session, pick_prefix = "w", pick_domain = "bsrs")
+    kd_click(session, "pick_add")
+    expect_match(kd_out(output, "items_status"), "挑出 5 欄")
+    kd_set(session, sel = c("w1d5_1", "w2d5_1"), bulk_action = "out_prefix",
+           out_pattern = "^w[0-9]+")
+    kd_click(session, "bulk_apply")
+    expect_match(output[["kitsdata-items_table"]]$html, "→ 題號 d5_1</span>", fixed = TRUE)
+    expect_match(kd_out(output, "items_status"), "挑出 5 欄 → 合成 4 題")
+    expect_match(kd_out(output, "items_list"), "d5_1 bsrs w1d5_1、w2d5_1")
+    kd_set(session, sel = c("w1d5_1", "w1d5_2"), out_pattern = "[0-9]$")
+    kd_click(session, "bulk_apply")
+    expect_match(kd_out(output, "items_status"), "都輸出成題號 w1d5_")
+    kd_set(session, bulk_action = "out_reset")
+    kd_click(session, "bulk_apply")
+    expect_no_match(kd_out(output, "items_status"), "都輸出成題號")
   })
 })
 
@@ -501,13 +524,14 @@ test_that("C8：app 裡換反向題規則，領域跟著換", {
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kg_upload(path))
     session$setInputs(`kitsdata-item_file` = kg_upload(tab))
-    html <- output[["kitsdata-settings_table"]]$html
-    expect_match(html, "原題 w1st_hou")    # 預設：結尾 r
-    expect_no_match(html, "原題 w1a8")
+    # 預設：結尾 r（w1st_hour 是 w1st_hou 的反向題）
+    expect_match(kd_out(output, "items_list"), "w1st_hour time w1st_hour")
+    expect_no_match(kd_out(output, "items_list"), "w1ra8")
+    expect_match(kd_out(output, "checks"), "1 欄是反向題，用原題的領域")
     session$setInputs(`kitsdata-reverse_rule` = "prefix")
-    html <- output[["kitsdata-settings_table"]]$html
-    expect_match(html, "原題 w1a8")
-    expect_no_match(html, "原題 w1st_hou")
+    expect_match(kd_out(output, "items_list"), "w1ra8 self w1ra8")
+    expect_no_match(kd_out(output, "items_list"), "w1st_hour time")
+    expect_match(kd_out(output, "checks"), "1 欄是反向題，用原題的領域")
   })
 })
 
@@ -526,7 +550,7 @@ test_that("C4：wave_m 不寫死「施測月齡」；單位可以選，預設是
   expect_no_match(KITS_COLUMNS$meaning[KITS_COLUMNS$column == "wave_m"], "^波次（施測月齡）")
   expect_equal(KITS_MAP_ROWS$label[KITS_MAP_ROWS$field == "wave_m"], "時間點")
   ui <- as.character(mod_kitsdata_ui("kitsdata"))
-  expect_match(ui, "wave_m（時間點）的單位")
+  expect_match(ui, "波次的單位")
   expect_match(ui, '<option value="month" selected>')
   shiny::testServer(kit_server, {
     expect_null(output[["kitsdata-wave_unit_note"]])
@@ -629,7 +653,7 @@ test_that("發現 7：世代、性別可以輸出代碼（預設）或標籤；�
   kg_same_long(got$long, long)
 })
 
-test_that("發現 7：app 裡選「標籤」", {
+test_that("發現 7：app 裡世代選檔案裡的欄、值標籤選「標籤」", {
   dir <- withr::local_tempdir()
   path <- file.path(dir, "w1.sav")
   df <- kg_grade()
@@ -637,15 +661,30 @@ test_that("發現 7：app 裡選「標籤」", {
   haven::write_sav(df, path)
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kg_upload(path))
-    session$setInputs(`kitsdata-map_subj_id` = "id", `kitsdata-map_wave_m` = "wave_m",
-                      `kitsdata-map_sex` = "gender", `kitsdata-cohort_src_f1` = "grade",
-                      `kitsdata-value_labels` = "label")
-    session$setInputs(`kitsdata-sel` = "q1", `kitsdata-bulk_domain` = "a",
-                      `kitsdata-do_domain` = 1)
-    session$setInputs(`kitsdata-run` = 1)
-    expect_match(output[["kitsdata-status"]]$html, "檢查完成")
-    expect_match(output[["kitsdata-summary"]], "國一")
+    kd_cells(session, "cohort", "grade")
+    kd_cells(session, "subj_id", "id")
+    kd_cells(session, "wave_m", "wave_m")
+    kd_cells(session, "sex", "gender")
+    kd_set(session, value_labels = "label")
+    kd_click(session, "ok1")
+    expect_equal(kd_head_state(output, 1), "done")
+    expect_match(kd_out(output, "head1"), "grade")
+    kd_set(session, pick_prefix = "q1", pick_domain = "a")
+    kd_click(session, "pick_add")
+    kd_click(session, "ok2")
+    expect_equal(kd_check_state(output, "遺漏值代碼"), "todo")   # 性別的 9 拒答
+    expect_match(kd_out(output, "checks"), "（共 1 格）")
+    # R/ 的 bug（已回報）：只有性別、wave_m、age_m 有代碼時，檢查沒寫出是哪個值
+    expect_match(kd_out(output, "checks"), "遺漏值代碼 9")
+    kd_click(session, "ack_codes")
+    kd_click(session, "run")
+    expect_match(kd_out(output, "status"), "完成")
+    expect_match(paste(output[["kitsdata-summary"]], collapse = ""), "國一")
     expect_match(output[["kitsdata-code"]]$html, "as_label(grade)", fixed = TRUE)
+    long <- readr::read_csv(kit_test_download_file(session, "kitsdata-download_csv"),
+                            col_types = "ccccddcic")
+    expect_setequal(unique(long$cohort), c("國一", "國二"))
+    expect_setequal(unique(long$sex), c("男", "女", "拒答"))
   })
 })
 
@@ -689,14 +728,14 @@ test_that("發現 8：文字的題目欄只影響那個檔案：內容都是數�
   kg_same_long(env$kits_long, long)
 })
 
-test_that("發現 8：app 的摘要列出在部分檔案是文字的題", {
+test_that("發現 8：app 的第 2 步列出在部分檔案是文字的題", {
   dir <- withr::local_tempdir()
   paths <- file.path(dir, c("w1.sav", "w2.sav"))
   haven::write_sav(tibble::tibble(id = 1:2, q2 = c(1, 1)), paths[1])
   haven::write_sav(tibble::tibble(id = 1:2, q2 = c("1", "其他")), paths[2])
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kg_upload(paths))
-    expect_match(output[["kitsdata-settings_summary"]]$html, "1 個題目欄在部分檔案是文字：q2（w2.sav）")
+    expect_match(kd_out(output, "items_status"), "1 個題目欄在部分檔案是文字：q2（w2.sav）")
   })
 })
 
@@ -744,22 +783,26 @@ test_that("發現 11：BOM、SAV 的標籤欄、分號 CSV、include 與 map_raw
   expect_equal(nrow(kits_settings_import(rbind(set(), set()))$data), 1)  # 完全一樣的列只留一列
 })
 
-test_that("② 的結果過期（source = \"stale\"）時，⑥ 提醒重新執行 ②", {
+test_that("「遺漏值處理」的結果過期（source = \"stale\"）時，提醒重新執行", {
   df <- tibble::tibble(id = 1:2, q1 = c(0, 1))
   files <- list(keys = function() "f1", names = function() "w1.csv", labels = function() "t1",
                 data = function() list(df), encodings = function() NA_character_)
   src <- shiny::reactiveVal("stale")
   working <- list(data = function() list(df), source = src)
+  went <- NULL
   shiny::testServer(mod_kitsdata_server, args = list(files = files, working = working,
-                                                    goto = function(tab) NULL), {
-    expect_match(output$source_note$html, "② 的設定改過了")
-    expect_match(output$source_note$html, "原始資料")
+                                                    goto = function(tab) went <<- tab), {
+    expect_match(output$source_note$html, "「遺漏值處理」的設定改過了")
+    expect_match(output$source_note$html, "goto_missing_stale")
+    session$setInputs(goto_missing_stale = 1)
+    expect_equal(went, "missing")
     src("na")
     session$flushReact()
-    expect_no_match(output$source_note$html, "改過了")
-    src("something_new")
+    expect_no_match(kd_text(output$source_note), "改過了")
+    expect_match(kd_text(output$source_note), "用的是「遺漏值處理」處理後的資料")
+    src("raw")
     session$flushReact()
-    expect_match(output$source_note$html, "原始資料")
+    expect_equal(kd_text(output$source_note), "")
   })
 })
 

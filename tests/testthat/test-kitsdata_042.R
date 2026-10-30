@@ -215,85 +215,109 @@ kd42_upload <- function(dir) {
              stringsAsFactors = FALSE)
 }
 
-# 選取幾列、做一個批次動作
-kd42_act <- function(session, rows, button, ...) {
-  session$setInputs(`kitsdata-sel` = rows, ...)
-  do.call(session$setInputs, stats::setNames(list(1), paste0("kitsdata-", button)))
+# 第 1 步：世代 M03；沒有波次欄，波次標籤與時間點自己填
+kd42_step1 <- function(session) {
+  kd_cells(session, "cohort", c("M03", "M03"))
+  kd_cells(session, "subj_id", c("release_id", "release_id"))
+  kd_cells(session, "wave", c("m018", "m024"))
+  kd_cells(session, "wave_m", c("18", "24"))
+  kd_click(session, "ok1")
 }
 
-test_that("⑥ 模組：自己填的波次標籤預設是 ① 的波次名稱；轉換成功", {
+test_that("模組：每個檔案自己填波次標籤、時間點；填錯時第 1 步列出問題；轉換成功", {
   dir <- withr::local_tempdir()
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kd42_upload(dir))
-    session$setInputs(`upload-label_f1` = "m018")
-    session$setInputs(
-      `kitsdata-map_subj_id` = "release_id", `kitsdata-map_visit_id` = "",
-      `kitsdata-src_sex` = "column", `kitsdata-map_sex` = "sex",
-      `kitsdata-src_wave` = "typed", `kitsdata-src_wave_m` = "typed",
-      `kitsdata-src_age_m` = "none",
-      `kitsdata-cohort_src_f1` = "__text__", `kitsdata-cohort_src_f2` = "__text__",
-      `kitsdata-cohort_txt_f1` = "M03", `kitsdata-cohort_txt_f2` = "M03"
-    )
-    kd42_act(session, c("lana01", "lana02", "bodyaf01"), "do_domain",
-             `kitsdata-bulk_domain` = "lan")
-    html <- output[["kitsdata-cohort_table"]]$html
-    expect_match(html, "波次標籤")
-    expect_match(html, 'id="kitsdata-typed_wave_f1"[^>]*value="m018"')
-    expect_match(html, 'id="kitsdata-typed_wave_f2"[^>]*value="t2"')
-    expect_match(output[["kitsdata-typed_note"]]$html, "還沒有填時間點")
-    session$setInputs(`kitsdata-typed_wave_m_f1` = "18", `kitsdata-typed_wave_m_f2` = "abc")
-    expect_match(output[["kitsdata-typed_note"]]$html, "w24.csv：時間點（wave_m）要填數字")
-    session$setInputs(`kitsdata-typed_wave_m_f2` = "24", `kitsdata-typed_wave_f2` = "m024")
-    expect_null(output[["kitsdata-typed_note"]])
-    expect_match(output[["kitsdata-visit_note"]]$html, "M03_K1_m018")
-    session$setInputs(`kitsdata-run` = 1)
-    expect_match(output[["kitsdata-status"]]$html, "檢查完成")
+    kd_cells(session, "cohort", c("M03", "M03"))
+    kd_cells(session, "subj_id", c("release_id", "release_id"))
+    kd_cells(session, "wave", c("m018", "m024"))
+    kd_cells(session, "wave_m", c("18", ""))
+    kd_click(session, "ok1")
+    expect_match(kd_out(output, "step1_problems"), "還沒填：w24.csv")
+    kd_cells(session, "wave_m", c("18", "abc"))
+    kd_click(session, "ok1")
+    expect_match(kd_out(output, "step1_problems"), "w24.csv：時間點（wave_m）要填數字")
+    expect_equal(kd_head_state(output, 1), "current")
+    kd_cells(session, "wave_m", c("18", "24"))
+    kd_click(session, "ok1")
+    expect_equal(kd_out(output, "step1_problems"), "")
+    expect_equal(kd_head_state(output, 1), "done")
+    expect_match(kd_out(output, "head1"), "18、24")
+    expect_match(kd_out(output, "visit_note"), "M03_K1_m018")
+    kd_set(session, pick_prefix = "lana, bodyaf", pick_domain = "lan")
+    kd_click(session, "pick_add")
+    kd_click(session, "ok2")
+    kd_click(session, "run")
+    expect_match(kd_out(output, "status"), "完成")
     expect_match(output[["kitsdata-code"]]$html, "mutate\\(wave = \"m018\", wave_m = 18\\)")
+    long <- read_long(kit_test_download_file(session, "kitsdata-download_csv"))
+    expect_setequal(unique(long$visit_id), c("M03_K1_m018", "M03_K2_m018", "M03_K1_m024",
+                                             "M03_K3_m024"))
   })
 })
 
-test_that("⑥ 模組：全選、篩選、批次動作、計分對照顯示原分數與計分", {
+test_that("模組：找欄名、勾選全部、批次動作；計分欄顯示原分數→計分", {
   dir <- withr::local_tempdir()
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kd42_upload(dir))
-    session$setInputs(`kitsdata-map_subj_id` = "release_id")
-    table <- output[["kitsdata-settings_table"]]$html
-    expect_match(table, "計分對照（原分數 → 計分）")
-    expect_match(table, "<th>原分數</th>")
-    expect_match(table, "<th>計分</th>")
+    kd42_step1(session)
+    kd_set(session, tbl_all = TRUE)
+    table <- output[["kitsdata-items_table"]]$html
+    expect_match(table, "<th>計分（原分數→計分）</th>", fixed = TRUE)
+    expect_match(table, "（沒挑）")
 
-    # 篩選 lana → 選取篩選出來的列 → 設領域
-    session$setInputs(`kitsdata-sel_filter` = "lana")
-    session$setInputs(`kitsdata-sel_filtered` = 1)
-    expect_equal(output[["kitsdata-sel_count"]], "已選取 2 列")
-    session$setInputs(`kitsdata-bulk_domain` = "lan", `kitsdata-do_domain` = 1)
-    expect_match(output[["kitsdata-settings_summary"]]$html, "各領域：lan 2 題")
+    # 找 lana → 勾選符合的列 → 要這幾欄、設領域
+    kd_set(session, tbl_search = "lana")
+    kd_click(session, "tbl_sel_all")
+    expect_equal(output[["kitsdata-sel_count"]], "已勾選 2 列")
+    kd_set(session, bulk_action = "include")
+    kd_click(session, "bulk_apply")
+    kd_set(session, bulk_action = "domain", bulk_domain = "lan")
+    kd_click(session, "bulk_apply")
+    expect_match(kd_out(output, "items_status"), "挑出 2 欄（lan 2 題）")
 
-    # 全選後平移 −1：lana01 有 0 分 → 有負分
-    session$setInputs(`kitsdata-sel_all` = 1)
-    expect_equal(output[["kitsdata-sel_count"]], "已選取 3 列")
-    session$setInputs(`kitsdata-bulk_shift` = -1, `kitsdata-do_shift` = 1)
-    table <- output[["kitsdata-settings_table"]]$html
+    # 全部勾選後減 1：lana01 有 0 分 → 有負分
+    kd_set(session, tbl_search = "")
+    kd_click(session, "tbl_sel_all")
+    expect_equal(output[["kitsdata-sel_count"]], "已勾選 3 列")
+    kd_set(session, bulk_action = "shift", bulk_shift = -1)
+    kd_click(session, "bulk_apply")
+    table <- kd_out(output, "items_table")
+    expect_match(table, "lana01 lan 0→-1 ")
     expect_match(table, "有負分")
-    expect_match(table, 'class="changed"')
 
     # 還原、合併：lana01 原分數 0、1 → 計分 0
-    kd42_act(session, "lana01", "do_restore")
-    kd42_act(session, "lana01", "do_merge", `kitsdata-merge_from` = "0、1",
-             `kitsdata-merge_to` = 0)
+    kd_set(session, sel = "lana01", bulk_action = "restore")
+    kd_click(session, "bulk_apply")
+    expect_match(kd_out(output, "items_table"), "lana01 lan 0 1 ")
+    kd_set(session, bulk_action = "merge", merge_from = "0、1", merge_to = 0)
+    kd_click(session, "bulk_apply")
+    expect_match(kd_out(output, "items_table"), "lana01 lan 0→0 1→0 2→2 ")
     expect_match(output[["kitsdata-code"]]$html, "x == 1 ~ 0")
-    session$setInputs(`kitsdata-sel_none` = 1)
-    expect_equal(output[["kitsdata-sel_count"]], "已選取 0 列")
+    kd_click(session, "tbl_sel_none")
+    expect_equal(output[["kitsdata-sel_count"]], "已勾選 0 列")
   })
 })
 
-test_that("⑥ 模組：沒有選取時批次動作不會改設定", {
+test_that("模組：沒有勾選時批次動作不會改設定；參數不對時也不改", {
   dir <- withr::local_tempdir()
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kd42_upload(dir))
-    session$setInputs(`kitsdata-map_subj_id` = "release_id")
-    before <- output[["kitsdata-settings_table"]]$html
-    session$setInputs(`kitsdata-bulk_shift` = -1, `kitsdata-do_shift` = 1)
-    expect_identical(output[["kitsdata-settings_table"]]$html, before)
+    kd42_step1(session)
+    kd_set(session, pick_prefix = "lana", pick_domain = "lan")
+    kd_click(session, "pick_add")
+    before <- output[["kitsdata-items_table"]]$html
+    kd_set(session, bulk_action = "shift", bulk_shift = -1)
+    kd_click(session, "bulk_apply")
+    expect_identical(output[["kitsdata-items_table"]]$html, before)
+    # 加減 0、合併沒填：不改
+    kd_set(session, sel = "lana01", bulk_shift = 0)
+    kd_click(session, "bulk_apply")
+    kd_set(session, bulk_action = "merge", merge_from = "")
+    kd_click(session, "bulk_apply")
+    kd_set(session, bulk_action = "domain", bulk_domain = "")
+    kd_click(session, "bulk_apply")
+    after <- output[["kitsdata-items_table"]]$html
+    expect_identical(gsub(" checked=\"checked\"", "", after), before)
   })
 })
