@@ -735,11 +735,10 @@ kits_prepare_file <- function(df, cohort, map, items) {
     col <- map[[field]] %||% ""
     if (nzchar(col)) df[[col]] else rep(NA, n)
   }
-  as_text <- function(x) as.character(unclass(x))
-  co <- if (identical(cohort$type, "column")) as_text(df[[cohort$value]]) else
+  co <- if (identical(cohort$type, "column")) kits_id_text(df[[cohort$value]]) else
     rep(cohort$value, n)
   persons <- tibble::tibble(
-    subj_id = as_text(pick("subj_id")), cohort = co, sex = as_text(pick("sex")),
+    subj_id = kits_id_text(pick("subj_id")), cohort = co, sex = kits_id_text(pick("sex")),
     wave_m = as.numeric(unclass(pick("wave_m"))), age_m = as.numeric(unclass(pick("age_m")))
   )
   persons$visit_id <- kits_visit_ids(persons, df, map)
@@ -880,17 +879,30 @@ kits_visit_rule <- function(map) {
 
 # visit_id：有對應欄時直接用，否則照 kits_visit_rule() 組成（任一部分缺漏時 NA）
 kits_visit_ids <- function(persons, df, map) {
-  if (nzchar(map$visit_id %||% "")) return(as.character(unclass(df[[map$visit_id]])))
+  if (nzchar(map$visit_id %||% "")) return(kits_id_text(df[[map$visit_id]]))
   wave <- if (nzchar(map$wave %||% "")) {
-    as.character(unclass(df[[map$wave]]))
+    kits_id_text(df[[map$wave]])
   } else {
-    format(persons$wave_m, trim = TRUE, drop0trailing = TRUE, scientific = FALSE)
+    kits_id_text(persons$wave_m)
   }
   wave[is.na(persons$wave_m) & !nzchar(map$wave %||% "")] <- NA
   parts <- list(persons$cohort, persons$subj_id, wave)
   out <- do.call(paste, c(parts, sep = "_"))
   bad <- Reduce(`|`, lapply(parts, function(p) is.na(p) | !nzchar(trimws(p))))
   out[bad] <- NA_character_
+  out
+}
+
+#' 編號、世代、波次標籤轉成文字：數字不寫成科學記號（100000 → "100000"，as.character()
+#' 會變成 "1e+05"），有小數的保留 15 位有效數字（0.5 和 0.50000001 不會變成同一個）；NA 保持 NA
+#'
+#' 「用 R 怎麼做？」裡的 as_id() 和這個函式相同（code_kitsdata_helpers()）。
+#' @noRd
+kits_id_text <- function(x) {
+  x <- as.vector(unclass(x))
+  if (!is.numeric(x)) return(as.character(x))
+  out <- trimws(formatC(x, format = "fg", digits = 15))
+  out[is.na(x)] <- NA_character_
   out
 }
 

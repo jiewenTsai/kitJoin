@@ -678,11 +678,11 @@ kitsdata_visit_example <- function(df, cohort, map) {
   needed <- kits_mapped_cols(map)
   if (!all(needed %in% names(df))) return(NULL)
   one <- df[1, , drop = FALSE]
-  co <- if (identical(cohort$type, "column")) as.character(unclass(one[[cohort$value]])) else
+  co <- if (identical(cohort$type, "column")) kits_id_text(one[[cohort$value]]) else
     cohort$value
   persons <- tibble::tibble(
     cohort = co,
-    subj_id = if (nzchar(map$subj_id %||% "")) as.character(unclass(one[[map$subj_id]])) else NA,
+    subj_id = if (nzchar(map$subj_id %||% "")) kits_id_text(one[[map$subj_id]]) else NA,
     wave_m = if (nzchar(map$wave_m %||% "")) as.numeric(unclass(one[[map$wave_m]])) else NA_real_
   )
   out <- kits_visit_ids(persons, one, map)

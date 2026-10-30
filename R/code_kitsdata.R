@@ -21,6 +21,7 @@ code_kitsdata <- function(f, spec, na_applied = FALSE) {
 
   code_lines(
     "library(dplyr)", "library(readr)", "library(tidyr)", "",
+    code_kitsdata_helpers(), "",
     grep("^data_.* <- read_", strsplit(code_read(f)$tidy, "\n")[[1]], value = TRUE),
     if (na_applied) {
       c("# 「② 遺漏值轉 NA」已經把遺漏值代碼改成 NA；",
@@ -97,16 +98,17 @@ code_map_expr <- function(raw, score) {
 # 一個檔案：世代、visit_id、pivot_longer()
 code_kitsdata_long <- function(obj, long, cohort, map, typed = list()) {
   co <- if (identical(cohort$type, "column")) {
-    paste0("cohort = as.character(", r_col(cohort$value), ")")
+    paste0("cohort = as_id(", r_col(cohort$value), ")")
   } else {
     paste0("cohort = ", r_str(if (nzchar(cohort$value %||% "")) cohort$value else "M03"))
   }
   rule <- kits_visit_rule(map)
   visit <- if (is.null(rule$parts)) {
-    paste0("visit_id = as.character(", r_col(map$visit_id), ")")
+    paste0("visit_id = as_id(", r_col(map$visit_id), ")")
   } else {
     subj <- if (nzchar(map$subj_id %||% "")) r_col(map$subj_id) else "subj_id"
-    paste0("visit_id = paste(cohort, ", subj, ", ", r_col(rule$parts[3]), ", sep = \"_\")")
+    paste0("visit_id = paste(cohort, as_id(", subj, "), as_id(", r_col(rule$parts[3]),
+           "), sep = \"_\")")
   }
   args <- list(names_to = "item_id", values_to = "item_score", values_drop_na = TRUE)
   piv <- pivot_longer_code(args, "", cols_code = "any_of(items)")
@@ -118,9 +120,23 @@ code_kitsdata_long <- function(obj, long, cohort, map, typed = list()) {
   )
 }
 
+# 小工具：編號轉成文字（和 app 的 kits_id_text() 相同）
+code_kitsdata_helpers <- function() {
+  c(
+    "# 編號轉成文字：數字不寫成科學記號（100000 不會變成 1e+05），空白保持 NA",
+    "as_id <- function(x) {",
+    "  x <- as.vector(unclass(x))",
+    "  if (!is.numeric(x)) return(as.character(x))",
+    "  out <- trimws(formatC(x, format = \"fg\", digits = 15))",
+    "  out[is.na(x)] <- NA",
+    "  out",
+    "}"
+  )
+}
+
 # 固定 9 欄、固定順序與型別（依 KITS_COLUMNS）；沒有對應的欄寫成空白
 code_kitsdata_finish <- function(map) {
-  cast <- c(c = "as.character", d = "as.numeric", i = "as.integer")
+  cast <- c(c = "as_id", d = "as.numeric", i = "as.integer")
   empty <- c(c = "NA_character_", d = "NA_real_", i = "NA_integer_")
   exprs <- purrr::pmap_chr(KITS_COLUMNS, function(column, type, required, from, meaning) {
     if (from != "map") {
