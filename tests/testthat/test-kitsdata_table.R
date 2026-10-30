@@ -321,3 +321,88 @@ test_that("依欄名篩選：不分大小寫、去掉前後空白、不是正規
   expect_identical(kitsdata_filter_cols(cols, " Lan "), c("lana01", "LANb02"))
   expect_identical(kitsdata_filter_cols(cols, "g.1"), "cog.1")
 })
+
+# ── 第 2 步：像題目的欄，一組一列 ────────────────────────────────────────────
+
+kt_group_dfs <- function() {
+  w1 <- tibble::tibble(
+    id = 1:4, w1d5_1 = c(0, 1, 2, 4), w1d5_2 = c(1, 2, 3, 4), lana01 = c(0, 1, 0, 1),
+    frac = c(0.5, 1, 2, 3), age = c(0, 10, 25, 30), lana02 = c(0, 1, 1, 0),
+    w1d5_3 = c(0, 0, 1, 99), one = c(1, 1, 1, 1)
+  )
+  attr(w1$w1d5_1, "label") <- "W1:D5-1   最近一星期_感覺緊張不安"
+  attr(w1$lana01, "label") <- "會說兩個字的話"
+  w2 <- tibble::tibble(id = 1:16, many = 0:15, w1d5_1 = rep(c(0, 3), 8))
+  list(w1, w2)
+}
+
+test_that("像題目的欄：欄名開頭一樣的一組；小數、超過 20、超過 11 種、只有一種的不算", {
+  dfs <- kt_group_dfs()
+  cols <- setdiff(unique(unlist(purrr::map(dfs, names))), "id")
+  s <- kits_item_settings(dfs, cols, include = FALSE)
+  g <- kits_item_groups(s, dfs)
+  expect_equal(g$stem, c("w1d5_", "lana"))                     # 出現的順序
+  expect_equal(g$cols, list(c("w1d5_1", "w1d5_2", "w1d5_3"), c("lana01", "lana02")),
+               ignore_attr = TRUE)
+  expect_equal(unname(g$n), c(3L, 2L))
+  expect_equal(unname(g$range), c("0–4", "0–1"))                        # 99 是代碼，不算
+  expect_false(any(c("frac", "age", "many", "one") %in% unlist(g$cols)))
+  expect_equal(unname(g$label), c("最近一星期_感覺緊張不安", "會說兩個字的話"))
+  expect_equal(unname(g$n_in), c(0L, 0L))
+  expect_equal(unname(g$domain), c(NA_character_, NA_character_))
+  # 納入幾欄、組裡的領域（只有一種時才寫）
+  s <- kits_bulk_include(s, c("w1d5_1", "w1d5_2"), TRUE) |> kits_bulk_domain("lana01", "lan") |>
+    kits_bulk_domain(c("w1d5_1", "w1d5_2"), "a") |> kits_bulk_domain("w1d5_3", "b")
+  g <- kits_item_groups(s, dfs)
+  expect_equal(unname(g$n_in), c(2L, 0L))
+  expect_equal(unname(g$domain), c(NA, "lan"))
+  # 欄名只有數字、沒有像題目的欄、沒有欄
+  s9 <- kits_item_settings(list(tibble::tibble(`12` = c(0, 1))), "12")
+  expect_equal(kits_item_groups(s9, list())$stem, "12")
+  expect_equal(nrow(kits_item_groups(kits_settings_empty(), list())), 0)
+  sf <- kits_item_settings(list(tibble::tibble(frac = c(0.5, 1))), "frac")
+  expect_named(kits_item_groups(sf, list()),
+               c("stem", "cols", "n", "range", "label", "n_in", "domain"))
+  expect_equal(nrow(kits_item_groups(sf, list())), 0)
+})
+
+test_that("變項標籤：去掉開頭的編號；沒有標籤是空白；用第一個有標籤的檔案", {
+  dfs <- kt_group_dfs()
+  expect_equal(kits_col_labels(dfs, c("w1d5_1", "lana01", "w1d5_2", "nope")),
+               c("最近一星期_感覺緊張不安", "會說兩個字的話", "", ""))
+  x <- tibble::tibble(a = 1, b = 1, c = 1)
+  attr(x$a, "label") <- "W1:   "                      # 去掉後是空的：保留原標籤
+  attr(x$b, "label") <- "W2:C21_5 老師很關心我"
+  attr(x$c, "label") <- NA_character_
+  y <- tibble::tibble(c = 1)
+  attr(y$c, "label") <- "第二個檔案的標籤"
+  expect_equal(kits_col_labels(list(x, y), c("a", "b", "c")),
+               c("W1:   ", "老師很關心我", "第二個檔案的標籤"))
+  attr(x$b, "label") <- "老師很關心我（W2）"           # 沒有編號：照原樣
+  expect_equal(kits_col_labels(list(x), "b"), "老師很關心我（W2）")
+})
+
+test_that("找組：組名、欄名、題目內容都找得到（不分大小寫）", {
+  dfs <- kt_group_dfs()
+  s <- kits_item_settings(dfs, c("w1d5_1", "w1d5_2", "w1d5_3", "lana01", "lana02"))
+  g <- kits_item_groups(s, dfs)
+  expect_equal(kits_groups_filter(g, "緊張")$stem, "w1d5_")
+  expect_equal(kits_groups_filter(g, "兩個字")$stem, "lana")
+  expect_equal(kits_groups_filter(g, "LANA02")$stem, "lana")
+  expect_equal(kits_groups_filter(g, " D5_ ")$stem, "w1d5_")
+  expect_equal(nrow(kits_groups_filter(g, "沒有這個")), 0)
+  expect_identical(kits_groups_filter(g, ""), g)
+  expect_identical(kits_groups_filter(g, NULL), g)
+  expect_equal(kits_group_cols_text("a1"), "a1")
+  expect_equal(kits_group_cols_text(c("a1", "a2")), "a1、a2（2 欄）")
+  expect_equal(kits_group_cols_text(paste0("w1d5_", 1:5)), "w1d5_1 … w1d5_5（5 欄）")
+})
+
+test_that("組名：_數字、補零的數字、開頭沒有數字的同一組；TDCYP 的 w1a2、w1a3 一欄一組", {
+  expect_equal(kits_col_stems(c("w1d5_1", "w1d5_2", "w1d5_10", "w1d5_3r")),
+               rep("w1d5_", 4))
+  expect_equal(kits_col_stems(c("lana01", "lana02", "lanb01")), c("lana", "lana", "lanb01"))
+  expect_equal(kits_col_stems(c("q1", "q2", "q10")), rep("q", 3))
+  expect_equal(kits_col_stems(c("w1a2", "w1a3")), c("w1a2", "w1a3"))
+  expect_equal(kits_col_stems(c("x", "item")), c("x", "item"))
+})

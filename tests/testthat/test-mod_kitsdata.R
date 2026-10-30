@@ -437,3 +437,61 @@ test_that("標頭重畫時「改」連結送出 0：不會跳回前一步", {
     expect_equal(output[["kitsdata-open"]], "2")
   })
 })
+
+test_that("第 2 步的組：勾選就納入、選領域就設領域並納入、取消勾選就不納入", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "w1.csv")
+  readr::write_csv(tibble::tibble(id = 1:3, wave_m = 0, a1 = c(0, 1, 2), a2 = c(1, 0, 2),
+                                  b1 = c(0, 1, 1), b2 = c(1, 1, 0)), path)
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kd_upload(path))
+    kd_cells(session, "cohort", "B1")
+    kd_cells(session, "subj_id", "id")
+    kd_click(session, "ok1")
+    html <- output[["kitsdata-groups_table"]]$html
+    expect_match(html, 'name="kitsdata-grp_sel" value="a"', fixed = TRUE)
+    expect_match(html, 'name="kitsdata-grp_sel" value="b"', fixed = TRUE)
+    expect_match(html, "kitsdata-gdom_1")
+    expect_no_match(html, "checked")
+    expect_match(output[["kitsdata-grp_page"]], "2 組")
+    expect_equal(kd_out(output, "items_status"), "")
+
+    kd_set(session, grp_sel = "a")
+    expect_match(kd_out(output, "items_status"), "挑出 2 欄")
+    expect_match(kd_out(output, "items_list"), "a1")
+    expect_no_match(kd_out(output, "items_list"), "b1")
+    expect_match(kd_out(output, "checks"), "2 欄還沒有領域")
+
+    # 第 2 組選領域：設好並納入
+    kd_set(session, gdom_2 = "lan")
+    expect_match(kd_out(output, "items_status"), "挑出 4 欄（lan 2 題）")
+    expect_match(kd_out(output, "items_list"), "b1 lan b1")
+    kd_set(session, grp_sel = c("a", "b"), gdom_1 = "a")
+    expect_match(kd_out(output, "items_status"), "（a 2 題、lan 2 題）|（lan 2 題、a 2 題）")
+    expect_match(kd_out(output, "checks"), "每一題都有領域")
+
+    # 取消勾選第 1 組
+    kd_set(session, grp_sel = "b")
+    expect_match(kd_out(output, "items_status"), "挑出 2 欄（lan 2 題）")
+    expect_no_match(kd_out(output, "items_list"), "a1")
+    kd_set(session, grp_sel = character(0))
+    expect_match(kd_out(output, "items_list"), "還沒有挑題目")
+  })
+})
+
+test_that("第 2 步的組：找組之後，取消勾選的組不會因為還留著領域又被納入", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "w1.csv")
+  readr::write_csv(tibble::tibble(id = 1:3, wave_m = 0, a1 = c(0, 1, 2), a2 = c(1, 0, 2),
+                                  b1 = c(0, 1, 1), b2 = c(1, 1, 0)), path)
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kd_upload(path))
+    kd_set(session, gdom_1 = "a")
+    expect_match(kd_out(output, "items_status"), "挑出 2 欄（a 2 題）")
+    kd_set(session, grp_sel = character(0))
+    expect_match(kd_out(output, "items_list"), "還沒有挑題目")
+    # 找組（換頁也一樣）：組的領域選單還是 a
+    kd_set(session, grp_search = "a")
+    expect_match(kd_out(output, "items_list"), "還沒有挑題目")
+  })
+})
