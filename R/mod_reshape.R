@@ -490,7 +490,11 @@ mod_reshape_server <- function(id, files, working, goto) {
       p <- picked()
       obj <- p$obj %||% "data_t1"
       snips <- if (identical(input$direction, "longer")) {
-        code_longer(longer(), obj, names(p$data))
+        args <- utils::modifyList(PIVOT_LONGER_DEFAULTS, longer())
+        labels <- if (!is.null(p$data)) {
+          pivot_longer_labels(p$data, pivot_longer_cols(p$data, args))
+        }
+        code_longer(longer(), obj, names(p$data), labels)
       } else {
         code_wider(wider(), p$data %||% tibble::tibble(), obj)
       }

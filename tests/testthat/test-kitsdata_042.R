@@ -78,9 +78,9 @@ test_that("自己填的 wave_m 不是數字、或沒填：擋下並說是哪個�
   spec <- typed_spec(dfs, list(wave_m = c("十八", "")))
   out <- kits_build(dfs, c("w18.csv", "w24.csv"), spec)
   expect_null(out$prep)
-  expect_match(out$problems, "w18.csv：波次（月齡）（wave_m）要填數字（例如 18），現在是「十八」",
+  expect_match(out$problems, "w18.csv：時間點（wave_m）要填數字（例如 18），現在是「十八」",
                all = FALSE)
-  expect_match(out$problems, "w24.csv：還沒有填波次（月齡）", all = FALSE)
+  expect_match(out$problems, "w24.csv：還沒有填時間點", all = FALSE)
   spec <- typed_spec(dfs, list())
   expect_match(kits_build(dfs, c("a", "b"), spec)$problems, "請對應 wave_m", all = FALSE)
 })
@@ -92,7 +92,7 @@ test_that("程式碼：自己填的值寫成 mutate()，平移量寫成 x - 1、
   code <- code_kitsdata(code_files(c("a.csv", "b.csv"), c("t1", "t2")), spec)
   expect_match(code, 'mutate\\(wave = "m018", wave_m = 18\\)')
   expect_match(code, 'mutate\\(wave = "m024", wave_m = 24\\)')
-  expect_match(code, "paste\\(cohort, release_id, wave, sep")
+  expect_match(code, "paste\\(cohort, subj_id, as_id\\(wave\\), sep")
   expect_match(code, "\\\\\\(x\\) x \\+ 2")
   spec <- typed_spec(dfs, list(wave = c("m018", "m024"), wave_m = c("18", "24")),
                      fun = function(st) kits_bulk_shift(st, "lana01", -1))
@@ -113,7 +113,7 @@ test_that("題目設定由資料建立：原分數不含 NA 與 7777 以上的�
   expect_true(st$has_codes[2])
   expect_true(all(st$include))
   expect_true(all(is.na(st$domain)))
-  expect_match(kits_settings_alerts(st)[2], "有 7777 以上的值")
+  expect_match(kits_settings_alerts(st)[2], "遺漏值代碼 9999（7777 以上）：不輸出")
   expect_equal(kits_settings_undecided(st), c("a1", "b2", "weight"))
   st <- kits_bulk_include(st, "weight", FALSE)
   expect_equal(kits_settings_undecided(st), c("a1", "b2"))
@@ -152,7 +152,8 @@ test_that("題目設定下載再上傳：納入、領域、計分對照都回來
   path <- withr::local_tempfile(fileext = ".csv")
   readr::write_excel_csv(kits_settings_export(st), path, na = "")
   back <- readr::read_csv(path, show_col_types = FALSE)
-  expect_named(back, c("item_id", "include", "domain", "map_raw_to_score"))
+  expect_named(back, c("item_id", "include", "domain", "map_raw_to_score", "missing_codes",
+                       "item_id_out"))
   expect_match(back$map_raw_to_score[1], "^[0-9]+=[0-9]+(;[0-9]+=[0-9]+)*$")
 
   up <- kits_settings_import(back)
@@ -240,9 +241,9 @@ test_that("⑥ 模組：自己填的波次標籤預設是 ① 的波次名稱；
     expect_match(html, "波次標籤")
     expect_match(html, 'id="kitsdata-typed_wave_f1"[^>]*value="m018"')
     expect_match(html, 'id="kitsdata-typed_wave_f2"[^>]*value="t2"')
-    expect_match(output[["kitsdata-typed_note"]]$html, "還沒有填波次（月齡）")
+    expect_match(output[["kitsdata-typed_note"]]$html, "還沒有填時間點")
     session$setInputs(`kitsdata-typed_wave_m_f1` = "18", `kitsdata-typed_wave_m_f2` = "abc")
-    expect_match(output[["kitsdata-typed_note"]]$html, "w24.csv：波次（月齡）（wave_m）要填數字")
+    expect_match(output[["kitsdata-typed_note"]]$html, "w24.csv：時間點（wave_m）要填數字")
     session$setInputs(`kitsdata-typed_wave_m_f2` = "24", `kitsdata-typed_wave_f2` = "m024")
     expect_null(output[["kitsdata-typed_note"]])
     expect_match(output[["kitsdata-visit_note"]]$html, "M03_K1_m018")

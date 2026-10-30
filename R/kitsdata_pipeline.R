@@ -3,7 +3,8 @@
 # 輸出固定 9 欄、固定順序（kits 與 kitsUI 的資料約定）：
 #   visit_id、subj_id、cohort、sex、wave_m、age_m、item_id、item_score、domain
 # 編號與 sex 一律寫成文字；wave_m、age_m 是數字；item_score 是整數。
-# 每一題的計分對照（原分數 → 計分）在寬資料上套用；遺漏值代碼由 ② 處理。
+# 每一題的計分對照（原分數 → 計分）在寬資料上套用；遺漏值代碼（值標籤、② 的代碼、7777 以上、
+# 和分數明顯分開的值）改成 NA，不會寫成分數。
 # 這個檔案只有純函式（不碰 Shiny），由 mod_kitsdata.R 呼叫。
 
 # kits 作答檔的欄位（和 kits::kitm03$responses 相同的名稱、順序與型別；不依賴 kits）
@@ -15,7 +16,8 @@ KITS_COLUMNS <- tibble::tribble(
   "subj_id", "c", FALSE, "map", "孩子編號：同一個孩子的各波次相同。",
   "cohort", "c", TRUE, "cohort", "世代，例如 M03、M36（「1. 世代」）。",
   "sex", "c", FALSE, "map", "性別，例如 boy、girl。",
-  "wave_m", "d", TRUE, "map", "波次（施測月齡），例如 3、6、12。",
+  "wave_m", "d", TRUE, "map",
+  "時間點（波次）的數字，例如 3、6、12；單位在「2.」選（KIT 是施測月齡）。",
   "age_m", "d", FALSE, "map", "實際月齡。題目表的通過年齡要用它。",
   "item_id", "c", TRUE, "items", "題號，例如 lana01（題目欄的欄名）。",
   "item_score", "i", TRUE, "items", "得分：0、1、2…（題目欄的值；沒有作答的題不放）。",
@@ -24,7 +26,8 @@ KITS_COLUMNS <- tibble::tribble(
 
 # 「2. 對應欄位」的列：kits 的欄（from = map）加上波次標籤（wave，不會輸出，只用來組 visit_id）
 # typed：可以「自己填」（每個檔案填一個值，例如一個檔案一個波次、檔案裡沒有波次欄時）；
-# label：「1.」的表裡「自己填」那一欄的標題
+# per_file：可以「各檔各選一欄」（各檔欄名不同時，例如 w1_id、w2_id、w3id）；
+# label：「1.」的表裡「自己填」「各檔各選一欄」那一欄的標題
 KITS_MAP_ROWS <- dplyr::bind_rows(
   KITS_COLUMNS[KITS_COLUMNS$from == "map", c("column", "type", "required", "meaning")],
   tibble::tibble(
@@ -36,12 +39,19 @@ KITS_MAP_ROWS <- dplyr::bind_rows(
   dplyr::mutate(
     required = .data$required & .data$field != "visit_id",   # visit_id 預設自動組成
     typed = .data$field %in% c("sex", "wave", "wave_m", "age_m"),
+    per_file = .data$field %in% c("subj_id", "sex", "wave", "wave_m", "age_m"),
     label = unname(c(visit_id = "列次編號", subj_id = "孩子編號", sex = "性別",
-                     wave_m = "波次（月齡）", age_m = "實際月齡", wave = "波次標籤")[.data$field])
+                     wave_m = "時間點", age_m = "實際月齡", wave = "波次標籤")[.data$field])
   ) |>
   dplyr::slice(match(c("visit_id", "subj_id", "sex", "wave", "wave_m", "age_m"), .data$field))
 
 KITS_MAP_FIELDS <- stats::setNames(KITS_MAP_ROWS$meaning, KITS_MAP_ROWS$field)
+
+# wave_m 的單位（只影響畫面上的說明；作答檔只有數字）。KIT 是施測月齡
+KITS_WAVE_UNITS <- c(
+  "月（KIT：施測月齡）" = "month", "年" = "year", "波次序號（1、2、3…）" = "index",
+  "其他" = "other"
+)
 
 # 下載的題目設定檔名（「用 R 怎麼做？」也讀這個檔）
 KITS_SETTINGS_FILE <- "kits_item_settings.csv"
@@ -55,8 +65,14 @@ NULL
 # 外部連結的錨題只認這三個領域名稱
 KITS_ANCHOR_DOMAINS <- c("lan", "motor", "cog")
 
-# 這個值以上的分數當成疑似遺漏值代碼（例如 7777、9999），提醒先到 ② 處理
+# 這個值以上的分數當成遺漏值代碼（KIT 的 7777、8888、9999）
 KITS_CODE_MIN <- 7777
+
+# 值標籤含這些字的值當成遺漏值代碼（SPSS 檔常見的寫法，例如「[98] 跳答」「[99] 遺漏值」）
+KITS_CODE_LABEL_PATTERN <- paste0(
+  "遺漏|遺失|跳答|跳題|不適用|不知道|拒答|拒絕|無法回答|未作答|未填答|沒有回答|",
+  "missing|refus|don.?t know|not applicable|skip|^n/?a$"
+)
 
 # kitsUI 單檔上傳上限（MB，未壓縮的估計超過時提醒）
 KITSUI_UPLOAD_MB <- 200
@@ -75,7 +91,7 @@ kits_guess_map <- function(cols) {
     hit <- cols[grepl(pattern, cols, ignore.case = TRUE)]
     if (length(hit) == 0) "" else hit[[1]]
   }
-  ids <- setdiff(guess_id_cols(cols), cols[tolower(cols) == "visit_id"])
+  ids <- setdiff(kits_guess_id(cols), cols[tolower(cols) == "visit_id"])
   subj <- intersect(c("subj_id", "release_id"), cols)
   list(
     visit_id = first("^visit_id$"),
@@ -88,78 +104,224 @@ kits_guess_map <- function(cols) {
 }
 
 #' 已對應的欄（不會被當成題目）
+#' @param per_file NULL 或具名 list：各檔各選一欄的對應（欄 → 每個檔案一個欄名）
 #' @noRd
-kits_mapped_cols <- function(map) {
-  vals <- unlist(map, use.names = FALSE)
+kits_mapped_cols <- function(map, per_file = NULL) {
+  vals <- c(unlist(map, use.names = FALSE), unlist(per_file, use.names = FALSE))
   unique(vals[!is.na(vals) & nzchar(vals)])
+}
+
+#' 像 ID 的欄：id、ID、release_id、idno、id_2，也包含 w3id、w4id 這種「波次 + id」
+#' @noRd
+kits_guess_id <- function(cols) {
+  cols[grepl("(^|[_.])id(no)?($|[_.0-9])|^[A-Za-z]{0,3}[0-9]{1,2}_?id$", cols,
+             ignore.case = TRUE)]
+}
+
+#' 每個檔案各自猜對應的欄（各檔各選一欄的預設）
+#' @return 具名 list（KITS_MAP_ROWS$field[per_file]）：每個檔案一個欄名（猜不到是 ""）
+#' @noRd
+kits_guess_per_file <- function(dfs) {
+  fields <- KITS_MAP_ROWS$field[KITS_MAP_ROWS$per_file]
+  guesses <- purrr::map(dfs, function(df) kits_guess_map(names(df)))
+  stats::setNames(purrr::map(fields, function(field) {
+    vapply(guesses, function(g) g[[field]] %||% "", character(1))
+  }), fields)
+}
+
+#' 每一個對應欄位的來源預設：各檔都有同一個欄 →「某一欄」；欄名各檔不同、但每個檔案
+#' 都猜得到 →「各檔各選一欄」；都沒有時必填的欄是「某一欄」，選填的欄是「不用」
+#' @return 具名字元向量（column、per_file、none）
+#' @noRd
+kits_guess_sources <- function(dfs) {
+  cols <- unique(unlist(purrr::map(dfs, names)))
+  common <- kits_guess_map(cols)
+  each <- kits_guess_per_file(dfs)
+  vapply(stats::setNames(nm = KITS_MAP_ROWS$field), function(field) {
+    row <- KITS_MAP_ROWS[KITS_MAP_ROWS$field == field, ]
+    g <- common[[field]]
+    in_all <- nzchar(g) && all(vapply(dfs, function(df) g %in% names(df), logical(1)))
+    if (in_all) return("column")
+    if (row$per_file && length(dfs) > 1 && all(nzchar(each[[field]]))) return("per_file")
+    if (nzchar(g) || row$required || field == "subj_id") "column" else "none"
+  }, character(1))
+}
+
+#' 第 i 個檔案的對應欄位：各檔各選一欄的換成這個檔案選的欄
+#' @noRd
+kits_file_map <- function(map, per_file, i) {
+  for (field in names(per_file)) map[[field]] <- per_file[[field]][i] %||% ""
+  map
 }
 
 
 # ── 領域：題目表 ─────────────────────────────────────────────────────────
 
-#' 題目表（item_id、domain）整理與檢查
+#' 題目表（item_id、domain，可以再有 item_id_out）整理與檢查
 #'
-#' 欄名不分大小寫；同一題有兩個不同領域時停下來。
-#' @return tibble：item_id、domain（文字，去掉前後空白）
+#' item_id 是資料裡的欄名；item_id_out 是作答檔要用的題號（跨波次同一題給同一個題號，
+#' 空白時就用欄名）。有 item_id_out 時 domain 可以省略。
+#' 欄名不分大小寫；同一題有兩列不同的設定時停下來。
+#' @return tibble：item_id、domain、item_id_out（文字，去掉前後空白；空白是 NA）
 #' @noRd
 kits_item_table <- function(df) {
-  names(df) <- tolower(trimws(names(df)))
-  miss <- setdiff(c("item_id", "domain"), names(df))
+  df <- kits_upload_names(df)
+  has_out <- "item_id_out" %in% names(df)
+  miss <- setdiff(c("item_id", if (!has_out) "domain"), names(df))
   if (length(miss) > 0) {
     kit_abort(
       "題目表需要 item_id 與 domain 兩欄，缺少：", paste(miss, collapse = "、"), "。",
-      "請用一列一題的表，例如 item_id = lana01、domain = lan。"
+      "請用一列一題的表，例如 item_id = lana01、domain = lan",
+      "（要改輸出的題號時，再加一欄 item_id_out）。"
     )
   }
+  text <- function(x) {
+    if (is.null(x)) return(rep(NA_character_, nrow(df)))
+    dplyr::na_if(trimws(kits_upload_text(x)), "")
+  }
   tab <- tibble::tibble(
-    item_id = trimws(as.character(unclass(df$item_id))),
-    domain = trimws(as.character(unclass(df$domain)))
+    item_id = text(df$item_id), domain = text(df[["domain"]]), item_id_out = text(df[["item_id_out"]])
   ) |>
-    dplyr::filter(!is.na(.data$item_id), nzchar(.data$item_id)) |>
+    dplyr::filter(!is.na(.data$item_id)) |>
     dplyr::distinct()
   dup <- unique(tab$item_id[duplicated(tab$item_id)])
   if (length(dup) > 0) {
     kit_abort(
-      "題目表裡同一題有不同的領域：", paste(utils::head(dup, 5), collapse = "、"),
-      "。每一題只能有一個領域。"
+      "題目表裡同一題有不同的領域或輸出題號：", paste(utils::head(dup, 5), collapse = "、"),
+      "。每一題只能有一列。"
     )
   }
   tab
 }
 
-#' 每一欄的領域：查題目表（結尾 r 的題查不到時改查原題）
+# 反向題的欄名規則：反向題查不到領域時，改查去掉 r 的原題（KIT 是結尾 r，例如 cogd01r）
+KITS_REVERSE_RULES <- c(
+  "結尾 r（例如 cogd01r → cogd01）" = "suffix",
+  "開頭 r（例如 ra8 → a8、w1ra8 → w1a8）" = "prefix",
+  "不用（反向題的領域要自己給）" = "none"
+)
+
+#' 反向題的原題名稱：照規則去掉 r；不是反向題（或規則是 none）時 NA
+#' @param rule "suffix"（結尾 r）、"prefix"（開頭 r，可以在波次前綴 w1 之後）或 "none"
+#' @noRd
+kits_reverse_base <- function(cols, rule = "suffix") {
+  out <- rep(NA_character_, length(cols))
+  if (identical(rule, "suffix")) {
+    hit <- grepl("r$", cols)
+    out[hit] <- sub("r$", "", cols[hit])
+  } else if (identical(rule, "prefix")) {
+    pattern <- "^([A-Za-z]*[0-9]+_?)?r(?=[A-Za-z0-9])"
+    hit <- grepl(pattern, cols, perl = TRUE)
+    out[hit] <- sub(pattern, "\\1", cols[hit], perl = TRUE)
+  }
+  out[!is.na(out) & !nzchar(out)] <- NA_character_
+  out
+}
+
+#' 每一欄的領域：查題目表（反向題查不到時改查原題，規則見 KITS_REVERSE_RULES）
 #'
 #' @param cols 候選欄
 #' @param table NULL 或 kits_item_table()
+#' @param reverse 反向題的欄名規則（"suffix"、"prefix"、"none"）
 #' @return tibble：column、domain（找不到時 NA）、source（給使用者看的來源）
 #' @noRd
-kits_item_domains <- function(cols, table = NULL) {
+kits_item_domains <- function(cols, table = NULL, reverse = "suffix") {
   cols <- as.character(cols)
   domain <- rep(NA_character_, length(cols))
   source <- rep(NA_character_, length(cols))
   if (!is.null(table) && nrow(table) > 0) {
     hit <- match(cols, table$item_id)
     domain <- table$domain[hit]
-    source[!is.na(hit)] <- "題目表"
-    base <- sub("r$", "", cols)
-    use_base <- is.na(domain) & grepl("r$", cols) & base %in% table$item_id
+    source[!is.na(domain)] <- "題目表"
+    base <- kits_reverse_base(cols, reverse)
+    use_base <- is.na(domain) & !is.na(base) & base %in% table$item_id
     domain[use_base] <- table$domain[match(base[use_base], table$item_id)]
     source[use_base] <- paste0("題目表（原題 ", base[use_base], "）")
   }
   tibble::tibble(column = cols, domain = domain, source = source)
 }
 
+#' 一欄能不能當題目：數字欄、全空白的欄，或內容都是數字的文字欄（例如 "1"、"2"）
+#' @noRd
+kits_numeric_like <- function(x) {
+  if (is.numeric(x) || all(is.na(x))) return(TRUE)
+  if (!is.character(x)) return(FALSE)
+  txt <- trimws(as.vector(unclass(x)))
+  keep <- !is.na(txt) & nzchar(txt)
+  !anyNA(kits_as_num(txt[keep]))
+}
+
 #' 候選題目欄：各檔欄位聯集，去掉已對應的欄與世代欄
-#' @return list(numeric = 數值欄, text = 文字欄（不能當題目）)
+#'
+#' 在某個檔案是數字（或內容都是數字的文字）就是候選；某些檔案裡是一般文字時，
+#' 只有那些檔案的這一欄不轉（列在 mixed，轉換時提醒）。
+#' @return list(numeric = 候選欄, text = 每個檔案都是文字的欄（不能當題目），
+#'   mixed = tibble(column, file)：在這個檔案是文字、在別的檔案是數字的欄)
 #' @noRd
 kits_candidate_cols <- function(dfs, mapped) {
   cols <- setdiff(as.character(unique(unlist(purrr::map(dfs, names)))), mapped)
+  ok <- purrr::map(dfs, function(df) {
+    have <- intersect(cols, names(df))
+    stats::setNames(vapply(df[have], kits_numeric_like, logical(1)), have)
+  })
   is_num <- vapply(cols, function(col) {
-    all(purrr::map_lgl(dfs, function(df) {
-      !col %in% names(df) || is.numeric(df[[col]]) || all(is.na(df[[col]]))
-    }))
+    any(purrr::map_lgl(ok, function(o) isTRUE(o[col])))
   }, logical(1))
-  list(numeric = cols[is_num], text = cols[!is_num])
+  mixed <- purrr::imap(ok, function(o, i) {
+    bad <- names(o)[!o & names(o) %in% cols[is_num]]
+    tibble::tibble(column = bad, file = rep(i, length(bad)))
+  }) |>
+    purrr::list_rbind()
+  if (is.null(mixed) || nrow(mixed) == 0) {
+    mixed <- tibble::tibble(column = character(0), file = integer(0))
+  }
+  list(numeric = cols[is_num], text = cols[!is_num], mixed = mixed)
+}
+
+#' 題目欄是文字的檔案怎麼處理：內容都是數字的轉成數字（convert），有一般文字的這個檔案
+#' 不轉這一題（drop，example 是一個例子）
+#' @return list（每個檔案一個）：list(convert, drop, example)
+#' @noRd
+kits_text_fix <- function(dfs, items) {
+  purrr::map(dfs, function(df) {
+    have <- intersect(items, names(df))
+    text <- have[vapply(df[have], function(x) !is.numeric(x) && !all(is.na(x)), logical(1))]
+    like <- vapply(df[text], kits_numeric_like, logical(1))
+    drop <- text[!like]
+    example <- vapply(df[drop], function(x) {
+      txt <- trimws(as.vector(unclass(x)))
+      txt[!is.na(txt) & nzchar(txt) & is.na(kits_as_num(txt))][1]
+    }, character(1))
+    list(convert = text[like], drop = drop, example = example)
+  })
+}
+
+#' 套用 kits_text_fix()：文字的題目欄轉成數字，或從那個檔案拿掉
+#' @return list(dfs, notes, warnings)
+#' @noRd
+kits_apply_text_fix <- function(dfs, file_names, fix) {
+  notes <- character(0)
+  warnings <- character(0)
+  for (i in seq_along(dfs)) {
+    f <- fix[[i]]
+    for (col in f$convert) dfs[[i]][[col]] <- kits_as_num(dfs[[i]][[col]])
+    if (length(f$convert) > 0) {
+      notes <- c(notes, paste0(
+        file_names[i], "：", length(f$convert), " 個題目欄是文字、內容都是數字，轉成數字（",
+        paste(utils::head(f$convert, 5), collapse = "、"), if (length(f$convert) > 5) "…", "）。"
+      ))
+    }
+    if (length(f$drop) > 0) {
+      dfs[[i]] <- dfs[[i]][setdiff(names(dfs[[i]]), f$drop)]
+      shown <- paste0(f$drop, "（例如「", f$example, "」）")
+      warnings <- c(warnings, paste0(
+        file_names[i], "：", length(f$drop), " 個題目欄在這個檔案是文字，這個檔案的這些題不轉：",
+        paste(utils::head(shown, 5), collapse = "、"), if (length(f$drop) > 5) "…", "。",
+        "其他檔案的同一題照常轉。"
+      ))
+    }
+  }
+  list(dfs = dfs, notes = notes, warnings = warnings)
 }
 
 
@@ -187,16 +349,102 @@ kits_item_ranges <- function(dfs, items, below = Inf) {
     )
 }
 
-#' 疑似遺漏值代碼（KITS_CODE_MIN 以上）的格數
-#' @param cols 要看的欄（題目、wave_m、age_m）
+# ── 遺漏值代碼 ───────────────────────────────────────────────────────────────
+#
+# ⑥ 不把遺漏值代碼當成分數：下面這幾種值當成代碼，轉換時改成 NA（不寫進作答檔）。
+#   1. 值標籤是「遺漏值」「跳答」「不適用」「不知道」「拒答」這類（KITS_CODE_LABEL_PATTERN）
+#   2. ② 的代碼清單（「② 遺漏值轉 NA」上方填的代碼；沒有用 ② 時也會看）
+#   3. 7777 以上（KIT 的代碼）
+#   4. 和分數明顯分開的值：例如分數是 1–5，又有 95–99（kits_separated_codes()）
+# 每一題的代碼列在「3. 題目設定」，可以改（「當成遺漏值」「不是遺漏值代碼」）。
+
+#' 一欄的數值（文字欄能讀成數字的也算；帶標籤的欄用代碼）
 #' @noRd
-kits_code_cells <- function(dfs, cols) {
-  sum(purrr::map_dbl(dfs, function(df) {
-    have <- intersect(cols, names(df))
-    sum(purrr::map_dbl(df[have], function(x) {
-      if (!is.numeric(x)) return(0)
-      sum(as.numeric(unclass(x)) >= KITS_CODE_MIN, na.rm = TRUE)
+kits_as_num <- function(x) {
+  if (is.factor(x)) return(rep(NA_real_, length(x)))
+  x <- as.vector(unclass(x))   # 帶標籤的文字欄（SAV）也先變成一般的向量
+  if (is.character(x)) return(suppressWarnings(as.numeric(trimws(x))))
+  as.numeric(x)
+}
+
+#' 各檔案這一欄的值標籤（值 → 標籤）；沒有時 NULL
+#' @noRd
+kits_value_labels <- function(dfs, col) {
+  labs <- unlist(purrr::map(unname(dfs), function(df) {
+    labels <- attr(df[[col]], "labels", exact = TRUE)
+    if (is.numeric(labels)) stats::setNames(names(labels), as.character(unclass(labels)))
+  }))
+  if (length(labs) == 0) NULL else labs[!duplicated(names(labs))]
+}
+
+#' 和分數明顯分開的值：例如 1–5 加上 95–99、0–3 加上 999
+#'
+#' 由大到小找最大的空隙：空隙上面的值都是整數、不超過 5 種、都在 90 以上、至少是下面
+#' 最大值的 4 倍，下面至少有 2 種值時，上面的值就是代碼。可以重複找（95–99 加上 999）。
+#' @param vals 這一欄的值（不含 NA）
+#' @return 代碼（數字向量）
+#' @noRd
+kits_separated_codes <- function(vals) {
+  vals <- sort(unique(vals[is.finite(vals)]))
+  out <- numeric(0)
+  for (k in 1:3) {
+    n <- length(vals)
+    if (n < 3) break
+    gaps <- diff(vals)
+    cut <- which.max(gaps)
+    body <- vals[seq_len(cut)]
+    upper <- vals[-seq_len(cut)]
+    ok <- length(body) >= 2 && length(upper) <= 5 && all(upper == round(upper)) &&
+      min(upper) >= 90 && min(upper) >= 4 * max(max(body), 1)
+    if (!ok) break
+    out <- c(upper, out)
+    vals <- body
+  }
+  sort(out)
+}
+
+#' 一欄（所有檔案合起來）的遺漏值代碼與原因
+#'
+#' @param vals 觀察到的值（不含 NA）
+#' @param labels kits_value_labels()
+#' @param na_codes ② 的代碼清單
+#' @return tibble：value、why（例如「跳答」「② 的代碼」「7777 以上」「和分數分開」）
+#' @noRd
+kits_value_codes <- function(vals, labels = NULL, na_codes = NULL) {
+  vals <- as.numeric(vals)
+  vals <- sort(unique(vals[is.finite(vals)]))
+  why <- rep(NA_character_, length(vals))
+  if (length(labels) > 0) {
+    lab <- labels[match(as.character(vals), names(labels))]
+    hit <- !is.na(lab) & grepl(KITS_CODE_LABEL_PATTERN, lab, ignore.case = TRUE)
+    why[hit] <- paste0("值標籤「", lab[hit], "」")
+  }
+  why[is.na(why) & vals %in% na_codes] <- "② 的代碼"
+  why[is.na(why) & vals >= KITS_CODE_MIN] <- paste0(KITS_CODE_MIN, " 以上")
+  sep <- kits_separated_codes(vals[is.na(why)])
+  why[is.na(why) & vals %in% sep] <- "和分數分開"
+  keep <- !is.na(why)
+  tibble::tibble(value = vals[keep], why = why[keep])
+}
+
+#' 代碼的文字：「98（值標籤「跳答」）、99（② 的代碼）」
+#' @noRd
+kits_codes_text <- function(codes) {
+  if (is.null(codes) || nrow(codes) == 0) return("")
+  paste0(kits_id_text(codes$value), "（", codes$why, "）", collapse = "、")
+}
+
+#' 這幾欄裡是遺漏值代碼的格數（wave_m、age_m 這類不是題目的欄；不看「和分數分開」）
+#' @noRd
+kits_code_cells <- function(dfs, cols, na_codes = NULL) {
+  sum(purrr::map_dbl(cols, function(col) {
+    vals <- unlist(purrr::map(dfs, function(df) {
+      if (col %in% names(df) && is.numeric(df[[col]])) kits_as_num(df[[col]])
     }))
+    if (length(vals) == 0) return(0)
+    codes <- kits_value_codes(vals[!is.na(vals)], kits_value_labels(dfs, col), na_codes)
+    codes <- codes$value[codes$why != "和分數分開"]
+    sum(vals %in% codes)
   }))
 }
 
@@ -212,37 +460,66 @@ kits_shift_text <- function(by) {
 # 設定是一張 tibble，一列一個候選欄：
 #   column（題號，就是欄名）、include（納入）、domain（領域，NA 是還沒給）、
 #   source（領域從哪裡來）、raw（觀察到的原分數，list 欄）、score（對應的計分，list 欄；
-#   NA 是還沒有計分）、has_codes（有沒有 KITS_CODE_MIN 以上的值）。
-# 原分數不含 NA 與 KITS_CODE_MIN 以上的值（疑似遺漏值代碼，請在 ② 處理）。
+#   NA 是還沒有計分）、has_codes（有沒有遺漏值代碼）、codes（遺漏值代碼與原因，list 欄，
+#   每格是 tibble(value, why)）、n_codes（代碼的格數）、code_set（代碼是誰決定的：NA 是
+#   自動偵測，「自己設」「設定檔」時資料變了也照用）。
+# 原分數不含 NA 與遺漏值代碼（轉換時代碼改成 NA）。
 # 下面的批次動作都只改選取的列（rows 是題號），而且都在「目前的計分」上做。
 
 # 空的題目設定
 kits_settings_empty <- function() {
   tibble::tibble(
     column = character(0), include = logical(0), domain = character(0),
-    source = character(0), raw = list(), score = list(), has_codes = logical(0)
+    source = character(0), raw = list(), score = list(), has_codes = logical(0),
+    codes = list(), n_codes = integer(0), code_set = character(0),
+    item_id_out = character(0)
   )
 }
 
-#' 由資料建立題目設定：每一欄納入、沒有領域、原分數 = 計分
+# 沒有代碼
+kits_no_codes <- function() tibble::tibble(value = numeric(0), why = character(0))
+
+#' 由資料建立題目設定：每一欄納入、沒有領域、原分數 = 計分；遺漏值代碼自動偵測
 #' @param cols 候選欄（kits_candidate_cols()$numeric）
+#' @param na_codes ② 的代碼清單（NULL 時只看值標籤、7777 以上、和分數分開的值）
 #' @noRd
-kits_item_settings <- function(dfs, cols) {
+kits_item_settings <- function(dfs, cols, na_codes = NULL) {
   if (length(cols) == 0) return(kits_settings_empty())
   rows <- purrr::map(cols, function(col) {
-    vals <- unlist(purrr::map(dfs, function(df) {
+    all_vals <- unlist(purrr::map(dfs, function(df) {
       x <- df[[col]]
-      if (is.null(x)) NULL else unique(as.numeric(unclass(x)))
+      if (is.null(x) || !(is.numeric(x) || is.character(x))) NULL else kits_as_num(x)
     }))
-    vals <- vals[!is.na(vals)]
-    observed <- sort(unique(vals[vals < KITS_CODE_MIN]))
-    # 注意：tibble() 依序建立欄位，不能用和欄名相同的變數名（raw）
+    all_vals <- all_vals[!is.na(all_vals)]
+    vals <- unique(all_vals)
+    found <- kits_value_codes(vals, kits_value_labels(dfs, col), na_codes)
+    observed <- sort(vals[!vals %in% found$value])
+    # 注意：tibble() 依序建立欄位，不能用和欄名相同的變數名（raw、codes）
     tibble::tibble(
       column = col, include = TRUE, domain = NA_character_, source = NA_character_,
-      raw = list(observed), score = list(observed), has_codes = any(vals >= KITS_CODE_MIN)
+      raw = list(observed), score = list(observed), has_codes = nrow(found) > 0,
+      codes = list(found), n_codes = sum(all_vals %in% found$value),
+      code_set = NA_character_, item_id_out = NA_character_
     )
   })
   purrr::list_rbind(rows)
+}
+
+#' 改一列的遺漏值代碼：原分數與代碼重新分，計分對照沿用（kits_map_fit()）
+#' @param i 第幾列
+#' @param codes tibble(value, why)
+#' @param set 誰決定的（「自己設」「設定檔」）
+#' @noRd
+kits_set_codes <- function(settings, i, codes, set) {
+  old <- settings$codes[[i]] %||% kits_no_codes()
+  seen <- sort(union(settings$raw[[i]], old$value))
+  raw <- seen[!seen %in% codes$value]
+  settings$score[[i]] <- kits_map_fit(raw, settings$raw[[i]], settings$score[[i]])
+  settings$raw[[i]] <- raw
+  settings$codes[[i]] <- codes
+  settings$has_codes[i] <- nrow(codes) > 0
+  settings$code_set[i] <- set
+  settings
 }
 
 # 舊的計分對照套到新的原分數：對得到的照舊；對不到的，舊的對照沒改過（原分數 = 計分）
@@ -260,8 +537,9 @@ kits_map_fit <- function(raw_new, raw_old, score_old) {
 #' @param old 舊的設定（NULL 時直接用 new）
 #' @param new kits_item_settings() 由目前資料建立的設定
 #' @param upload NULL 或 kits_settings_import()：新出現的欄套用上傳的題目表或設定檔
+#' @param reverse 反向題的欄名規則（kits_item_domains()）
 #' @noRd
-kits_settings_sync <- function(old, new, upload = NULL) {
+kits_settings_sync <- function(old, new, upload = NULL, reverse = "suffix") {
   if (nrow(new) == 0) return(new)
   if (!is.null(old) && nrow(old) > 0) {
     hit <- match(new$column, old$column)
@@ -270,34 +548,54 @@ kits_settings_sync <- function(old, new, upload = NULL) {
       new$include[i] <- old$include[j]
       new$domain[i] <- old$domain[j]
       new$source[i] <- old$source[j]
+      new$item_id_out[i] <- old[["item_id_out"]][j] %||% NA_character_
+      if (!is.na(old$code_set[j] %||% NA)) {
+        # 使用者決定的代碼：資料變了也照用
+        new <- kits_set_codes(new, i, old$codes[[j]], old$code_set[j])
+      }
       new$score[[i]] <- kits_map_fit(new$raw[[i]], old$raw[[j]], old$score[[j]])
     }
     fresh <- new$column[is.na(hit)]
   } else {
     fresh <- new$column
   }
-  if (!is.null(upload)) new <- kits_settings_apply(new, upload, fresh)
+  if (!is.null(upload)) new <- kits_settings_apply(new, upload, fresh, reverse)
   new
 }
 
 #' 套用上傳的題目表（item_id、domain）或題目設定檔（item_id、include、domain、
 #' map_raw_to_score）
 #'
-#' 題目表只給領域；結尾 r 的題查不到時用原題的領域。設定檔還給納入與計分對照。
+#' 題目表只給領域（和輸出題號）；反向題查不到時用原題的領域（規則見 KITS_REVERSE_RULES）。
+#' 設定檔還給納入、計分對照與遺漏值代碼。
 #' @param cols 只套用這些題（NULL 是全部）
+#' @param reverse 反向題的欄名規則（kits_item_domains()）
 #' @noRd
-kits_settings_apply <- function(settings, upload, cols = NULL) {
+kits_settings_apply <- function(settings, upload, cols = NULL, reverse = "suffix") {
   if (is.null(upload) || nrow(settings) == 0) return(settings)
   todo <- if (is.null(cols)) rep(TRUE, nrow(settings)) else settings$column %in% cols
-  dom <- kits_item_domains(settings$column, upload$data[c("item_id", "domain")])
+  dom <- kits_item_domains(settings$column, upload$data[c("item_id", "domain")], reverse)
   set <- todo & !is.na(dom$domain)
   settings$domain[set] <- dom$domain[set]
   settings$source[set] <- if (upload$type == "settings") "設定檔" else dom$source[set]
+  # 輸出題號：只對欄名完全相同的列（不用反向題的規則）
+  if (!is.null(upload$data[["item_id_out"]]) && any(!is.na(upload$data[["item_id_out"]]))) {
+    if (is.null(settings[["item_id_out"]])) settings$item_id_out <- NA_character_
+    out <- upload$data[["item_id_out"]][match(settings$column, upload$data$item_id)]
+    set <- todo & !is.na(out)
+    settings$item_id_out[set] <- ifelse(out[set] == settings$column[set], NA, out[set])
+  }
   if (upload$type == "settings") {
     hit <- match(settings$column, upload$data$item_id)
     for (i in which(todo & !is.na(hit))) {
       j <- hit[i]
       if (!is.na(upload$data$include[j])) settings$include[i] <- upload$data$include[j]
+      codes <- upload$data[["codes"]][[j]]
+      if (!is.null(codes)) {
+        settings <- kits_set_codes(
+          settings, i, tibble::tibble(value = codes, why = rep("設定檔", length(codes))), "設定檔"
+        )
+      }
       settings$score[[i]] <- kits_map_fit(
         settings$raw[[i]], upload$data$raw[[j]], upload$data$score[[j]]
       )
@@ -312,12 +610,12 @@ kits_settings_apply <- function(settings, upload, cols = NULL) {
 #' @return list(type = "table" 或 "settings", data)
 #' @noRd
 kits_settings_import <- function(df) {
-  names(df) <- tolower(trimws(names(df)))
+  df <- kits_upload_names(df)
   if (!any(c("map_raw_to_score", "include") %in% names(df))) {
     return(list(type = "table", data = kits_item_table(df)))
   }
   if (!"item_id" %in% names(df)) kit_abort("題目設定檔需要 item_id 欄。")
-  text <- function(x) if (is.null(x)) NA_character_ else trimws(as.character(unclass(x)))
+  text <- function(x) if (is.null(x)) NA_character_ else trimws(kits_upload_text(x))
   ids <- text(df$item_id)
   include <- text(df$include)
   maps <- purrr::map2(ids, text(df$map_raw_to_score), function(id, m) {
@@ -325,18 +623,68 @@ kits_settings_import <- function(df) {
       kit_abort("題目設定檔裡 ", id, " 的 map_raw_to_score 看不懂：", conditionMessage(e))
     })
   })
+  # missing_codes：遺漏值代碼（例如 98;99）。沒有這一欄（舊的設定檔）時沿用自動偵測
+  codes <- if (is.null(df[["missing_codes"]])) rep(list(NULL), length(ids)) else {
+    purrr::map(text(df$missing_codes), function(m) {
+      if (is.na(m) || !nzchar(m)) return(numeric(0))
+      parts <- strsplit(m, "[;,，、[:space:]]+")[[1]]
+      vals <- suppressWarnings(as.numeric(parts[nzchar(parts)]))
+      if (anyNA(vals)) kit_abort("題目設定檔的 missing_codes 要寫數字，用分號隔開，例如 98;99。")
+      vals
+    })
+  }
+  yes <- c("TRUE", "T", "1", "是", "YES", "Y", "納入")
+  no <- c("FALSE", "F", "0", "否", "NO", "N", "排除")
+  odd <- unique(include[!is.na(include) & nzchar(include) & !toupper(include) %in% c(yes, no)])
+  if (length(odd) > 0) {
+    kit_abort(
+      "題目設定檔的 include 看不懂：", paste(utils::head(odd, 3), collapse = "、"),
+      "。請寫 TRUE／FALSE（也可以是 是／否、Y／N、1／0）。"
+    )
+  }
   data <- tibble::tibble(
     item_id = ids,
     include = dplyr::case_when(
-      toupper(include) %in% c("TRUE", "T", "1", "是", "YES") ~ TRUE,
-      toupper(include) %in% c("FALSE", "F", "0", "否", "NO") ~ FALSE,
+      toupper(include) %in% yes ~ TRUE,
+      toupper(include) %in% no ~ FALSE,
       .default = NA
     ),
     domain = dplyr::na_if(text(df$domain), ""),
-    raw = purrr::map(maps, "raw"), score = purrr::map(maps, "score")
+    raw = purrr::map(maps, "raw"), score = purrr::map(maps, "score"), codes = codes,
+    item_id_out = if (is.null(df[["item_id_out"]])) NA_character_ else
+      dplyr::na_if(text(df[["item_id_out"]]), "")
   )
-  data <- data[!is.na(data$item_id) & nzchar(data$item_id), ]
+  data <- dplyr::distinct(data[!is.na(data$item_id) & nzchar(data$item_id), ])
+  dup <- unique(data$item_id[duplicated(data$item_id)])
+  if (length(dup) > 0) {
+    kit_abort(
+      "題目設定檔裡同一題有好幾列：", paste(utils::head(dup, 5), collapse = "、"),
+      "。每一題只能有一列。"
+    )
+  }
   list(type = "settings", data = data)
+}
+
+#' 上傳的題目表或設定檔的欄名：去掉 BOM 與前後空白、不分大小寫；
+#' 用分號分隔的 CSV（讀成一欄）時停下來說明
+#' @noRd
+kits_upload_names <- function(df) {
+  nm <- tolower(trimws(sub("^\ufeff", "", names(df))))
+  names(df) <- nm
+  if (ncol(df) == 1 && grepl(";", nm[1], fixed = TRUE)) {
+    kit_abort(
+      "這個檔案看起來是用分號（;）分隔的 CSV（例如歐洲版 Excel 存的）。",
+      "請另存成逗號分隔的 CSV（UTF-8），再上傳一次。"
+    )
+  }
+  df
+}
+
+#' 上傳的欄轉成文字：帶值標籤的欄（SAV）用標籤，數字不寫成科學記號
+#' @noRd
+kits_upload_text <- function(x) {
+  if (!is.null(attr(x, "labels", exact = TRUE))) return(kits_label_text(x))
+  kits_id_text(x)
 }
 
 #' 計分對照的文字：「1=0;2=1」（原分數=計分，用分號隔開；還沒有計分的寫「1=」）
@@ -351,23 +699,35 @@ kits_map_text <- function(raw, score) {
 #' @noRd
 kits_parse_map <- function(text) {
   if (is.na(text) || !nzchar(trimws(text))) return(list(raw = numeric(0), score = numeric(0)))
-  pairs <- strsplit(strsplit(trimws(text), ";", fixed = TRUE)[[1]], "=", fixed = TRUE)
+  # 分號是正式寫法；逗號、頓號也接受（例如 1=0,2=1）
+  parts <- strsplit(trimws(text), "[;,，、；]+")[[1]]
+  pairs <- strsplit(trimws(parts[nzchar(trimws(parts))]), "=", fixed = TRUE)
   raw <- suppressWarnings(as.numeric(vapply(pairs, `[`, character(1), 1)))
-  score <- suppressWarnings(as.numeric(vapply(pairs, function(p) {
-    if (length(p) < 2) NA_character_ else p[2]
-  }, character(1))))
-  if (anyNA(raw)) stop("要寫成「原分數=計分;原分數=計分」，例如 1=0;2=1")
+  score_txt <- vapply(pairs, function(p) {
+    if (length(p) < 2) NA_character_ else trimws(p[2])
+  }, character(1))
+  score <- suppressWarnings(as.numeric(score_txt))
+  bad <- is.na(score) & !is.na(score_txt) & nzchar(score_txt)
+  if (anyNA(raw) || any(lengths(pairs) > 2) || any(bad)) {
+    stop("要寫成「原分數=計分;原分數=計分」，例如 1=0;2=1（還沒有計分的寫 1=）")
+  }
   list(raw = raw, score = score)
 }
 
-#' 下載用的題目設定：item_id、include、domain、map_raw_to_score（原分數=計分）
+#' 下載用的題目設定：item_id、include、domain、map_raw_to_score（原分數=計分）、
+#' missing_codes（遺漏值代碼，用分號隔開）、item_id_out（輸出的題號；空白是用欄名）
 #' @noRd
 kits_settings_export <- function(settings) {
+  codes <- settings[["codes"]] %||% rep(list(kits_no_codes()), nrow(settings))
   tibble::tibble(
     item_id = settings$column,
     include = settings$include,
     domain = settings$domain,
-    map_raw_to_score = purrr::map2_chr(settings$raw, settings$score, kits_map_text)
+    map_raw_to_score = purrr::map2_chr(settings$raw, settings$score, kits_map_text),
+    missing_codes = purrr::map_chr(codes, function(x) {
+      paste(kits_id_text((x %||% kits_no_codes())$value), collapse = ";")
+    }),
+    item_id_out = settings[["item_id_out"]] %||% rep(NA_character_, nrow(settings))
   )
 }
 
@@ -436,13 +796,61 @@ kits_bulk_restore <- function(settings, rows) {
   kits_bulk_score(settings, rows, function(raw, score) raw)
 }
 
+#' 當成遺漏值：這些原分數改成遺漏值代碼（不輸出）
+#' @noRd
+kits_bulk_codes <- function(settings, rows, values) {
+  for (i in which(settings$column %in% rows)) {
+    old <- settings$codes[[i]] %||% kits_no_codes()
+    add <- setdiff(values, old$value)
+    codes <- dplyr::bind_rows(old, tibble::tibble(value = add, why = rep("自己設", length(add))))
+    settings <- kits_set_codes(settings, i, codes[order(codes$value), ], "自己設")
+  }
+  settings
+}
+
+#' 輸出題號：欄名去掉符合 pattern（正規式）的部分，例如 ^w[0-9]+ 讓 w1d5_1、w2d5_1 都是 d5_1
+#' @noRd
+kits_bulk_out_prefix <- function(settings, rows, pattern) {
+  ok <- tryCatch({
+    grepl(pattern, "x")
+    TRUE
+  }, error = function(e) FALSE, warning = function(w) FALSE)
+  if (!ok || !nzchar(pattern)) kit_abort("看不懂這個規則（正規式）：", pattern, "。例如 ^w[0-9]+")
+  hit <- settings$column %in% rows
+  out <- sub(pattern, "", settings$column[hit])
+  empty <- settings$column[hit][!nzchar(out)]
+  if (length(empty) > 0) {
+    kit_abort("去掉後題號會變成空白：", paste(utils::head(empty, 5), collapse = "、"), "。")
+  }
+  settings$item_id_out[hit] <- ifelse(out == settings$column[hit], NA, out)
+  settings
+}
+
+#' 輸出題號還原成欄名
+#' @noRd
+kits_bulk_out_reset <- function(settings, rows) {
+  settings$item_id_out[settings$column %in% rows] <- NA_character_
+  settings
+}
+
+#' 不是遺漏值代碼：這些題的代碼都放回原分數（計分 = 原分數）
+#' @noRd
+kits_bulk_uncode <- function(settings, rows) {
+  for (i in which(settings$column %in% rows)) {
+    settings <- kits_set_codes(settings, i, kits_no_codes(), "自己設")
+  }
+  settings
+}
+
 #' 每一列的提醒（給畫面上的「提醒」欄）
 #' @return 字元向量（每列一個，沒有提醒時是 ""）
 #' @noRd
 kits_settings_alerts <- function(settings) {
+  codes <- settings[["codes"]] %||% rep(list(NULL), nrow(settings))
   purrr::pmap_chr(
-    list(settings$include, settings$domain, settings$raw, settings$score, settings$has_codes),
-    function(include, domain, raw, score, has_codes) {
+    list(settings$include, settings$domain, settings$raw, settings$score, settings$has_codes,
+         codes),
+    function(include, domain, raw, score, has_codes, codes) {
       if (!include) return("")
       out <- character(0)
       if (is.na(domain) || !nzchar(domain)) out <- c(out, "沒有領域")
@@ -455,27 +863,51 @@ kits_settings_alerts <- function(settings) {
         if (any(sc != round(sc))) out <- c(out, "計分不是整數")
         if (min(sc) > 0) out <- c(out, "沒有 0 分")
         if (all(sc == round(sc)) && !all(seq(min(sc), max(sc)) %in% sc)) {
-          out <- c(out, "分數有缺")
+          like <- kits_code_like(sc)
+          out <- c(out, if (length(like) > 0) {
+            paste0("分數有缺（", paste(kits_id_text(like), collapse = "、"),
+                   " 像遺漏值代碼，請用「當成遺漏值」，不要合併）")
+          } else {
+            "分數有缺"
+          })
         }
       }
       if (any(raw != round(raw))) out <- c(out, "原分數有小數（可能不是題目）")
-      if (has_codes) out <- c(out, "有 7777 以上的值（請到 ②）")
+      if (!is.null(codes) && nrow(codes) > 0) {
+        out <- c(out, paste0("遺漏值代碼 ", kits_codes_text(codes), "：不輸出"))
+      } else if (is.null(codes) && has_codes) {
+        out <- c(out, "有遺漏值代碼")
+      }
       paste(out, collapse = "；")
     }
   )
 }
 
-#' 要轉的題目（納入的列）：column、domain、raw、score
+#' 分數空隙上面、看起來像遺漏值代碼的值（9、99、95–98、999…）：提醒不要「合併」
+#' @param sc 一題的分數（或計分）
+#' @noRd
+kits_code_like <- function(sc) {
+  sc <- sort(unique(sc[is.finite(sc)]))
+  if (length(sc) < 2) return(numeric(0))
+  cut <- which.max(diff(sc))
+  upper <- sc[-seq_len(cut)]
+  upper[grepl("^9+[0-9]?$", kits_id_text(upper)) & upper >= 9]
+}
+
+#' 要轉的題目（納入的列）：column、domain、raw、score、codes（遺漏值代碼，list 欄）、
+#' item_id_out（輸出的題號，NA 是用欄名）
 #' @noRd
 kits_settings_items <- function(settings) {
   keep <- settings[settings$include, ]
-  keep[c("column", "domain", "raw", "score")]
+  if (is.null(keep[["codes"]])) keep$codes <- rep(list(kits_no_codes()), nrow(keep))
+  if (is.null(keep[["item_id_out"]])) keep$item_id_out <- rep(NA_character_, nrow(keep))
+  keep[c("column", "domain", "raw", "score", "codes", "item_id_out")]
 }
 
-#' 納入但還沒有領域的題
+#' 納入但還沒有領域的題（沒有任何作答的題不算：它們不會出現在作答檔）
 #' @noRd
 kits_settings_undecided <- function(settings) {
-  keep <- settings[settings$include, ]
+  keep <- settings[settings$include & lengths(settings$raw) > 0, ]
   keep$column[is.na(keep$domain) | !nzchar(keep$domain)]
 }
 
@@ -497,7 +929,7 @@ kits_settings_shift_hint <- function(settings) {
 #' 把每一題的計分對照套到寬資料上（只動有改的題）
 #'
 #' 資料裡出現、但對照裡沒有計分的原分數（例如新的一波多了 0 分）會擋下來。
-#' KITS_CODE_MIN 以上的值不在對照裡，照原樣留下（另有提醒請到 ②）。
+#' 遺漏值代碼已經先由 kits_apply_codes() 改成 NA。
 #' @param items kits_settings_items()（沒有 raw、score 欄時什麼都不做）
 #' @return list(dfs, n = 改了幾題, problems)
 #' @noRd
@@ -513,7 +945,7 @@ kits_apply_maps <- function(dfs, items) {
       x <- df[[col]]
       if (is.null(x)) NULL else unique(as.numeric(unclass(x)))
     })))
-    seen <- seen[!is.na(seen) & seen < KITS_CODE_MIN]
+    seen <- seen[!is.na(seen)]
     known <- raw[!is.na(score)]
     miss <- setdiff(seen, known)
     if (length(miss) > 0) {
@@ -563,17 +995,25 @@ kits_spec_problems <- function(dfs, file_names, spec) {
     }
   }
   map <- spec$map
-  if (!nzchar(map$wave_m %||% "") && is.null(spec$typed$wave_m)) {
-    out <- c(out, "請對應 wave_m（波次，月）：選檔案裡的欄，或每個檔案自己填。kitsUI 一定要這一欄。")
+  per_file <- spec$per_file %||% list()
+  has_wave_m <- nzchar(map$wave_m %||% "") || !is.null(spec$typed[["wave_m"]]) ||
+    !is.null(per_file[["wave_m"]])
+  if (!has_wave_m) {
+    out <- c(out, "請對應 wave_m（時間點）：選檔案裡的欄，或每個檔案自己填。kitsUI 一定要這一欄。")
   }
   out <- c(out, kits_typed_problems(file_names, spec$typed %||% list()))
-  if (!nzchar(map$visit_id %||% "") && !nzchar(map$subj_id %||% "")) {
+  has_subj <- nzchar(map$subj_id %||% "") || !is.null(per_file[["subj_id"]])
+  if (!nzchar(map$visit_id %||% "") && !has_subj) {
     out <- c(out, "請對應 subj_id（孩子編號）：visit_id 要用它組成。")
   }
+  out <- c(out, kits_per_file_problems(dfs, file_names, per_file, map))
   for (i in seq_along(dfs)) {
     miss <- setdiff(kits_mapped_cols(map), names(dfs[[i]]))
     if (length(miss) > 0) {
-      out <- c(out, paste0(file_names[i], "：沒有對應的欄 ", paste(miss, collapse = "、"), "。"))
+      out <- c(out, paste0(
+        file_names[i], "：沒有對應的欄 ", paste(miss, collapse = "、"), "。",
+        "各檔欄名不同時，請在「2. 對應欄位」選「各檔各選一欄」。"
+      ))
     }
   }
   if (length(spec$undecided) > 0) {
@@ -599,9 +1039,38 @@ kits_spec_problems <- function(dfs, file_names, spec) {
 #'   沒有 raw、score 時原分數 = 計分（kits_settings_items() 的結果）
 #' @param undecided 納入但還沒有領域的題
 #' @param typed 具名 list：自己填的對應欄位（每個檔案一個值）
+#' @param na_codes ② 的代碼清單（items 沒有 codes 欄時用來偵測遺漏值代碼；也用在 wave_m、
+#'   age_m）
+#' @param per_file 具名 list：各檔各選一欄的對應欄位（欄 → 每個檔案一個欄名）；
+#'   這些欄在 map 裡是 ""
+#' @param value_labels 世代欄、性別欄有值標籤時輸出 "code"（代碼，預設）或 "label"（標籤）
 #' @noRd
-kits_spec <- function(cohort, map, items, undecided = character(0), typed = list()) {
-  list(cohort = cohort, map = map, items = items, undecided = undecided, typed = typed)
+kits_spec <- function(cohort, map, items, undecided = character(0), typed = list(),
+                      na_codes = NULL, per_file = list(), value_labels = "code") {
+  list(cohort = cohort, map = map, items = items, undecided = undecided, typed = typed,
+       na_codes = na_codes, per_file = per_file, value_labels = value_labels)
+}
+
+#' 「各檔各選一欄」有沒有問題：選的欄要在那個檔案裡；wave_m 每個檔案都要選；
+#' subj_id 沒有 visit_id 欄時每個檔案都要選
+#' @noRd
+kits_per_file_problems <- function(dfs, file_names, per_file, map) {
+  out <- character(0)
+  for (field in names(per_file)) {
+    row <- KITS_MAP_ROWS[KITS_MAP_ROWS$field == field, ]
+    need <- field == "wave_m" || (field == "subj_id" && !nzchar(map$visit_id %||% ""))
+    for (i in seq_along(dfs)) {
+      col <- per_file[[field]][i] %||% ""
+      if (is.na(col) || !nzchar(col)) {
+        if (need) {
+          out <- c(out, paste0(file_names[i], "：還沒有選", row$label, "（", field, "）的欄。"))
+        }
+      } else if (!col %in% names(dfs[[i]])) {
+        out <- c(out, paste0(file_names[i], "：沒有", row$label, "（", field, "）的欄 ", col, "。"))
+      }
+    }
+  }
+  out
 }
 
 #' 「自己填」的值有沒有問題：每個檔案都要填；數字的欄（wave_m、age_m）要是數字
@@ -669,7 +1138,7 @@ kits_build <- function(dfs, file_names, spec, pivot_args = NULL) {
   head_long <- kits_long_head(prep, 2000)
   n_rows <- sum(purrr::map_dbl(prep$files, function(f) sum(f$n_resp)))
   csv_mb <- kits_csv_mb(head_long, n_rows)
-  warnings <- checks$warnings
+  warnings <- c(prep$warnings, checks$warnings)
   if (csv_mb > KITSUI_UPLOAD_MB) {
     warnings <- c(warnings, sprintf(
       "未壓縮的 CSV 約 %.0f MB，超過 kitsUI 單檔上限 %d MB；請下載 .csv.gz（壓縮檔）。",
@@ -699,6 +1168,31 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   items <- spec$items$column
   map <- spec$map
   notes <- character(0)
+  warnings <- character(0)
+
+  # 文字的題目欄：內容都是數字的轉成數字；有一般文字的，只有那個檔案不轉這一題
+  fixed <- kits_apply_text_fix(dfs, file_names, kits_text_fix(dfs, items))
+  dfs <- fixed$dfs
+  notes <- c(notes, fixed$notes)
+  warnings <- c(warnings, fixed$warnings)
+
+  # 遺漏值代碼改成 NA（題目，以及 wave_m、age_m）：不會變成分數
+  coded <- kits_apply_codes(dfs, kits_items_with_codes(dfs, spec$items, spec$na_codes))
+  dfs <- coded$dfs
+  warnings <- c(warnings, coded$warning)
+  per_file <- spec$per_file %||% list()
+  side <- kits_apply_side_codes(dfs, kits_side_cols(map, per_file), spec$na_codes)
+  dfs <- side$dfs
+  warnings <- c(warnings, side$warning)
+  num <- kits_number_problems(dfs, file_names, map, per_file)
+  if (length(num$problems) > 0) return(list(problems = num$problems))
+  warnings <- c(warnings, num$warnings)
+
+  # 輸出題號（item_id_out）：在計分對照之前看（計分後的欄沒有變項標籤）
+  rename <- kits_item_rename(spec$items)
+  clash <- kits_rename_problems(dfs, file_names, spec$items, rename)
+  if (length(clash) > 0) return(list(problems = clash))
+  warnings <- c(warnings, kits_rename_warning(dfs, spec$items, rename))
 
   # 計分對照：原分數 → 計分（每一題自己的對照；沒有改的題不動）
   mapped <- kits_apply_maps(dfs, spec$items)
@@ -707,42 +1201,281 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   if (mapped$n > 0) notes <- c(notes, paste0("計分對照：", mapped$n, " 題的原分數改成計分。"))
   problems <- kits_score_problems(dfs, items)
   if (length(problems) > 0) return(list(problems = problems))
-  rename <- character(0)
 
-  visit_rule <- kits_visit_rule(map)
+  warnings <- c(warnings, kits_cohort_codes(dfs, file_names, spec$cohort, spec$na_codes))
+  use_labels <- identical(spec$value_labels, "label")
+  visit_rule <- kits_visit_rule(map, per_file)
   files <- purrr::map(seq_along(dfs), function(i) {
-    kits_prepare_file(dfs[[i]], spec$cohort[[i]], map, items)
+    kits_prepare_file(dfs[[i]], spec$cohort[[i]], kits_file_map(map, per_file, i), items,
+                      use_labels)
   })
   out_ids <- kits_out_ids(items, rename)
   list(
     files = files, rename = rename,
     domain_of = stats::setNames(spec$items$domain, out_ids),
     pivot_args = pivot_args, notes = c(visit_rule$note, notes), visit_rule = visit_rule,
-    problems = character(0)
+    warnings = warnings, problems = character(0)
   )
 }
 
-# 輸出的題號（目前就是題目欄的欄名；保留這一層給以後改題號用）
+#' 題目的遺漏值代碼：設定裡有 codes 欄就用它，沒有時（例如自己組的 spec）由資料偵測
+#' @noRd
+kits_items_with_codes <- function(dfs, items, na_codes = NULL) {
+  if (!is.null(items[["codes"]])) return(items)
+  items$codes <- purrr::map(items$column, function(col) {
+    vals <- unlist(purrr::map(dfs, function(df) {
+      x <- df[[col]]
+      if (is.null(x) || !(is.numeric(x) || is.character(x))) NULL else kits_as_num(x)
+    }))
+    kits_value_codes(unique(vals[!is.na(vals)]), kits_value_labels(dfs, col), na_codes)
+  })
+  items
+}
+
+#' 題目裡的遺漏值代碼改成 NA
+#' @param items 有 codes 欄（kits_items_with_codes()）
+#' @return list(dfs, warning)：warning 列出每一題的代碼（沒有代碼時是 NULL）
+#' @noRd
+kits_apply_codes <- function(dfs, items) {
+  hit <- which(purrr::map_int(items$codes, function(x) nrow(x %||% kits_no_codes())) > 0)
+  if (length(hit) == 0) return(list(dfs = dfs, warning = NULL))
+  n_cells <- 0
+  for (i in hit) {
+    col <- items$column[i]
+    codes <- items$codes[[i]]$value
+    dfs <- purrr::map(dfs, function(df) {
+      if (!col %in% names(df)) return(df)
+      x <- df[[col]]
+      is_code <- kits_as_num(x) %in% codes
+      n_cells <<- n_cells + sum(is_code)
+      x[is_code] <- NA
+      df[[col]] <- x
+      df
+    })
+  }
+  shown <- paste0(items$column[hit], "：", purrr::map_chr(items$codes[hit], kits_codes_text))
+  list(dfs = dfs, warning = paste0(
+    length(hit), " 題有遺漏值代碼，共 ", format(n_cells, big.mark = ","), " 格，",
+    "當成沒有作答、不寫進作答檔（",
+    paste(utils::head(shown, 5), collapse = "；"), if (length(hit) > 5) "；…", "）。",
+    "如果其實是分數，請在「3. 題目設定」選取這些題、按「不是遺漏值代碼」。",
+    "其他分頁也要改成 NA 的話，請先到「② 遺漏值轉 NA」處理。"
+  ))
+}
+
+#' wave_m、age_m 裡的遺漏值代碼（值標籤、② 的代碼、7777 以上；不看「和分數分開」）
+#' @param cols 具名 list：wave_m、age_m 對應的欄名
+#' @return 具名 list：欄名 → tibble(value, why)（只列有代碼的欄）
+#' @noRd
+kits_side_codes <- function(dfs, cols, na_codes = NULL) {
+  out <- list()
+  for (col in unique(unlist(cols))) {
+    if (is.null(col) || !nzchar(col)) next
+    vals <- unlist(purrr::map(dfs, function(df) {
+      if (col %in% names(df) && is.numeric(df[[col]])) unique(kits_as_num(df[[col]]))
+    }))
+    codes <- kits_value_codes(vals[!is.na(vals)], kits_value_labels(dfs, col), na_codes)
+    codes <- codes[codes$why != "和分數分開", ]
+    if (nrow(codes) > 0) out[[col]] <- codes
+  }
+  out
+}
+
+#' sex、wave_m、age_m 對應的欄（各檔各選一欄時是每個檔案選的欄）：具名 list，給
+#' kits_side_codes()
+#' @noRd
+kits_side_cols <- function(map, per_file = list()) {
+  purrr::map(c(sex = "sex", wave_m = "wave_m", age_m = "age_m"), function(field) {
+    unique(c(map[[field]] %||% "", per_file[[field]]))
+  })
+}
+
+#' wave_m、age_m 裡的遺漏值代碼改成 NA（kits_side_codes()）
+#' @noRd
+kits_apply_side_codes <- function(dfs, cols, na_codes = NULL) {
+  out <- character(0)
+  side <- kits_side_codes(dfs, cols, na_codes)
+  for (field in names(cols)) for (col in cols[[field]]) {
+    codes <- side[[col]]
+    if (is.na(col) || !nzchar(col) || is.null(codes)) next
+    n <- 0
+    dfs <- purrr::map(dfs, function(df) {
+      if (!col %in% names(df)) return(df)
+      is_code <- kits_as_num(df[[col]]) %in% codes$value
+      n <<- n + sum(is_code)
+      df[[col]][is_code] <- NA
+      df
+    })
+    out <- c(out, paste0(
+      field, "（", col, "）有 ", n, " 格是遺漏值代碼 ", kits_codes_text(codes), "，當成空白。"
+    ))
+  }
+  list(dfs = dfs, warning = if (length(out) > 0) paste(out, collapse = ""))
+}
+
+#' wave_m、age_m 對應到文字欄、裡面有不是數字的值（例如 12m）：wave_m 擋下，age_m 提醒
+#' （那些格當成空白）
+#' @return list(problems, warnings)
+#' @noRd
+kits_number_problems <- function(dfs, file_names, map, per_file = list()) {
+  problems <- character(0)
+  warnings <- character(0)
+  for (field in c("wave_m", "age_m")) {
+    for (i in seq_along(dfs)) {
+      col <- kits_file_map(map, per_file, i)[[field]] %||% ""
+      if (is.na(col) || !nzchar(col) || !col %in% names(dfs[[i]])) next
+      x <- dfs[[i]][[col]]
+      if (is.numeric(x) || all(is.na(x))) next
+      txt <- trimws(as.character(as.vector(unclass(x))))
+      bad <- unique(txt[!is.na(txt) & nzchar(txt) & is.na(kits_as_num(txt))])
+      if (length(bad) == 0) next
+      msg <- paste0(
+        file_names[i], "：", field, " 的欄 ", col, " 有不是數字的值（例如「",
+        paste(utils::head(bad, 3), collapse = "」「"), "」）"
+      )
+      if (field == "wave_m") {
+        problems <- c(problems, paste0(msg, "。時間點要是數字，請回原檔改，或改用「自己填」。"))
+      } else {
+        warnings <- c(warnings, paste0(msg, "，這些格的 age_m 會是空白。"))
+      }
+    }
+  }
+  list(problems = problems, warnings = warnings)
+}
+
+#' 輸出題號的對照：欄名 → 輸出的題號（只列有改的題）
+#' @noRd
+kits_item_rename <- function(items) {
+  out <- items[["item_id_out"]]
+  if (is.null(out)) return(character(0))
+  keep <- !is.na(out) & nzchar(out) & out != items$column
+  stats::setNames(out[keep], items$column[keep])
+}
+
+#' 改題號後的問題（擋下）：同一個檔案裡兩欄變成同一個題號、同一個題號有兩個領域
+#' @noRd
+kits_rename_problems <- function(dfs, file_names, items, rename) {
+  if (length(rename) == 0) return(character(0))
+  out <- character(0)
+  for (i in seq_along(dfs)) {
+    have <- intersect(items$column, names(dfs[[i]]))
+    ids <- kits_out_ids(have, rename)
+    dup <- unique(ids[duplicated(ids)])
+    for (d in utils::head(dup, 3)) {
+      out <- c(out, paste0(
+        file_names[i], "：", paste(have[ids == d], collapse = "、"), " 都輸出成題號 ", d,
+        "。同一個檔案裡兩欄不能是同一題（同一個列次會有兩個 ", d, "），請改 item_id_out。"
+      ))
+    }
+  }
+  doms <- dplyr::distinct(tibble::tibble(id = kits_out_ids(items$column, rename),
+                                         domain = items$domain))
+  two <- unique(doms$id[duplicated(doms$id)])
+  if (length(two) > 0) {
+    out <- c(out, paste0(
+      "這些輸出題號對到不同的領域：", paste(utils::head(two, 5), collapse = "、"),
+      "。同一個題號只能有一個領域。"
+    ))
+  }
+  out
+}
+
+#' 改題號後的提醒：不同的欄（通常是不同波次）合成同一個題號時，列出來請使用者確認
+#'
+#' 同一個題號在不同波次可能是不同的題（例如 TDCYP W1 的 c21_5 是家扶老師，W3 以後的
+#' d32_5 是學校老師），變項標籤不同時特別標出來。
+#' @noRd
+kits_rename_warning <- function(dfs, items, rename) {
+  if (length(rename) == 0) return(NULL)
+  ids <- kits_out_ids(items$column, rename)
+  groups <- split(items$column, ids)
+  groups <- groups[lengths(groups) > 1]
+  if (length(groups) == 0) return(NULL)
+  label_of <- function(col) {
+    for (df in dfs) {
+      lab <- attr(df[[col]], "label", exact = TRUE)
+      if (!is.null(lab)) return(lab)
+    }
+    NA_character_
+  }
+  differ <- names(groups)[vapply(groups, function(cols) {
+    labs <- vapply(cols, label_of, character(1))
+    labs <- sub("^[A-Za-z]*[0-9]+[:：]\\s*", "", labs[!is.na(labs)])
+    length(unique(labs)) > 1
+  }, logical(1))]
+  shown <- paste0(names(groups), " ← ", vapply(groups, paste, character(1), collapse = "、"))
+  paste0(
+    length(groups), " 個輸出題號由不同的欄合成（", paste(utils::head(shown, 4), collapse = "；"),
+    if (length(groups) > 4) "；…", "）。kits 會把它們當成同一題。",
+    "同一個題號在不同波次可能是不同的題（例如改版後題號沿用、內容換了），請對照題目內容確認",
+    if (length(differ) > 0) {
+      paste0("；這些題的變項標籤不一樣，請特別確認：", paste(utils::head(differ, 5), collapse = "、"))
+    },
+    "。"
+  )
+}
+
+# 輸出的題號：有改的題用 item_id_out（kits_item_rename()），其他就是欄名
 kits_out_ids <- function(ids, rename) {
   if (length(rename) == 0) return(ids)
   dplyr::coalesce(unname(rename[ids]), ids)
 }
 
+#' 世代欄裡的遺漏值代碼（例如年級欄的 98 跳答、99 遺漏值）：提醒（不改，世代空白不能轉換）
+#' @noRd
+kits_cohort_codes <- function(dfs, file_names, cohorts, na_codes = NULL) {
+  out <- character(0)
+  for (i in seq_along(dfs)) {
+    co <- cohorts[[i]]
+    if (!identical(co$type, "column") || !co$value %in% names(dfs[[i]])) next
+    x <- dfs[[i]][[co$value]]
+    if (!is.numeric(x)) next
+    vals <- kits_as_num(x)
+    codes <- kits_value_codes(unique(vals[!is.na(vals)]), kits_value_labels(dfs[i], co$value),
+                              na_codes)
+    if (nrow(codes) == 0) next
+    out <- c(out, paste0(
+      file_names[i], "：世代欄 ", co$value, " 有遺漏值代碼 ", kits_codes_text(codes), "，共 ",
+      sum(vals %in% codes$value), " 列，這些列的世代會是「",
+      paste(kits_id_text(codes$value), collapse = "」「"), "」。",
+      "請先到「② 遺漏值轉 NA」把它們改成 NA（世代空白的列不能轉換），或換一個世代欄。"
+    ))
+  }
+  out
+}
+
+#' 帶值標籤的欄轉成文字：有標籤的值用標籤，沒有標籤的值用代碼（kits_id_text()）
+#'
+#' 「用 R 怎麼做？」裡的 as_label() 和這個函式相同。
+#' @noRd
+kits_label_text <- function(x) {
+  out <- kits_id_text(x)
+  labels <- attr(x, "labels", exact = TRUE)
+  if (is.null(labels)) return(out)
+  m <- match(as.vector(unclass(x)), as.vector(unclass(labels)))
+  out[!is.na(m)] <- names(labels)[m[!is.na(m)]]
+  out
+}
+
 # 一個檔案：每一列的孩子欄（含 visit_id）、題目欄、每一列有作答的題數
-kits_prepare_file <- function(df, cohort, map, items) {
+# use_labels：世代欄、性別欄有值標籤時用標籤
+kits_prepare_file <- function(df, cohort, map, items, use_labels = FALSE) {
   n <- nrow(df)
   pick <- function(field) {
     col <- map[[field]] %||% ""
     if (nzchar(col)) df[[col]] else rep(NA, n)
   }
-  as_text <- function(x) as.character(unclass(x))
+  as_text <- if (use_labels) kits_label_text else kits_id_text
   co <- if (identical(cohort$type, "column")) as_text(df[[cohort$value]]) else
     rep(cohort$value, n)
   persons <- tibble::tibble(
-    subj_id = as_text(pick("subj_id")), cohort = co, sex = as_text(pick("sex")),
-    wave_m = as.numeric(unclass(pick("wave_m"))), age_m = as.numeric(unclass(pick("age_m")))
+    subj_id = kits_id_text(pick("subj_id")), cohort = co, sex = as_text(pick("sex")),
+    wave_m = kits_as_num(pick("wave_m")), age_m = kits_as_num(pick("age_m"))
   )
   persons$visit_id <- kits_visit_ids(persons, df, map)
+  # 組成 visit_id 的波次那一段（檢查撞號用）；直接用 visit_id 欄時是 NA
+  persons$.wave <- if (nzchar(map$visit_id %||% "")) NA_character_ else
+    kits_wave_part(persons, df, map)
   have <- intersect(items, names(df))
   scores <- purrr::map(df[have], function(x) as.numeric(unclass(x)))
   n_resp <- Reduce(`+`, lapply(scores, function(x) !is.na(x)), integer(n))
@@ -858,9 +1591,15 @@ kits_prep_or_abort <- function(dfs, spec, pivot_args) {
 #' visit_id 怎麼組：{cohort}_{subj_id}_{波次標籤}；沒有波次標籤時用 wave_m
 #' @return list(parts, note)
 #' @noRd
-kits_visit_rule <- function(map) {
+kits_visit_rule <- function(map, per_file = list()) {
   if (nzchar(map$visit_id %||% "")) {
     return(list(parts = NULL, note = paste0("visit_id 直接用 ", map$visit_id, " 欄。")))
+  }
+  if (!is.null(per_file[["wave"]])) {
+    return(list(
+      parts = c("cohort", "subj_id", "wave"),
+      note = "visit_id 由 {cohort}_{subj_id}_{各檔選的波次標籤欄} 組成。"
+    ))
   }
   if (nzchar(map$wave %||% "")) {
     shown <- if (startsWith(map$wave, KITS_TYPED_PREFIX)) "自己填的波次標籤" else map$wave
@@ -880,17 +1619,31 @@ kits_visit_rule <- function(map) {
 
 # visit_id：有對應欄時直接用，否則照 kits_visit_rule() 組成（任一部分缺漏時 NA）
 kits_visit_ids <- function(persons, df, map) {
-  if (nzchar(map$visit_id %||% "")) return(as.character(unclass(df[[map$visit_id]])))
-  wave <- if (nzchar(map$wave %||% "")) {
-    as.character(unclass(df[[map$wave]]))
-  } else {
-    format(persons$wave_m, trim = TRUE, drop0trailing = TRUE, scientific = FALSE)
-  }
-  wave[is.na(persons$wave_m) & !nzchar(map$wave %||% "")] <- NA
+  if (nzchar(map$visit_id %||% "")) return(kits_id_text(df[[map$visit_id]]))
+  wave <- kits_wave_part(persons, df, map)
   parts <- list(persons$cohort, persons$subj_id, wave)
   out <- do.call(paste, c(parts, sep = "_"))
   bad <- Reduce(`|`, lapply(parts, function(p) is.na(p) | !nzchar(trimws(p))))
   out[bad] <- NA_character_
+  out
+}
+
+# visit_id 的波次那一段：波次標籤欄，沒有時用 wave_m
+kits_wave_part <- function(persons, df, map) {
+  if (nzchar(map$wave %||% "")) return(kits_id_text(df[[map$wave]]))
+  kits_id_text(persons$wave_m)
+}
+
+#' 編號、世代、波次標籤轉成文字：數字不寫成科學記號（100000 → "100000"，as.character()
+#' 會變成 "1e+05"），有小數的保留 15 位有效數字（0.5 和 0.50000001 不會變成同一個）；NA 保持 NA
+#'
+#' 「用 R 怎麼做？」裡的 as_id() 和這個函式相同（code_kitsdata_helpers()）。
+#' @noRd
+kits_id_text <- function(x) {
+  x <- as.vector(unclass(x))
+  if (!is.numeric(x)) return(as.character(x))
+  out <- trimws(formatC(x, format = "fg", digits = 15))
+  out[is.na(x)] <- NA_character_
   out
 }
 
@@ -969,17 +1722,19 @@ kits_item_stats <- function(prep) {
     }))
     vals <- unique(vals)
     if (length(vals) == 0) {
-      return(tibble::tibble(column = col, n = 0L, min = NA_real_, max = NA_real_, gap = FALSE))
+      return(tibble::tibble(column = col, n = 0L, min = NA_real_, max = NA_real_, gap = FALSE,
+                            code_like = ""))
     }
+    gap <- !all(seq(min(vals), max(vals)) %in% vals)
     tibble::tibble(
-      column = col, n = n, min = min(vals), max = max(vals),
-      gap = !all(seq(min(vals), max(vals)) %in% vals)
+      column = col, n = n, min = min(vals), max = max(vals), gap = gap,
+      code_like = if (gap) paste(kits_id_text(kits_code_like(vals)), collapse = "、") else ""
     )
   }) |>
     purrr::list_rbind()
   if (nrow(stats) == 0) {
     stats <- tibble::tibble(column = character(0), n = integer(0), min = numeric(0),
-                            max = numeric(0), gap = logical(0))
+                            max = numeric(0), gap = logical(0), code_like = character(0))
   }
   stats$item_id <- kits_out_ids(stats$column, prep$rename)
   stats$domain <- unname(prep$domain_of[stats$item_id])
@@ -1013,10 +1768,21 @@ kits_wide_checks <- function(prep, spec) {
     }
   }
   ok <- persons[!blank(persons$visit_id), ]
+  neg <- ok$wave_m[!is.na(ok$wave_m) & ok$wave_m < 0]
+  if (length(neg) > 0) {
+    problems <- c(problems, paste0(
+      length(neg), " 個列次的 wave_m 是負的（例如 ", kits_id_text(neg[1]), "）。",
+      "時間點要是 0 以上的數字；如果負數是遺漏值代碼，請先到「② 遺漏值轉 NA」處理。"
+    ))
+  }
+
+  # visit_id 用底線串接：不同的世代／孩子編號／波次可能組成同一個 visit_id
+  collide <- kits_visit_collisions(ok)
+  if (!is.null(collide)) problems <- c(problems, collide)
 
   # 同一個 visit_id 在好幾列寬資料 → 同一列次同一題會有好幾列
   twice <- vctrs::vec_duplicate_detect(ok$visit_id)
-  if (any(twice)) {
+  if (any(twice) && is.null(collide)) {
     problems <- c(problems, paste0(
       "同一列次同一題有好幾列：", sum(twice), " 列寬資料的 visit_id 重複（例如 ",
       ok$visit_id[which(twice)[1]], "）。原檔可能有重複的孩子，或 visit_id 沒有分開不同波次。"
@@ -1036,7 +1802,7 @@ kits_wide_checks <- function(prep, spec) {
       ))
     }
   }
-  no_dom <- answered$item_id[blank(answered$domain)]
+  no_dom <- unique(answered$item_id[blank(answered$domain)])
   if (length(no_dom) > 0) {
     problems <- c(problems, paste0(
       "這些題沒有領域：", paste(utils::head(no_dom, 8), collapse = "、"), "。"
@@ -1045,18 +1811,65 @@ kits_wide_checks <- function(prep, spec) {
 
   list(
     problems = problems,
-    warnings = kits_score_warnings(stats, ok, spec),
+    warnings = c(kits_score_warnings(stats, ok, spec), kits_person_warnings(ok)),
     n_visits = length(unique(ok$visit_id)),
-    n_items = nrow(answered)
+    n_items = length(unique(answered$item_id))
   )
+}
+
+#' visit_id 撞號：不同的（世代、孩子編號、波次）組成同一個 visit_id（值裡有底線「_」時會發生，
+#' 例如 A_B + 1 和 A + B_1 都是 A_B_1）；沒有撞號時 NULL
+#' @noRd
+kits_visit_collisions <- function(persons) {
+  if (nrow(persons) == 0 || all(is.na(persons$.wave %||% NA))) return(NULL)
+  parts <- dplyr::distinct(persons, .data$visit_id, .data$cohort, .data$subj_id, .data$.wave)
+  dup <- unique(parts$visit_id[duplicated(parts$visit_id)])
+  if (length(dup) == 0) return(NULL)
+  ex <- parts[parts$visit_id == dup[1], ]
+  shown <- paste0(ex$cohort, " + ", ex$subj_id, " + ", ex$.wave)
+  paste0(
+    length(dup), " 個 visit_id 撞號：不同的世代、孩子編號、波次組成了同一個 visit_id（例如 ",
+    dup[1], " 可以是 ", paste(utils::head(shown, 2), collapse = "，也可以是 "), "），",
+    "因為這些值裡有底線「_」。請把世代或波次標籤裡的底線改掉，或在「2.」選 visit_id 欄。"
+  )
+}
+
+#' 孩子欄的提醒：世代只差空白或大小寫、值裡有底線、age_m 是負的
+#' @noRd
+kits_person_warnings <- function(persons) {
+  out <- character(0)
+  co <- unique(stats::na.omit(persons$cohort))
+  key <- tolower(gsub("[[:space:]]+", "", co))
+  same <- split(co, key)
+  same <- same[lengths(same) > 1]
+  if (length(same) > 0) {
+    shown <- vapply(same, function(x) paste0("「", x, "」", collapse = ""), character(1))
+    out <- c(out, paste0(
+      "這些世代只差空白或大小寫，會被當成不同的世代：", paste(utils::head(shown, 3), collapse = "；"),
+      "。如果是同一個世代，請回原檔統一寫法。"
+    ))
+  }
+  under <- unique(c(
+    co[grepl("_", co, fixed = TRUE)],
+    utils::head(unique(stats::na.omit(persons$.wave[grepl("_", persons$.wave, fixed = TRUE)])), 3)
+  ))
+  if (length(under) > 0) {
+    out <- c(out, paste0(
+      "世代或波次標籤裡有底線「_」（例如 ", paste(utils::head(under, 3), collapse = "、"), "）。",
+      "visit_id 用底線串接，之後要拆開 visit_id 時會分不清楚；建議改用其他符號。"
+    ))
+  }
+  neg <- sum(!is.na(persons$age_m) & persons$age_m < 0)
+  if (neg > 0) out <- c(out, paste0(neg, " 個列次的 age_m 是負的，請確認。"))
+  out
 }
 
 # 分數與其他提醒（橘色）
 kits_score_warnings <- function(stats, persons, spec) {
   out <- character(0)
   per_item <- stats[stats$n > 0, ]
-  some <- function(x) paste(utils::head(x, 5), collapse = "、")
-  no_zero <- per_item$item_id[per_item$min > 0]
+  some <- function(x) paste(utils::head(unique(x), 5), collapse = "、")
+  no_zero <- unique(per_item$item_id[per_item$min > 0])
   if (length(no_zero) > 0) {
     out <- c(out, paste0(
       length(no_zero), " 題沒有 0 分（例如 ", some(no_zero),
@@ -1064,6 +1877,16 @@ kits_score_warnings <- function(stats, persons, spec) {
     ))
   }
   gap <- per_item$item_id[per_item$gap]
+  like <- per_item$item_id[per_item$gap & per_item$code_like != ""]
+  if (length(like) > 0) {
+    shown <- paste0(like, "：", per_item$code_like[match(like, per_item$item_id)])
+    out <- c(out, paste0(
+      length(like), " 題的分數中間有缺，而且最高的值像遺漏值代碼（", some(shown), "）。",
+      "請不要用「合併」把它接起來：在「3. 題目設定」選取這些題，在「合併」那一列填這些值、",
+      "按「當成遺漏值」，或先到「② 遺漏值轉 NA」處理。"
+    ))
+    gap <- setdiff(gap, like)
+  }
   if (length(gap) > 0) {
     out <- c(out, paste0(
       length(gap), " 題的分數中間有缺（例如 ", some(gap), "）。kits 校準時會停下來，",
