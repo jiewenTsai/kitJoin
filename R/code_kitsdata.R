@@ -8,11 +8,10 @@
 #' @param f code_files_from(files)
 #' @param spec kits_spec()
 #' @param na_applied TRUE 時資料已經過「② 遺漏值轉 NA」（加一行註解）
-#' @param side_codes kits_side_codes()：性別、wave_m、age_m 欄裡的遺漏值代碼
 #' @param text_fix NULL 或 kits_text_fix()：文字的題目欄（轉成數字、或這個檔案不轉）
 #' @return 字串
 #' @noRd
-code_kitsdata <- function(f, spec, na_applied = FALSE, side_codes = list(), text_fix = NULL) {
+code_kitsdata <- function(f, spec, na_applied = FALSE, text_fix = NULL) {
   # 自己填的值：每個檔案先 mutate() 成一欄（欄名就是 kits 的欄名），後面當成那一欄
   typed <- spec$typed %||% list()
   per_file <- spec$per_file %||% list()
@@ -40,13 +39,13 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, side_codes = list(), text
     },
     "",
     "# 題目設定：⑥ 下載的 kits_item_settings.csv（item_id、include、domain、",
-    "# map_raw_to_score = 計分對照，寫成「原分數=計分」；missing_codes = 不寫進作答檔的代碼；",
-    "# item_id_out = 輸出的題號）。include 是 TRUE/FALSE，其他欄都當文字讀",
+    "# map_raw_to_score = 計分對照，寫成「原分數=計分」；item_id_out = 輸出的題號）。",
+    "# include 是 TRUE/FALSE，其他欄都當文字讀",
     paste0("item_settings <- read_csv(", r_str(KITS_SETTINGS_FILE),
            ", col_types = cols(include = \"l\", .default = \"c\"))"),
     "items <- item_settings$item_id[item_settings$include]",
     code_kitsdata_text_fix(f, text_fix),
-    code_kitsdata_codes(f, spec$items, side_codes),
+    code_kitsdata_codes(spec$items),
     code_kitsdata_maps(f, spec$items),
     "",
     "# 轉成長格式：一列一個孩子的一個波次的一題",
@@ -98,36 +97,28 @@ code_kitsdata_text_fix <- function(f, text_fix) {
   c("", "# 文字的題目欄：內容都是數字的轉成數字；有一般文字的，這個檔案不轉這一題", per_file)
 }
 
-# 遺漏值代碼改成 NA：一樣的代碼寫在一起（題目設定的 missing_codes；wave_m、age_m 另外寫）
-code_kitsdata_codes <- function(f, items, side_codes = list()) {
-  codes <- items[["codes"]] %||% list()
-  key <- purrr::map_chr(codes, function(x) {
-    v <- (x %||% kits_no_codes())$value
-    if (length(v) == 0) NA_character_ else paste(kits_id_text(sort(v)), collapse = ", ")
-  })
-  cols <- c(items$column[!is.na(key)], names(side_codes))
-  key <- c(key[!is.na(key)], purrr::map_chr(side_codes, function(x) {
-    paste(kits_id_text(sort(x$value)), collapse = ", ")
-  }))
-  if (length(cols) == 0) return(NULL)
-  groups <- split(cols, factor(key, levels = unique(key)))
-  lines <- purrr::imap_chr(groups, function(cols, vals) {
-    vec <- if (grepl(",", vals, fixed = TRUE)) paste0("c(", vals, ")") else vals
-    paste0("  mutate(across(any_of(", r_cols_vector(cols, indent = "      ", quote = TRUE),
-           "), \\(x) replace(x, x %in% ", vec, ", NA)))")
-  })
-  per_file <- vapply(f$obj, function(obj) {
-    code_lines(paste0(obj, " <- ", obj, " |>"),
-               paste0(lines, c(rep(" |>", length(lines) - 1), "")))
-  }, character(1))
-  c("", "# 遺漏值代碼改成 NA（不寫進作答檔；題目設定的 missing_codes）", per_file)
+# 疑似遺漏值代碼：⑥ 不改，照原樣寫進作答檔；有的話加一段註解，說要先用 ② 改成 NA
+code_kitsdata_codes <- function(items) {
+  codes <- purrr::map(items[["codes"]] %||% list(), function(x) (x %||% kits_no_codes())$value)
+  vals <- sort(unique(unlist(codes)))
+  if (length(vals) == 0) return(NULL)
+  shown <- paste(kits_id_text(utils::head(vals, 6)), collapse = "、")
+  c(
+    "",
+    paste0("# 注意：有 ", sum(lengths(codes) > 0), " 題有疑似遺漏值代碼（", shown,
+           if (length(vals) > 6) "…", "），"),
+    "# 這裡照原樣當成分數（計分對照不會動到它們）。如果它們是遺漏值，",
+    "# 請先執行 ②「遺漏值轉 NA」的程式碼把它們改成 NA，再跑下面的程式"
+  )
 }
 
 # 計分對照：只寫有改的題；一樣的對照寫在一起
-# 平移寫成 \(x) x - 1，反向寫成 \(x) 4 - x，其他用 case_when()
+# 平移寫成 \(x) x - 1，反向寫成 \(x) 4 - x，其他用 case_when()；疑似遺漏值代碼照原樣留下
 code_kitsdata_maps <- function(f, items) {
   if (!all(c("raw", "score") %in% names(items)) || nrow(items) == 0) return(NULL)
-  exprs <- purrr::map2_chr(items$raw, items$score, code_map_expr)
+  codes <- purrr::map(items[["codes"]] %||% rep(list(NULL), nrow(items)),
+                      function(x) (x %||% kits_no_codes())$value)
+  exprs <- purrr::pmap_chr(list(items$raw, items$score, codes), code_map_expr)
   keep <- !is.na(exprs)
   if (!any(keep)) return(NULL)
   groups <- split(items$column[keep], factor(exprs[keep], levels = unique(exprs[keep])))
@@ -143,17 +134,26 @@ code_kitsdata_maps <- function(f, items) {
 }
 
 #' 一題計分對照的寫法：沒改時 NA；平移 x - 1、x + 2；反向 4 - x；其他 case_when()
+#'
+#' @param keep 疑似遺漏值代碼：照原樣留下（平移、反向時寫成
+#'   case_when(x %in% c(98, 99) ~ x, .default = x - 1)；其他 case_when() 本來就是 .default = x）
 #' @noRd
-code_map_expr <- function(raw, score) {
+code_map_expr <- function(raw, score, keep = numeric(0)) {
   ok <- !is.na(score)
   raw <- raw[ok]
   score <- score[ok]
   if (length(raw) == 0 || all(score == raw)) return(NA_character_)
   num <- function(x) format(x, trim = TRUE, drop0trailing = TRUE, scientific = FALSE)
+  as_is <- function(expr) {
+    if (length(keep) == 0) return(expr)
+    vals <- paste(num(keep), collapse = ", ")
+    if (length(keep) > 1) vals <- paste0("c(", vals, ")")
+    paste0("case_when(x %in% ", vals, " ~ x, .default = ", expr, ")")
+  }
   d <- unique(score - raw)
-  if (length(d) == 1) return(if (d < 0) paste0("x - ", num(-d)) else paste0("x + ", num(d)))
+  if (length(d) == 1) return(as_is(if (d < 0) paste0("x - ", num(-d)) else paste0("x + ", num(d))))
   k <- unique(score + raw)
-  if (length(k) == 1) return(paste0(num(k), " - x"))
+  if (length(k) == 1) return(as_is(paste0(num(k), " - x")))
   changed <- score != raw
   pairs <- split(raw[changed], score[changed])
   cases <- purrr::imap_chr(pairs, function(r, sc) {

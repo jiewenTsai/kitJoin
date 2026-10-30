@@ -275,7 +275,10 @@ test_that("疑似遺漏值代碼：數格數；減 1 的建議不被 7777 以上
   expect_equal(r$max, 5)
   expect_equal(kits_item_ranges(dfs, "lana01")$max, 9999)
   out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs))
-  expect_match(out$warnings, "請先到「② 遺漏值轉 NA」處理", all = FALSE)
+  expect_match(out$warnings, "lana01：9999（7777 以上）", all = FALSE)
+  expect_match(out$warnings, "請先到「② 遺漏值轉 NA」把它們改成 NA", all = FALSE)
+  # KIT 的 9999 照原樣寫進作答檔（以前也是；0.5.0 起多了提醒）
+  expect_true(9999 %in% kits_long_of(out)$item_score)
 })
 
 test_that("欄位表：名稱、順序、型別固定；必填的欄", {

@@ -77,7 +77,7 @@ kit_server <- function(input, output, session) {
   mod_join_server("join", files, working, goto)
   mod_stack_server("stack", files, working, goto)
   mod_attrition_server("attrition", files, working, goto)
-  # ⑥ 也把 ② 的代碼清單當成遺漏值代碼（不必先按 ② 的執行）
+  # ⑥ 也用 ② 的代碼清單找疑似遺漏值代碼（只提醒、不改資料；不必先按 ② 的執行）
   mod_kitsdata_server(
     "kitsdata", files, working, goto,
     na_codes = shiny::reactive(

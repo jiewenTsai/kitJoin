@@ -5,12 +5,16 @@ SPSS files whose ID column, item names and missing-value codes differ from KIT's
 
 ## Wrong results that were reported as success
 
-* ⑥ no longer writes missing-value codes as scores. Values labelled 遺漏值 / 跳答 / 不適用 /
-  不知道 / 拒答 (and similar), ②'s code list, values of 7777 and above, and values clearly
-  apart from the item's range (e.g. 95–99 next to 1–5) are treated as unanswered. Each
-  item's codes are listed in 「3. 題目設定」 and can be overridden; the settings file gains a
-  `missing_codes` column. **Change for KIT:** values of 7777 and above used to be written
-  unchanged; now they are left out.
+* ⑥ no longer writes suspected missing-value codes as scores without saying so. Values
+  labelled 遺漏值 / 跳答 / 不適用 / 拒答 (and similar), ②'s code list, values of 7777 and
+  above, and values clearly apart from the item's range (e.g. 95–99 next to 1–5) are listed
+  per item in 「3. 題目設定」 and in the result, which then shows 「完成，但請注意」 with a
+  link to ②: turn them into NA in 「② 遺漏值轉 NA」 first, then come back to ⑥. ⑥ itself
+  never turns values into NA (the data are assumed correct): if you go on, these values are
+  written unchanged as scores, and shifting or reversing the scores leaves them alone. The
+  gap warning no longer suggests 「合併」 for values that look like codes. The same warning
+  covers codes in the sex, `wave_m` and `age_m` columns. For KIT data nothing changes:
+  values of 7777 and above are still written unchanged, with the new warning.
 * ⑦ wide → long no longer copies the first column's value labels onto every item. When
   value or variable labels differ between the stacked columns they are dropped with a
   visible note.

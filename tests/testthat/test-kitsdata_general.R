@@ -63,7 +63,7 @@ test_that("A1：遺漏值代碼來自值標籤、② 的代碼、7777 以上、�
   expect_equal(kits_code_like(c(0, 1, 3)), numeric(0))
 })
 
-test_that("A1：TDCYP 的 98、99 不會寫進作答檔；平移 −1 後也不會變成 97、98 分", {
+test_that("A1：TDCYP 的 98、99 照原樣寫進作答檔並提醒到 ②；平移 −1 不會動到它們", {
   dfs <- list(
     tibble::tibble(id = 1:6, q1 = kg_labelled(c(1, 2, 3, 4, 98, 99)),
                    q2 = c(1, 2, 3, 4, 5, 97), q3 = c(1, 2, 2, 1, 9999, NA)),
@@ -72,64 +72,80 @@ test_that("A1：TDCYP 的 98、99 不會寫進作答檔；平移 −1 後也不�
   map <- kits_guess_map(c("id", "q1"))
   map$subj_id <- "id"
   s <- kits_item_settings(dfs, c("q1", "q2", "q3"))
-  expect_equal(s$raw[[1]], 1:4)
+  expect_equal(s$raw[[1]], 1:4)                   # 代碼不在計分對照裡
   expect_equal(s$codes[[1]]$value, c(98, 99))
   expect_equal(s$codes[[2]]$value, 97)            # 1–5 加上 97：和分數分開
   expect_equal(s$codes[[3]]$why, "7777 以上")      # KIT 的代碼照舊
   expect_equal(s$n_codes, c(3L, 1L, 1L))
-  expect_match(kits_settings_alerts(s)[1], "遺漏值代碼 98（值標籤「跳答」）、99")
-  # 建議平移 −1（代碼不算最低分以外的分數），平移後代碼仍是代碼
+  expect_match(kits_settings_alerts(s)[1],
+               "疑似遺漏值代碼 98（值標籤「跳答」）、99（值標籤「遺漏值」）：會照原樣輸出")
+  # 建議平移 −1（代碼不算）；平移只動計分對照裡的分數
   expect_equal(kits_settings_shift_hint(s), 1)
   s <- kits_bulk_shift(s, s$column, -1) |> kits_bulk_domain(s$column, "tsup")
   spec <- kg_spec(s, map, c("B85", "B86"), typed = list(wave_m = c("0", "12")))
   out <- kits_build(dfs, c("w1.sav", "w2.sav"), spec)
   expect_length(out$problems, 0)
   long <- kits_long_of(out)
-  expect_true(all(long$item_score %in% 0:4))
-  expect_false(any(long$item_score >= 90))
+  # 預設資料是對的：98、99、97、9999 照原樣寫進作答檔（不會變成 97、98 分，也不會不見）
+  expect_setequal(long$item_score[long$item_id == "q1"], c(0:3, 98, 99))
+  expect_setequal(long$item_score[long$item_id == "q2"], c(0:4, 97))
+  expect_setequal(long$item_score[long$item_id == "q3"], c(0, 1, 9999))
+  expect_equal(sum(long$item_score %in% c(97, 98, 99, 9999)), 5)
   w <- paste(out$warnings, collapse = "\n")
-  expect_match(w, "3 題有遺漏值代碼，共 5 格")
-  expect_match(w, "不是遺漏值代碼")
+  expect_match(w, "3 題有疑似遺漏值代碼，共 5 格")
+  expect_match(w, "q1：98（值標籤「跳答」）、99（值標籤「遺漏值」）")
+  expect_match(w, "會照原樣寫進作答檔")
+  expect_match(w, "請先到「② 遺漏值轉 NA」把它們改成 NA")
   expect_no_match(w, "合併")
-  # 程式碼：遺漏值代碼改成 NA，結果和 app 相同（SAV 讀進來有值標籤）
+  expect_no_match(w, "中間有缺")                   # 代碼不算分數的空隙
+  # 狀態不是綠色的「完成」
+  expect_equal(kit_done_status("x", warnings = out$warnings)$state, "warning")
+  # 程式碼：不改成 NA；平移時代碼照原樣；結果和 app 相同（SAV 讀進來有值標籤）
   got <- kg_run_code(dfs, spec, s, sav = TRUE)
-  expect_match(got$code, "replace(x, x %in% c(98, 99), NA)", fixed = TRUE)
+  expect_no_match(got$code, "replace(x", fixed = TRUE)
+  expect_match(got$code, "# 注意：有 3 題有疑似遺漏值代碼（97、98、99、9999）", fixed = TRUE)
+  expect_match(got$code, "case_when(x %in% c(98, 99) ~ x, .default = x - 1)", fixed = TRUE)
+  expect_match(got$code, "case_when(x %in% 9999 ~ x, .default = x - 1)", fixed = TRUE)
   kg_same_long(got$long, long)
+
+  # 先用 ② 依數值標籤改成 NA：q1 的 98、99 不見了，也不再提醒 q1
+  kw <- parse_na_keywords(kit_na_label_keywords_default())
+  dfs2 <- purrr::map(dfs, function(df) replace_na_by_labels(df, kw, exclude = "id")$data)
+  s2 <- kits_settings_sync(s, kits_item_settings(dfs2, c("q1", "q2", "q3")))
+  expect_equal(nrow(s2$codes[[1]]), 0)
+  out2 <- kits_build(dfs2, c("w1.sav", "w2.sav"),
+                     kg_spec(s2, map, c("B85", "B86"), typed = list(wave_m = c("0", "12"))))
+  long2 <- kits_long_of(out2)
+  expect_setequal(long2$item_score[long2$item_id == "q1"], 0:3)
+  expect_match(paste(out2$warnings, collapse = "\n"), "2 題有疑似遺漏值代碼，共 2 格")
 })
 
-test_that("A1：自己改代碼（當成遺漏值、不是遺漏值代碼）；資料變了也照用；設定檔來回", {
+test_that("A1：沒有「當成遺漏值」按鈕；舊設定檔的 missing_codes 欄略過；設定檔來回", {
   dfs <- list(tibble::tibble(id = 1:5, q1 = c(0, 1, 2, 9, 1), q2 = c(1, 2, 3, 99, 1)))
   s <- kits_item_settings(dfs, c("q1", "q2"))
-  expect_equal(nrow(s$codes[[1]]), 0)      # 0–2 加上 9：不確定，不自動當代碼
-  expect_match(kits_settings_alerts(s)[1], "9 像遺漏值代碼")
+  expect_equal(nrow(s$codes[[1]]), 0)      # 0–2 加上 9：不確定，不算疑似代碼
+  expect_match(kits_settings_alerts(s)[1], "9 像遺漏值代碼：請先到 ② 改成 NA，不要合併")
   expect_no_match(kits_settings_alerts(s)[1], "請用「合併」")
-  s <- kits_bulk_codes(s, "q1", 9)
-  expect_equal(s$raw[[1]], c(0, 1, 2))
-  expect_equal(s$codes[[1]]$why, "自己設")
-  s <- kits_bulk_uncode(s, "q2")
-  expect_equal(s$raw[[2]], c(1, 2, 3, 99))
-  expect_equal(s$score[[2]], c(1, 2, 3, 99))
-  # 資料變了：使用者決定的代碼照用
-  dfs2 <- list(tibble::tibble(id = 1:3, q1 = c(9, 1, 3), q2 = c(1, 99, 2)))
-  s2 <- kits_settings_sync(s, kits_item_settings(dfs2, c("q1", "q2")))
-  expect_equal(s2$codes[[1]]$value, 9)
-  expect_equal(s2$raw[[1]], c(1, 3))
-  expect_equal(nrow(s2$codes[[2]]), 0)
-  # 設定檔：missing_codes 欄
+  expect_equal(s$codes[[2]]$value, 99)
+  expect_false(exists("kits_bulk_codes", mode = "function"))
+  expect_no_match(as.character(mod_kitsdata_ui("kitsdata")), "do_code|do_uncode|當成遺漏值（不輸出）|不是遺漏值代碼")
+  # 設定檔：沒有 missing_codes 欄
+  s <- kits_bulk_shift(s, "q2", -1)
   ex <- kits_settings_export(s)
-  expect_equal(ex$missing_codes, c("9", ""))
-  up <- kits_settings_import(ex)
+  expect_null(ex[["missing_codes"]])
   fresh <- kits_item_settings(dfs, c("q1", "q2"))
-  back <- kits_settings_apply(fresh, up)
-  expect_equal(back$codes[[1]]$value, 9)
-  expect_equal(back$raw[[2]], c(1, 2, 3, 99))
-  # 舊的設定檔（沒有 missing_codes）：照自動偵測
-  old <- kits_settings_apply(fresh, kits_settings_import(ex[c("item_id", "include", "domain",
-                                                              "map_raw_to_score")]))
-  expect_equal(old$codes[[2]]$value, 99)
+  back <- kits_settings_apply(fresh, kits_settings_import(ex))
+  expect_equal(back$score[[2]], c(0, 1, 2))
+  # 0.5.0 以前的設定檔（有 missing_codes）也讀得進來，這一欄略過：9 不會被拿掉
+  old <- ex
+  old$missing_codes <- c("9", "99")
+  back <- kits_settings_apply(fresh, kits_settings_import(old))
+  expect_equal(back$raw[[1]], c(0, 1, 2, 9))
+  expect_equal(back$score[[2]], c(0, 1, 2))
+  expect_equal(back$codes[[2]]$value, 99)   # 自動偵測照舊（只提醒）
 })
 
-test_that("A1：分數有缺而且最高的值像代碼時，提醒不要合併", {
+test_that("A1：分數有缺而且最高的值像代碼時，提醒不要合併、先到 ②", {
   dfs <- list(tibble::tibble(id = 1:4, q1 = c(0, 1, 9, 0), wave_m = 0))
   s <- kits_item_settings(dfs, "q1") |> kits_bulk_domain("q1", "a")
   map <- kits_guess_map(names(dfs[[1]]))
@@ -138,10 +154,12 @@ test_that("A1：分數有缺而且最高的值像代碼時，提醒不要合併"
   w <- paste(out$warnings, collapse = "\n")
   expect_match(w, "最高的值像遺漏值代碼（q1：9）")
   expect_match(w, "請不要用「合併」")
+  expect_match(w, "請先到「② 遺漏值轉 NA」")
   expect_no_match(w, "用「合併」把分數接起來")
+  expect_no_match(w, "當成遺漏值")
 })
 
-test_that("A1：wave_m、age_m 的遺漏值代碼當成空白；程式碼也一樣", {
+test_that("A1：性別、wave_m、age_m 的疑似遺漏值代碼照原樣輸出並提醒；程式碼也一樣", {
   dfs <- list(tibble::tibble(id = 1:3, wave_m = c(0, 0, 0), age_m = c(150, 9999, 151),
                              q1 = c(0, 1, 1)))
   map <- kits_guess_map(names(dfs[[1]]))
@@ -149,17 +167,15 @@ test_that("A1：wave_m、age_m 的遺漏值代碼當成空白；程式碼也一�
   s <- kits_item_settings(dfs, "q1") |> kits_bulk_domain("q1", "a")
   spec <- kg_spec(s, map, "B1")
   out <- kits_build(dfs, "a.csv", spec)
-  expect_match(out$warnings, "age_m（age_m）有 1 格是遺漏值代碼 9999", all = FALSE)
+  expect_match(out$warnings, "age_m（age_m）有 1 格疑似遺漏值代碼 9999（7777 以上）",
+               all = FALSE)
+  expect_match(out$warnings, "② 遺漏值轉 NA", all = FALSE)
   long <- kits_long_of(out)
-  expect_true(is.na(long$age_m[long$subj_id == "2"]))
-  side <- kits_side_codes(dfs, map[c("wave_m", "age_m")])
-  expect_named(side, "age_m")
+  expect_equal(unique(long$age_m[long$subj_id == "2"]), 9999)
+  expect_named(kits_side_codes(dfs, map[c("wave_m", "age_m")]), "age_m")
   got <- kg_run_code(dfs, spec, s)
+  expect_no_match(got$code, "9999")
   kg_same_long(got$long, long)
-  code <- code_kitsdata(code_files("w1.csv", "t1"), spec)
-  expect_no_match(code, "9999")   # 沒給 side_codes 時不寫
-  code <- code_kitsdata(code_files("w1.csv", "t1"), spec, side_codes = side)
-  expect_match(code, 'any_of(c("age_m")), \\(x) replace(x, x %in% 9999, NA)', fixed = TRUE)
 })
 
 kg_upload <- function(paths) {
@@ -167,7 +183,7 @@ kg_upload <- function(paths) {
              stringsAsFactors = FALSE)
 }
 
-test_that("A1：app 裡 ② 的代碼清單（沒按執行也算）、按鈕「當成遺漏值」「不是遺漏值代碼」", {
+test_that("A1：app 裡 ② 的代碼清單只用來提醒；結果是「完成，但請注意」；用了 ② 就沒有提醒", {
   dir <- withr::local_tempdir()
   path <- file.path(dir, "w1.csv")
   readr::write_csv(tibble::tibble(id = 1:5, wave_m = 0, q1 = c(0, 1, 2, 9, 1),
@@ -178,18 +194,28 @@ test_that("A1：app 裡 ② 的代碼清單（沒按執行也算）、按鈕「�
                       `kitsdata-cohort_src_f1` = "__text__", `kitsdata-cohort_txt_f1` = "B1")
     table <- output[["kitsdata-settings_table"]]$html
     expect_match(table, "9 像遺漏值代碼")
-    expect_match(output[["kitsdata-codes_note"]]$html, "1 格是遺漏值代碼")   # q2 的 99
-    session$setInputs(`missing-codes` = "9, 99")
+    expect_match(output[["kitsdata-codes_note"]]$html, "1 格疑似遺漏值代碼")   # q2 的 99
+    expect_match(output[["kitsdata-codes_note"]]$html, "goto_missing")
+    session$setInputs(`missing-codes` = "9, 99")   # ② 還沒執行：只拿來找代碼
     table <- output[["kitsdata-settings_table"]]$html
-    expect_match(table, "遺漏值代碼 9（② 的代碼）")
-    expect_match(output[["kitsdata-codes_note"]]$html, "2 格是遺漏值代碼")
-    session$setInputs(`kitsdata-sel` = "q2", `kitsdata-do_uncode` = 1)
-    expect_no_match(output[["kitsdata-settings_table"]]$html, "99（")
-    session$setInputs(`missing-codes` = "7777")
-    session$setInputs(`kitsdata-sel` = "q1", `kitsdata-merge_from` = "9",
-                      `kitsdata-do_code` = 1)
-    expect_match(output[["kitsdata-settings_table"]]$html, "遺漏值代碼 9（自己設）")
-    expect_match(output[["kitsdata-code"]]$html, "replace(x, x %in% 9, NA)", fixed = TRUE)
+    expect_match(table, "疑似遺漏值代碼 9（② 的代碼）")
+    expect_match(output[["kitsdata-codes_note"]]$html, "2 格疑似遺漏值代碼")
+    session$setInputs(`kitsdata-sel` = c("q1", "q2"), `kitsdata-bulk_domain` = "a",
+                      `kitsdata-do_domain` = 1)
+    session$setInputs(`kitsdata-run` = 1)
+    st <- output[["kitsdata-status"]]$html
+    expect_match(st, "完成，但請注意")
+    expect_match(st, "2 題有疑似遺漏值代碼，共 2 格")
+    expect_match(st, "會照原樣寫進作答檔")
+    expect_no_match(output[["kitsdata-code"]]$html, "replace(x", fixed = TRUE)
+    # 用 ② 改成 NA、再回來：沒有提醒，9、99 不在作答檔
+    session$setInputs(`missing-exclude_cols` = "id", `missing-use_downstream` = TRUE)
+    session$setInputs(`missing-run` = 1)
+    expect_null(output[["kitsdata-codes_note"]])
+    session$setInputs(`kitsdata-run` = 2)
+    st <- output[["kitsdata-status"]]$html
+    expect_match(st, "檢查完成")
+    expect_no_match(st, "疑似遺漏值代碼")
   })
 })
 
@@ -573,25 +599,25 @@ kg_grade_spec <- function(df, value_labels = "code") {
   list(spec = spec, s = s)
 }
 
-test_that("發現 7：世代、性別可以輸出代碼（預設）或標籤；性別的代碼變空白；世代的代碼提醒", {
+test_that("發現 7：世代、性別可以輸出代碼（預設）或標籤；性別、世代的代碼照原樣並提醒", {
   df <- kg_grade()
   x <- kg_grade_spec(df)
   out <- kits_build(list(df), "w1.sav", x$spec)
   expect_length(out$problems, 0)
   long <- kits_long_of(out)
   expect_setequal(unique(long$cohort), c("7", "8", "98", "99"))
-  expect_equal(sort(unique(stats::na.omit(long$sex))), c("1", "2"))
-  expect_true(is.na(long$sex[long$subj_id == "4"]))       # 9 拒答 → 空白
+  expect_equal(sort(unique(stats::na.omit(long$sex))), c("1", "2", "9"))
+  expect_equal(unique(long$sex[long$subj_id == "4"]), "9")  # 9 拒答：照原樣（0.5.0 起）
   w <- paste(out$warnings, collapse = "\n")
   expect_match(w, "w1.sav：世代欄 grade 有遺漏值代碼 98（值標籤「跳答」）、99（值標籤「遺漏值」），共 2 列")
-  expect_match(w, "sex（gender）有 1 格是遺漏值代碼 9（值標籤「拒答」）")
+  expect_match(w, "sex（gender）有 1 格疑似遺漏值代碼 9（值標籤「拒答」）")
   got <- kg_run_code(list(df), x$spec, x$s, sav = TRUE)
   kg_same_long(got$long, long)
 
   x <- kg_grade_spec(df, "label")
   long <- kits_long_of(kits_build(list(df), "w1.sav", x$spec))
   expect_setequal(unique(long$cohort), c("國一", "國二", "跳答", "遺漏值"))
-  expect_setequal(unique(stats::na.omit(long$sex)), c("男", "女"))
+  expect_setequal(unique(stats::na.omit(long$sex)), c("男", "女", "拒答"))
   expect_equal(kits_label_text(df$gender), c("男", "女", "男", "拒答", "女"))
   got <- kg_run_code(list(df), x$spec, x$s, sav = TRUE)
   expect_match(got$code, "cohort = as_label(grade)", fixed = TRUE)
