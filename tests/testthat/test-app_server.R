@@ -205,3 +205,37 @@ test_that("⑤ 選到出生年這種重複很多的欄，不會顯示完成（A3
     expect_match(output[["attrition-status"]]$html, "不是用來辨識")
   })
 })
+
+test_that("③⑤ 各檔 ID 欄名不同（w1_id、w2_id、w3id）時自動改成分別指定並能執行（C1）", {
+  dir <- withr::local_tempdir()
+  w1 <- write_wave(dir, "w1.csv", data.frame(w1_id = 1:4, a = 1:4))
+  w2 <- write_wave(dir, "w2.csv", data.frame(w2_id = 2:5, a = 5:8))
+  w3 <- write_wave(dir, "w3.csv", data.frame(w3id = 3:6, a = 9:12))
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = upload_df(c(w1, w2, w3)))
+    expect_match(output[["join-per_file_ids"]]$html, "w2_id")
+    # 自動勾選是送到瀏覽器的更新；測試裡自己設定
+    session$setInputs(
+      `join-id_per_file` = TRUE, `join-id_f1` = "w1_id", `join-id_f2` = "w2_id",
+      `join-id_f3` = "w3id", `join-method` = "full_join", `join-keys_as_text` = TRUE
+    )
+    expect_match(output[["join-id_check"]]$html, "w3id")
+    session$setInputs(`join-run` = 1)
+    expect_match(output[["join-status"]]$html, "串接完成")
+    csv <- readr::read_csv(
+      kit_test_download_file(session, "join-download_csv"), show_col_types = FALSE
+    )
+    expect_named(csv, c("w1_id", "a_t1", "a_t2", "a_t3"))
+    expect_equal(nrow(csv), 6)
+    expect_match(output[["join-code"]]$html, "rename\\(data_t2, w1_id = w2_id\\)")
+
+    session$setInputs(
+      `attrition-baseline` = "f1", `attrition-followup` = "f3",
+      `attrition-id_per_file` = TRUE, `attrition-id_vars` = "w1_id",
+      `attrition-follow_id_vars` = "w3id"
+    )
+    session$setInputs(`attrition-run` = 1)
+    expect_match(output[["attrition-status"]]$html, "留存 2 人、流失 2 人")
+    expect_match(output[["attrition-code"]]$html, "data_t3\\$w3id")
+  })
+})

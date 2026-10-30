@@ -8,23 +8,28 @@ KIT_JOIN_MAX_CELLS <- 2e8
 #' @param dfs 各波資料框（依串接順序）
 #' @param file_names 各檔檔名
 #' @param wave_labels 各檔波次名稱（作為欄名後綴，t1 → _t1）
-#' @param by_vars 辨識同一個人的 ID 欄位
+#' @param by_vars 辨識同一個人的 ID 欄位（結果中的 ID 欄名）
 #' @param method "left_join"、"inner_join" 或 "full_join"
 #' @param keys_as_text ID 型別不一致時是否自動轉成文字再比對
 #' @param confirm_large 預估列數遠多於原檔（多對多暴增）時是否照樣執行；
 #'   FALSE 時以 class "kit_join_too_large" 停下，讓 UI 請使用者確認
+#' @param id_cols 各檔自己的 ID 欄名（list，每個檔案一個字元向量，依序對應 by_vars）；
+#'   NULL 表示每個檔案都用 by_vars。各檔欄名不同時（w1_id、w2_id、w3id）
+#'   先改名成 by_vars 再比對。
 #' @return list(result, audit, summary, warnings, notes)
 #' @noRd
 join_waves <- function(dfs, file_names, wave_labels, by_vars,
                        method = "left_join", keys_as_text = TRUE,
-                       confirm_large = FALSE) {
+                       confirm_large = FALSE, id_cols = NULL) {
   method <- match.arg(method, unname(KIT_JOIN_METHODS))
-  check_join_inputs(dfs, file_names, wave_labels, by_vars)
+  id_cols <- id_cols %||% rep(list(by_vars), length(dfs))
+  check_join_inputs(dfs, file_names, wave_labels, by_vars, id_cols)
   names_shown <- file_display_name(wave_labels, file_names)
 
-  notes <- character(0)
+  notes <- id_rename_note(id_cols, by_vars, names_shown)
+  dfs <- unify_id_names(dfs, id_cols, by_vars, names_shown)
   dfs <- clean_keys(dfs, by_vars)
-  conflict <- key_type_conflict(dfs, by_vars, names_shown)
+  conflict <- key_type_conflict(dfs, by_vars, names_shown, id_cols)
   if (!is.null(conflict)) {
     if (!keys_as_text) {
       kit_abort(
@@ -72,25 +77,75 @@ join_waves <- function(dfs, file_names, wave_labels, by_vars,
 
 #' 串接前檢查：檔案數、ID 欄位、波次名稱
 #' @noRd
-check_join_inputs <- function(dfs, file_names, wave_labels, by_vars) {
+check_join_inputs <- function(dfs, file_names, wave_labels, by_vars,
+                              id_cols = rep(list(by_vars), length(dfs))) {
   if (length(dfs) < 2) {
     kit_abort("需要至少 2 個檔案才能串接。請到「① 上傳檔案」再加入一個波次的檔案。")
   }
   if (length(by_vars) == 0) {
-    kit_abort("請先選擇用來辨識同一個人的 ID 欄位（例如 release_id）。")
+    kit_abort("請先選擇用來辨識同一個人的 ID 欄位。")
   }
+  per_file <- !all(purrr::map_lgl(id_cols, identical, by_vars))
   for (i in seq_along(dfs)) {
-    missing_by <- setdiff(by_vars, names(dfs[[i]]))
+    if (length(id_cols[[i]]) != length(by_vars)) {
+      kit_abort(
+        "每個檔案要選一樣多個 ID 欄：第 1 個檔案選了 ", length(by_vars), " 個，",
+        file_names[i], " 選了 ", length(id_cols[[i]]), " 個。"
+      )
+    }
+    missing_by <- setdiff(id_cols[[i]], names(dfs[[i]]))
     if (length(missing_by) > 0) {
       kit_abort(
-        file_names[i], " 沒有 ", paste(missing_by, collapse = "、"),
-        " 欄位。請改選每個檔案都有的 ID 欄位。"
+        file_names[i], " 沒有 ", paste(missing_by, collapse = "、"), " 欄位。",
+        if (per_file) {
+          "請重新選這個檔案的 ID 欄。"
+        } else {
+          "請改選每個檔案都有的 ID 欄位；各檔 ID 欄名不同時，請勾選「各檔的 ID 欄名不同」分別指定。"
+        }
       )
     }
   }
   problem <- check_wave_labels(wave_labels, file_names, purpose = "join")
   if (!is.null(problem)) kit_abort(problem)
   invisible(TRUE)
+}
+
+#' 各檔的 ID 欄改名成共同的 ID 欄名（by_vars）
+#'
+#' 檔案裡已經有一個同名、但不是 ID 的欄時無法改名，給白話錯誤。
+#' @noRd
+unify_id_names <- function(dfs, id_cols, by_vars, names_shown) {
+  purrr::map(seq_along(dfs), function(i) {
+    df <- dfs[[i]]
+    own <- id_cols[[i]]
+    if (identical(own, by_vars)) return(df)
+    taken <- intersect(setdiff(names(df), own), by_vars)
+    if (length(taken) > 0) {
+      kit_abort(
+        names_shown[i], "已經有名為 ", paste(taken, collapse = "、"),
+        " 的欄，但它不是這個檔案的 ID，所以不能把 ", paste(own, collapse = "、"),
+        " 改成這個名稱。請把第 1 個檔案的 ID 欄改選成其他欄，或先在原檔改欄名。"
+      )
+    }
+    names(df)[match(own, names(df))] <- by_vars
+    df
+  })
+}
+
+#' 各檔 ID 欄名不同時的說明：「各檔的 ID 已對應到 w1_id：t2 的 w2_id、t3 的 w3id。」
+#' @noRd
+id_rename_note <- function(id_cols, by_vars, names_shown) {
+  differs <- which(!purrr::map_lgl(id_cols, identical, by_vars))
+  if (length(differs) == 0) return(character(0))
+  paste0(
+    "各檔的 ID 已對應到 ", paste(by_vars, collapse = "＋"), "：",
+    paste0(
+      names_shown[differs], "的 ",
+      purrr::map_chr(id_cols[differs], paste, collapse = "＋"),
+      collapse = "、"
+    ),
+    "。結果中的 ID 欄叫 ", paste(by_vars, collapse = "、"), "。"
+  )
 }
 
 #' 預估串接結果的列數（不實際合併）
@@ -200,15 +255,18 @@ default_id_choice <- function(choices) {
 
 #' 選好的 ID 在各檔的情況（串接前給使用者看）
 #' @noRd
-id_check_table <- function(dfs, names_shown, by_vars) {
-  stats <- purrr::map(dfs, function(df) {
-    keys <- key_strings(df, by_vars)
+id_check_table <- function(dfs, names_shown, by_vars,
+                           id_cols = rep(list(by_vars), length(dfs))) {
+  stats <- purrr::map(seq_along(dfs), function(i) {
+    df <- dfs[[i]]
+    keys <- key_strings(df, id_cols[[i]])
     ok <- keys[!is.na(keys)]
     c(nrow(df), length(unique(ok)), sum(table(ok) > 1), sum(is.na(keys)))
   })
   m <- do.call(rbind, stats)
   tibble::tibble(
     檔案 = names_shown,
+    ID欄 = purrr::map_chr(id_cols, paste, collapse = "＋"),
     列數 = m[, 1],
     不重複ID數 = m[, 2],
     重複的ID數 = m[, 3],
@@ -282,14 +340,16 @@ key_kind <- function(x) {
 
 #' ID 欄位在各檔的型別不一致時，回傳白話說明；一致時回傳 NULL
 #' @noRd
-key_type_conflict <- function(dfs, by_vars, names_shown) {
-  for (col in by_vars) {
+key_type_conflict <- function(dfs, by_vars, names_shown,
+                              id_cols = rep(list(by_vars), length(dfs))) {
+  for (k in seq_along(by_vars)) {
+    col <- by_vars[k]
     kinds <- vapply(dfs, function(df) key_kind(df[[col]]), character(1))
     if (length(unique(kinds)) > 1) {
       first <- which(kinds != kinds[1])[1]
       return(paste0(
-        names_shown[1], "的 ", col, " 是", kinds[1], "，",
-        names_shown[first], "的 ", col, " 是", kinds[first], "，"
+        names_shown[1], "的 ", id_cols[[1]][k], " 是", kinds[1], "，",
+        names_shown[first], "的 ", id_cols[[first]][k], " 是", kinds[first], "，"
       ))
     }
   }

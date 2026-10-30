@@ -8,7 +8,7 @@ mod_attrition_ui <- function(id) {
       goal = "以前期樣本為準，標記每個人在後期是否還有資料（有 = 留存，沒有 = 流失）。",
       steps = kit_steps(
         "選擇前期樣本（基準）與後期樣本（比對）",
-        "選擇用來辨識同一個人的 ID 欄位",
+        "選擇用來辨識同一個人的 ID 欄位（前後期欄名不同時，可以分別指定）",
         "按「建立流失樣本」，看摘要與預覽",
         "下載 CSV 或 SAV"
       ),
@@ -27,15 +27,38 @@ mod_attrition_ui <- function(id) {
         shiny::selectInput(ns("followup"), "後期樣本（比對）", choices = NULL)
       )
     ),
-    shiny::selectizeInput(
-      ns("id_vars"), "用哪個欄位辨識同一個人？（ID，可多選）",
-      choices = NULL, multiple = TRUE,
-      options = list(create = FALSE, placeholder = "請選擇 ID 欄位，例如 release_id"),
-      width = "60%"
+    shiny::checkboxInput(
+      ns("id_per_file"),
+      "前期與後期的 ID 欄名不同（例如 w1_id、w4id），分別指定",
+      value = FALSE, width = "100%"
+    ),
+    shiny::fluidRow(
+      shiny::column(
+        5,
+        shiny::selectizeInput(
+          ns("id_vars"), "用哪個欄位辨識同一個人？（ID，可多選）",
+          choices = NULL, multiple = TRUE,
+          options = list(create = FALSE, placeholder = "請選擇 ID 欄位，例如 release_id"),
+          width = "100%"
+        )
+      ),
+      shiny::column(
+        5,
+        shiny::conditionalPanel(
+          "input.id_per_file", ns = ns,
+          shiny::selectizeInput(
+            ns("follow_id_vars"), "後期樣本的 ID 欄",
+            choices = NULL, multiple = TRUE,
+            options = list(create = FALSE, placeholder = "請選擇後期的 ID 欄"),
+            width = "100%"
+          )
+        )
+      )
     ),
     shiny::tags$small(
       class = "kit-hint",
-      "只列出前期與後期樣本都有的欄位；括號裡是前期「不重複的比例」，ID 應該接近 100%。"
+      "沒有勾選上面的選項時，只列出前期與後期樣本都有的欄位。",
+      "括號裡是「不重複的比例」，ID 應該接近 100%。"
     ),
     shiny::br(),
     shiny::actionButton(ns("run"), "建立流失樣本", class = "btn-primary"),
@@ -102,26 +125,52 @@ mod_attrition_server <- function(id, files, working, goto) {
       )
     })
 
+    # 前期與後期沒有同名的 ID 欄、但各自都有像 ID 的欄時，自動改成分別指定
     shiny::observeEvent(list(input$baseline, input$followup, files$data()), {
       p <- picked()
-      cols <- if (is.null(p$baseline) || is.null(p$followup)) {
-        character(0)
-      } else {
-        intersect(names(p$baseline), names(p$followup))
+      if (is.null(p$baseline) || is.null(p$followup)) return()
+      common <- intersect(names(p$baseline), names(p$followup))
+      if (length(guess_id_cols(common)) == 0 &&
+            length(guess_id_cols(names(p$baseline))) > 0 &&
+            length(guess_id_cols(names(p$followup))) > 0) {
+        shiny::updateCheckboxInput(session, "id_per_file", value = TRUE)
       }
-      choices <- if (length(cols) > 0) id_choices(list(p$baseline), cols) else character(0)
-      selected <- intersect(input$id_vars %||% character(0), cols)
-      if (length(selected) == 0) selected <- default_id_choice(choices)
-      shiny::updateSelectizeInput(
-        session,
-        "id_vars",
-        choices = choices,
-        selected = selected
-      )
-    }, ignoreNULL = FALSE)
+    })
 
     shiny::observeEvent(
-      list(working$data(), input$baseline, input$followup, input$id_vars),
+      list(input$baseline, input$followup, files$data(), input$id_per_file),
+      {
+        p <- picked()
+        has_both <- !is.null(p$baseline) && !is.null(p$followup)
+        per_file <- isTRUE(input$id_per_file)
+        update_ids <- function(input_id, df, cols) {
+          choices <- if (length(cols) > 0) id_choices(list(df), cols) else character(0)
+          selected <- intersect(input[[input_id]] %||% character(0), cols)
+          if (length(selected) == 0) selected <- default_id_choice(choices)
+          shiny::updateSelectizeInput(session, input_id, choices = choices, selected = selected)
+        }
+        base_cols <- if (!has_both) {
+          character(0)
+        } else if (per_file) {
+          names(p$baseline)
+        } else {
+          intersect(names(p$baseline), names(p$followup))
+        }
+        update_ids("id_vars", p$baseline, base_cols)
+        if (per_file) {
+          update_ids("follow_id_vars", p$followup, if (has_both) names(p$followup) else character(0))
+        }
+      },
+      ignoreNULL = FALSE
+    )
+
+    # 後期用的 ID 欄：沒有分別指定時和前期相同
+    follow_ids <- shiny::reactive({
+      if (isTRUE(input$id_per_file)) input$follow_id_vars %||% character(0) else input$id_vars
+    })
+
+    shiny::observeEvent(
+      list(working$data(), input$baseline, input$followup, input$id_vars, follow_ids()),
       {
         if (!is.null(result())) {
           result(NULL)
@@ -142,7 +191,10 @@ mod_attrition_server <- function(id, files, working, goto) {
         if (p$pos[1] == p$pos[2]) {
           kit_abort("前期與後期選到同一個檔案了，請把後期樣本改成另一個波次。")
         }
-        out <- build_attrition(p$baseline, p$followup, input$id_vars)
+        out <- build_attrition(
+          p$baseline, p$followup, input$id_vars,
+          follow_id_vars = follow_ids() %||% character(0)
+        )
         out$id_vars <- input$id_vars
         result(out)
         n_lost <- sum(out$result[[out$flag_col]] == 1L, na.rm = TRUE)
@@ -201,7 +253,8 @@ mod_attrition_server <- function(id, files, working, goto) {
         f,
         if (uploaded) pos[1] else 1L,
         if (uploaded) pos[2] else 2L,
-        input$id_vars
+        input$id_vars,
+        follow_ids() %||% input$id_vars
       ))
     })
   })

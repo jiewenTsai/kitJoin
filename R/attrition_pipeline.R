@@ -10,27 +10,52 @@ KIT_ID_MIN_UNIQUE <- 0.5
 #'
 #' @param baseline_df 前期完整資料框
 #' @param followup_df 後期資料框（只用 id_vars）
-#' @param id_vars 用於比對的 ID 欄位
+#' @param id_vars 前期用於比對的 ID 欄位
+#' @param follow_id_vars 後期對應的 ID 欄位（依序對應 id_vars）；欄名相同時不用給
 #' @return list(result, flag_col, summary, warnings, notes)
 #' @noRd
-build_attrition <- function(baseline_df, followup_df, id_vars) {
+build_attrition <- function(baseline_df, followup_df, id_vars,
+                            follow_id_vars = id_vars) {
   if (length(id_vars) == 0) {
-    kit_abort("請先選擇用來辨識同一個人的 ID 欄位（例如 release_id）。")
+    kit_abort("請先選擇用來辨識同一個人的 ID 欄位。")
   }
-  notes <- character(0)
+  if (length(follow_id_vars) != length(id_vars)) {
+    kit_abort(
+      "前期與後期要選一樣多個 ID 欄：前期選了 ", length(id_vars), " 個，",
+      "後期選了 ", length(follow_id_vars), " 個。"
+    )
+  }
+  for (side in list(list("前期", baseline_df, id_vars), list("後期", followup_df, follow_id_vars))) {
+    missing_by <- setdiff(side[[3]], names(side[[2]]))
+    if (length(missing_by) > 0) {
+      kit_abort(side[[1]], "樣本沒有 ", paste(missing_by, collapse = "、"), " 欄位。請重新選 ID 欄。")
+    }
+  }
+  # 後期只用來比對 ID：只留 ID 欄並改成前期的欄名
+  followup_df <- followup_df[follow_id_vars]
+  names(followup_df) <- id_vars
+  notes <- if (!identical(follow_id_vars, id_vars)) {
+    paste0(
+      "後期的 ", paste(follow_id_vars, collapse = "＋"), " 對應到前期的 ",
+      paste(id_vars, collapse = "＋"), "。"
+    )
+  } else {
+    character(0)
+  }
   cleaned <- clean_keys(list(baseline_df, followup_df), id_vars)
   baseline_df <- cleaned[[1]]
   followup_df <- cleaned[[2]]
   conflict <- key_type_conflict(
     list(baseline_df, followup_df),
     id_vars,
-    c("前期", "後期")
+    c("前期", "後期"),
+    list(id_vars, follow_id_vars)
   )
   if (!is.null(conflict)) {
     converted <- keys_to_text(list(baseline_df, followup_df), id_vars)
     baseline_df <- converted[[1]]
     followup_df <- converted[[2]]
-    notes <- paste0(conflict, "已自動把 ID 轉成文字再比對。")
+    notes <- c(notes, paste0(conflict, "已自動把 ID 轉成文字再比對。"))
   }
 
   base_keys <- key_strings(baseline_df, id_vars)

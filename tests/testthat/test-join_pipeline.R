@@ -171,3 +171,53 @@ test_that("檔案只有 ID 一欄時也能串接", {
   )
   expect_named(out$result, c("id", "x_t1"))
 })
+
+test_that("各檔用自己的 ID 欄（w1_id、w2_id、w3id），改名成共同的 ID 再串接（C1）", {
+  a <- tibble::tibble(w1_id = 1:4, x = 1:4)
+  b <- tibble::tibble(w2_id = 2:5, x = 5:8)
+  c3 <- tibble::tibble(w3id = c("3", "4", "9"), x = 9:11)
+  out <- join_waves(
+    list(a, b, c3), c("w1.sav", "w2.sav", "w3.sav"), c("t1", "t2", "t3"),
+    by_vars = "w1_id", method = "full_join",
+    id_cols = list("w1_id", "w2_id", "w3id")
+  )
+  expect_named(out$result, c("w1_id", "x_t1", "x_t2", "x_t3"))
+  expect_equal(nrow(out$result), 6)
+  expect_equal(out$result$x_t3[out$result$w1_id == "4"], 10)
+  expect_match(out$notes, "w2_id", all = FALSE)
+  expect_match(out$notes, "t3（w3.sav）的 w3id 是文字", all = FALSE)
+
+  expect_error(
+    join_waves(list(a, b), c("a", "b"), c("t1", "t2"), "w1_id",
+               id_cols = list("w1_id", c("w2_id", "x"))),
+    "一樣多個 ID 欄", class = "kit_user_error"
+  )
+  expect_error(
+    join_waves(list(a, b), c("a", "b"), c("t1", "t2"), "w1_id",
+               id_cols = list("w1_id", "w9_id")),
+    "沒有 w9_id", class = "kit_user_error"
+  )
+  # 後面的檔已經有一個同名、但不是 ID 的欄
+  b2 <- tibble::tibble(w2_id = 2:5, w1_id = 0)
+  expect_error(
+    join_waves(list(a, b2), c("a", "b"), c("t1", "t2"), "w1_id",
+               id_cols = list("w1_id", "w2_id")),
+    "不是這個檔案的 ID", class = "kit_user_error"
+  )
+  tbl <- id_check_table(list(a, b), c("t1", "t2"), "w1_id", list("w1_id", "w2_id"))
+  expect_equal(tbl$ID欄, c("w1_id", "w2_id"))
+})
+
+test_that("TDCYP jsq w1–w5：各檔 ID 欄名不同也能串接（C1）", {
+  dir <- "/Users/jiewentsai/Documents/ClaudePlayMac/lab20261030_kitsui/lab1031/tdcyp_data"
+  skip_if_not(dir.exists(dir))
+  files <- sprintf("w%d_jsq.sav", 1:5)
+  ids <- list("w1_id", "w2_id", "w3id", "w4id", "w5_id")
+  dfs <- purrr::map2(files, ids, function(f, id) {
+    df <- read_data_file(file.path(dir, f), f)$data
+    df[c(id, setdiff(names(df), id)[1:5])]
+  })
+  out <- join_waves(dfs, files, paste0("t", 1:5), "w1_id", "inner_join", id_cols = ids)
+  expect_equal(nrow(out$result), 688)   # 5 波都有資料的人數（報告的實測值）
+  expect_equal(anyDuplicated(out$result$w1_id), 0)
+})

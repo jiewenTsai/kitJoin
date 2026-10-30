@@ -207,11 +207,33 @@ code_missing <- function(f, codes, exclude = character(0), match_text = TRUE) {
   )
 }
 
-code_join <- function(f, by_vars, join_method) {
+#' 各檔 ID 欄名不同時，先把 ID 改成共同名稱的程式碼（同名時回傳 NULL）
+#' @noRd
+code_rename_ids <- function(f, by_vars, id_cols) {
+  if (is.null(id_cols) || length(id_cols) != length(f$obj)) return(NULL)
+  differs <- which(!purrr::map_lgl(id_cols, identical, by_vars))
+  if (length(differs) == 0) return(NULL)
+  tidy <- vapply(differs, function(i) {
+    pairs <- paste(r_col(by_vars), "=", r_col(id_cols[[i]]), collapse = ", ")
+    paste0(f$obj[i], " <- rename(", f$obj[i], ", ", pairs, ")")
+  }, character(1))
+  base <- vapply(differs, function(i) {
+    obj <- f$obj[i]
+    paste0(
+      "names(", obj, ")[match(", r_str(id_cols[[i]]), ", names(", obj, "))] <- ",
+      r_str(by_vars)
+    )
+  }, character(1))
+  note <- paste0("# 0. 各檔的 ID 欄名不同：先改成相同的名稱（", paste(by_vars, collapse = "、"), "）")
+  list(tidy = c(note, tidy, ""), base = c(note, base, ""))
+}
+
+code_join <- function(f, by_vars, join_method, id_cols = NULL) {
   if (length(by_vars) == 0) by_vars <- "release_id"
   if (length(join_method) == 0 || !join_method %in% KIT_JOIN_METHODS) {
     join_method <- "left_join"
   }
+  renames <- code_rename_ids(f, by_vars, id_cols)
   wide <- paste0(sub("^data_", "", f$obj), "_wide")
   suffix <- join_suffix(f$wave)
 
@@ -268,6 +290,7 @@ code_join <- function(f, by_vars, join_method) {
   list(
     tidy = code_lines(
       "library(dplyr)", "",
+      renames$tidy,
       "# 1. 非 ID 欄位加上波次後綴，避免同名欄衝突",
       tidy_rename, "",
       "# 2. 依序合併",
@@ -275,6 +298,7 @@ code_join <- function(f, by_vars, join_method) {
       "dim(joined)   # 列數、欄數"
     ),
     base = code_lines(
+      renames$base,
       "# 1. 非 ID 欄位加上波次後綴，避免同名欄衝突",
       paste(base_rename, collapse = "\n\n"), "",
       "# 2. 依序合併",
@@ -319,8 +343,9 @@ code_stack <- function(f) {
   )
 }
 
-code_attrition <- function(f, base_i, follow_i, id_vars) {
+code_attrition <- function(f, base_i, follow_i, id_vars, follow_id_vars = id_vars) {
   if (length(id_vars) == 0) id_vars <- "release_id"
+  if (length(follow_id_vars) != length(id_vars)) follow_id_vars <- id_vars
   if (length(base_i) == 0 || is.na(base_i)) base_i <- 1L
   if (length(follow_i) == 0 || is.na(follow_i)) {
     follow_i <- min(2L, length(f$obj))
@@ -333,28 +358,29 @@ code_attrition <- function(f, base_i, follow_i, id_vars) {
 
   if (length(id_vars) == 1) {
     id <- r_col(id_vars)
+    fid <- r_col(follow_id_vars)
     lead <- NULL
     tidy_body <- c(
       paste0("attrition_df <- ", base_obj, " |>"),
       paste0(
         "  mutate(attrition = if_else(", id, " %in% ",
-        follow_obj, "$", id, ", 0, 1))"
+        follow_obj, "$", fid, ", 0, 1))"
       )
     )
     base_body <- c(
       paste0("attrition_df <- ", base_obj),
       paste0(
         "attrition_df$attrition <- ifelse(attrition_df$", id, " %in% ",
-        follow_obj, "$", id, ", 0, 1)"
+        follow_obj, "$", fid, ", 0, 1)"
       )
     )
   } else {
-    key_of <- function(obj) {
-      paste0("paste(", paste0(obj, "$", r_col(id_vars), collapse = ", "), ")")
+    key_of <- function(obj, cols = id_vars) {
+      paste0("paste(", paste0(obj, "$", r_col(cols), collapse = ", "), ")")
     }
     lead <- c(
       "# 多個 ID 欄位：先用 paste() 黏成一個比對用的鍵",
-      paste0("followup_key <- ", key_of(follow_obj)),
+      paste0("followup_key <- ", key_of(follow_obj, follow_id_vars)),
       ""
     )
     tidy_body <- c(

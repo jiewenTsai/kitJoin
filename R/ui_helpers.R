@@ -326,6 +326,19 @@ timestamped_name <- function(prefix) {
   }
 }
 
+#' 小表格（直接放在 renderUI() 裡，不用另開 output）
+#' @noRd
+kit_static_table <- function(df) {
+  cells <- df_for_display(df)
+  shiny::tags$table(
+    class = "table table-sm table-striped",
+    shiny::tags$thead(shiny::tags$tr(lapply(names(cells), shiny::tags$th))),
+    shiny::tags$tbody(lapply(seq_len(nrow(cells)), function(i) {
+      shiny::tags$tr(lapply(cells[i, ], function(v) shiny::tags$td(v %||% "")))
+    }))
+  )
+}
+
 #' 預覽表（共用格式）
 #' @noRd
 kit_preview_table <- function(df, priority_cols = NULL, n = KIT_PREVIEW_ROWS) {

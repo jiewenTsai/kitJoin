@@ -36,3 +36,14 @@ test_that("前期和後期沒有相同 ID 時提醒，不是直接完成（A3）
   expect_equal(out$result$attrition, c(1L, 1L, 1L))
   expect_match(out$warnings, "沒有任何相同的 ID", all = FALSE)
 })
+
+test_that("前期與後期的 ID 欄名不同（w1_id → w4id）也能比對（C1）", {
+  base <- tibble::tibble(w1_id = c(1, 2, 3), x = 1:3)
+  follow <- tibble::tibble(w4id = c("1", "3"), y = 1:2)
+  out <- build_attrition(base, follow, "w1_id", follow_id_vars = "w4id")
+  expect_equal(out$result$attrition, c(0L, 1L, 0L))
+  expect_named(out$result, c("w1_id", "x", "attrition"))
+  expect_match(out$notes, "w4id", all = FALSE)
+  expect_match(out$notes, "後期的 w4id 是文字", all = FALSE)
+  expect_error(build_attrition(base, follow, "w1_id"), "後期樣本沒有 w1_id", class = "kit_user_error")
+})
