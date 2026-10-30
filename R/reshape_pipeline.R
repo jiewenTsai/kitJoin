@@ -192,7 +192,7 @@ empty_cells_by_name <- function(data, id_cols, names_from, values_from) {
     empty <- purrr::map_int(values_from, function(v) sum(is.na(part[[v]])))
     names(empty) <- paste0("有列但空白：", values_from)
     tibble::as_tibble(c(
-      stats::setNames(list(as.character(lvl)), names_from),
+      stats::setNames(list(kits_id_text(lvl)), names_from),
       list(轉換後列數 = n_out, 沒有這一列 = n_out - present),
       as.list(empty)
     ))

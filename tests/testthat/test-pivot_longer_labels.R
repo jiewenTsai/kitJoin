@@ -103,3 +103,9 @@ test_that("A2：TDCYP w1_jsq（有檔案時才跑）", {
   expect_match(out$warnings, "不同的數值標籤", all = FALSE)
   expect_equal(nrow(out$result), nrow(df) * length(cols))
 })
+
+test_that("A5（⑦）：長轉寬的空白格表，數字的 names_from 值不是科學記號", {
+  d <- tibble::tibble(id = c(1, 1, 2), wave = c(100000, 200000, 100000), y = c(1, 2, 3))
+  e <- empty_cells_by_name(d, "id", "wave", "y")
+  expect_equal(e$wave, c("100000", "200000"))
+})
