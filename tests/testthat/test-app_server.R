@@ -239,3 +239,32 @@ test_that("③⑤ 各檔 ID 欄名不同（w1_id、w2_id、w3id）時自動改�
     expect_match(output[["attrition-code"]]$html, "data_t3\\$w3id")
   })
 })
+
+test_that("② 依數值標籤轉換；沒有 KIT 代碼時自動建議這個方式（A6、C5）", {
+  dir <- withr::local_tempdir()
+  df <- tibble::tibble(
+    w3id = c(98, 2, 3),
+    q1 = haven::labelled(c(1, 98, 99), c(同意 = 1, 跳答 = 98, 遺漏值 = 99)),
+    kg = c(99, 50, 60)
+  )
+  path <- file.path(dir, "w3.sav")
+  haven::write_sav(df, path)
+  kit <- write_wave(dir, "kit.csv", data.frame(release_id = 1:2, x = c(9999, 1)))
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = upload_df(path))
+    expect_match(output[["missing-mode_note"]]$html, "依 SPSS 數值標籤")
+    expect_match(output[["upload-next_step"]]$html, "遺漏值代碼")
+    session$setInputs(`missing-na_mode` = "labels", `missing-keywords` = kit_na_label_keywords_default(),
+                      `missing-exclude_cols` = "w3id")
+    expect_match(output[["missing-label_found"]]$html, "1 個欄位")
+    expect_match(output[["missing-code"]]$html, "na_words")
+    session$setInputs(`missing-use_downstream` = TRUE, `missing-run` = 1)
+    expect_match(output[["missing-status"]]$html, "共替換 2 格")
+    session$setInputs(`missing-view_file` = "1")
+    expect_match(output[["missing-detail"]], "98 跳答")
+  })
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = upload_df(kit))
+    expect_null(output[["missing-mode_note"]])
+  })
+})

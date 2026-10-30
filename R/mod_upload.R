@@ -248,9 +248,12 @@ mod_upload_server <- function(id, goto) {
         class = "kit-callout kit-next-step",
         shiny::tags$strong("下一步："),
         shiny::tags$ul(
-          if (count_code_cells(purrr::map(records(), "data")) > 0) {
+          if (count_code_cells(
+            purrr::map(records(), "data"),
+            keywords = parse_na_keywords(kit_na_label_keywords_default())
+          ) > 0) {
             shiny::tags$li(
-              "資料中有 9999 等遺漏值代碼 → 建議先到 ",
+              "資料中有遺漏值代碼（例如 9999，或數值標籤寫著「遺漏值」的值）→ 建議先到 ",
               link("goto_missing", "② 遺漏值轉 NA"), "（選用）"
             )
           },

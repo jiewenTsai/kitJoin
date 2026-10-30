@@ -223,7 +223,8 @@ kit_source_note_ui <- function(n_files, source, code_cells, ns) {
   if (code_cells > 0) {
     return(shiny::tags$div(
       class = "kit-callout kit-callout-warning",
-      "目前使用：原始資料。資料中有 ", code_cells, " 格是 7777、9999 等常見的遺漏值代碼，",
+      "目前使用：原始資料。資料中有 ", code_cells, " 格看起來是遺漏值代碼",
+      "（7777、9999 等，或 SPSS 數值標籤寫著「遺漏值」「跳答」的值），",
       "若它們代表遺漏，請先",
       shiny::actionLink(ns("goto_missing"), "到「② 遺漏值轉 NA」處理"),
       "，否則會被當成一般數值。"

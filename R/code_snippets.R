@@ -137,9 +137,11 @@ code_read <- function(f) {
   )
 }
 
-code_missing <- function(f, codes, exclude = character(0), match_text = TRUE) {
-  if (length(codes) == 0) codes <- parse_na_codes(kit_na_codes_default())$codes
+code_missing <- function(f, codes, exclude = character(0), match_text = TRUE,
+                         mode = "codes", keywords = character(0)) {
   if (is.null(exclude)) exclude <- character(0)
+  if (identical(mode, "labels")) return(code_missing_labels(f, keywords, exclude))
+  if (length(codes) == 0) codes <- parse_na_codes(kit_na_codes_default())$codes
   # 各檔實際存在的排除欄位（欄位未知時直接使用）
   excl_of <- function(i) {
     if (is.null(f$cols)) exclude else intersect(exclude, f$cols[[i]])
@@ -226,6 +228,53 @@ code_rename_ids <- function(f, by_vars, id_cols) {
   }, character(1))
   note <- paste0("# 0. 各檔的 ID 欄名不同：先改成相同的名稱（", paste(by_vars, collapse = "、"), "）")
   list(tidy = c(note, tidy, ""), base = c(note, base, ""))
+}
+
+#' ② 依數值標籤：每一欄找出標籤含關鍵字、而且在選項範圍外的代碼，改成 NA
+#' @noRd
+code_missing_labels <- function(f, keywords, exclude) {
+  if (length(keywords) == 0) keywords <- parse_na_keywords(kit_na_label_keywords_default())
+  excl_of <- function(i) {
+    if (is.null(f$cols)) exclude else intersect(exclude, f$cols[[i]])
+  }
+  one <- function(i) {
+    ex <- excl_of(i)
+    obj <- f$obj[i]
+    cols <- if (length(ex) == 0) {
+      paste0("names(", obj, ")")
+    } else {
+      paste0("setdiff(names(", obj, "), ", r_str(ex), ")")
+    }
+    code_lines(
+      paste0("for (col in ", cols, ") {"),
+      paste0("  labs <- attr(", obj, "[[col]], \"labels\")"),
+      "  if (is.null(labs)) next",
+      "  is_na <- grepl(na_words, names(labs), ignore.case = TRUE)",
+      "  if (is.numeric(labs)) {",
+      "    # 代碼要在選項範圍外：負數，或大於其他選項的值",
+      "    is_na <- is_na & (labs < 0 | labs > max(c(-Inf, labs[!is_na])))",
+      "  }",
+      paste0("  x <- ", obj, "[[col]]"),
+      "  hit <- if (is.numeric(x)) x %in% labs[is_na] else trimws(x) %in% trimws(labs[is_na])",
+      paste0("  ", obj, "[[col]][hit] <- NA"),
+      "}"
+    )
+  }
+  # 關鍵字裡的特殊字元（括號、點）要先跳脫才能放進正規表示式
+  words <- gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", keywords)
+  header <- c(
+    "# 數值標籤含這些字的值，視為遺漏值代碼（| 是「或」）",
+    paste0("na_words <- ", r_str(paste(words, collapse = "|"))),
+    if (length(exclude) > 0) {
+      paste0("# 不處理：", paste(exclude, collapse = "、"), "（如 ID 欄）")
+    }
+  )
+  body <- paste(vapply(seq_along(f$obj), one, character(1)), collapse = "\n\n")
+  check <- paste0("colSums(is.na(", f$obj[1], "))   # 檢查：各欄 NA 數")
+  list(
+    tidy = code_lines("library(haven)", "", header, "", body, "", check),
+    base = code_lines(header, "", body, "", check)
+  )
 }
 
 code_join <- function(f, by_vars, join_method, id_cols = NULL) {

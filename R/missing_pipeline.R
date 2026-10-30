@@ -16,21 +16,134 @@ parse_na_codes <- function(text) {
   )
 }
 
-#' 猜測 ID 欄位（預設不做遺漏值轉換）：如 id、ID、release_id、idno、id_2
+#' 猜測 ID 欄位（預設不做遺漏值轉換）
+#'
+#' - id 前後不是英文字母：id、ID、release_id、idno、id_2、child.id、w3id、學生ID
+#' - 小寫字母後接大寫 ID / Id：studentID、childId
+#' - 常見縮寫：sid、pid、uid、hhid、stuid、caseid…
+#' - 中文：編號、學號、序號、流水號、識別碼
+#' 不會抓到 idea_score、valid、paid。
 #' @noRd
 guess_id_cols <- function(cols) {
-  cols[grepl("(^|[_.])id(no)?($|[_.0-9])", cols, ignore.case = TRUE)]
+  hit <- grepl("(^|[^A-Za-z])id(no)?($|[^A-Za-z])", cols, ignore.case = TRUE) |
+    grepl("[a-z](ID|Id)$", cols) |
+    grepl("^(s|p|u|c|hh|stu|subj|child|case|resp)id$", cols, ignore.case = TRUE) |
+    grepl("編號|學號|序號|流水號|識別碼", cols)
+  cols[hit]
 }
 
-#' 資料中等於遺漏值代碼的數值格數（不含 ID 欄），用來提醒使用者先處理
+#' 預設的「遺漏值標籤」關鍵字（數值標籤含這些字的值，視為遺漏值代碼）
+#' @noRd
+kit_na_label_keywords_default <- function() {
+  paste(
+    "遺漏, 跳答, 跳題, 不適用, 不知道, 不清楚, 拒答, 拒絕回答, 未回答, 未作答, 漏答, 無反應,",
+    "missing, refused, don't know, not applicable, skip, no answer"
+  )
+}
+
+#' 解析關鍵字（逗號、頓號、分號分隔；英文片語中的空白保留）
+#' @noRd
+parse_na_keywords <- function(text) {
+  parts <- trimws(strsplit(text %||% "", "[,，、;；]+")[[1]])
+  unique(parts[nzchar(parts)])
+}
+
+#' 依數值標籤找出某一欄的遺漏值代碼
+#'
+#' 標籤含任一關鍵字的值才算；數值欄另外要求代碼是負數，或大於其他所有標籤的值
+#' （遺漏值代碼通常在選項範圍外，例如 1–5 分的 98、99）。
+#' 量表中間的「不清楚」這類一般選項因此不會被當成遺漏。
+#' @return 具名向量（值 = 代碼，名稱 = 標籤）；沒有時長度 0
+#' @noRd
+label_na_codes_of <- function(x, keywords) {
+  labels <- attr(x, "labels", exact = TRUE)
+  if (length(labels) == 0 || length(keywords) == 0) return(NULL)
+  pattern <- paste(gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", keywords), collapse = "|")
+  is_na <- grepl(pattern, names(labels), ignore.case = TRUE, perl = TRUE)
+  values <- as.vector(unclass(labels))
+  if (is.numeric(values) && any(is_na)) {
+    top <- max(c(-Inf, values[!is_na]))
+    is_na <- is_na & (values < 0 | values > top)
+  }
+  if (!any(is_na)) return(NULL)
+  stats::setNames(values[is_na], names(labels)[is_na])
+}
+
+#' 各欄依數值標籤的遺漏值代碼
+#' @return 具名 list：名稱為欄名，值為 label_na_codes_of() 的結果
+#' @noRd
+label_na_codes <- function(df, keywords, exclude = character(0)) {
+  cols <- setdiff(names(df), exclude)
+  out <- lapply(df[cols], label_na_codes_of, keywords = keywords)
+  out[!vapply(out, is.null, logical(1))]
+}
+
+#' 代碼與標籤的文字：「98 跳答、99 遺漏值」
+#' @noRd
+format_label_codes <- function(codes, counts = NULL) {
+  value <- if (is.numeric(codes)) num_to_text(codes) else trimws(codes)
+  text <- paste(value, trimws(names(codes)))
+  if (!is.null(counts)) text <- paste0(text, "（", counts, " 格）")
+  paste(text, collapse = "、")
+}
+
+#' 依數值標籤偵測到的遺漏值代碼（給 ② 在轉換前預覽）
+#' @return tibble(檔案, 欄位, 遺漏值代碼, 資料中的格數)；沒有時 0 列
+#' @noRd
+label_na_table <- function(dfs, file_names, keywords, exclude = character(0)) {
+  rows <- purrr::map2(dfs, file_names, function(df, name) {
+    found <- label_na_codes(df, keywords, exclude)
+    if (length(found) == 0) return(NULL)
+    tibble::tibble(
+      檔案 = name,
+      欄位 = names(found),
+      遺漏值代碼 = vapply(found, format_label_codes, character(1), USE.NAMES = FALSE),
+      資料中的格數 = vapply(names(found), function(col) {
+        sum(na_code_hits(df[[col]], found[[col]]))
+      }, integer(1), USE.NAMES = FALSE)
+    )
+  })
+  rows <- purrr::compact(rows)
+  if (length(rows) == 0) {
+    return(tibble::tibble(
+      檔案 = character(), 欄位 = character(), 遺漏值代碼 = character(), 資料中的格數 = integer()
+    ))
+  }
+  dplyr::bind_rows(rows)
+}
+
+#' x 中等於代碼的位置（文字欄去掉前後空白後比對）
+#' @noRd
+na_code_hits <- function(x, codes) {
+  if (is.numeric(x)) {
+    val <- as.numeric(unclass(x))
+    return(!is.na(val) & val %in% as.numeric(codes))
+  }
+  val <- trimws(as.vector(unclass(x)))
+  !is.na(val) & val %in% trimws(gsub("[[:cntrl:]]", "", codes))
+}
+
+#' 資料中像遺漏值代碼的格數（不含 ID 欄），用來提醒使用者先處理
+#'
+#' 數值欄等於 codes 的格；給 keywords 時，另加各欄數值標籤標成遺漏的值。
 #' @noRd
 count_code_cells <- function(
     dfs,
-    codes = parse_na_codes(kit_na_codes_default())$codes) {
+    codes = parse_na_codes(kit_na_codes_default())$codes,
+    keywords = NULL) {
   sum(purrr::map_int(dfs, function(df) {
     cols <- setdiff(names(df), guess_id_cols(names(df)))
     sum(purrr::map_int(df[cols], function(x) {
-      if (is.numeric(x)) sum(as.numeric(unclass(x)) %in% codes) else 0L
+      col_codes <- codes
+      by_label <- if (length(keywords) > 0) label_na_codes_of(x, keywords)
+      if (length(by_label) > 0 && is.numeric(by_label)) {
+        col_codes <- union(col_codes, by_label)
+      }
+      n <- if (is.numeric(x)) sum(as.numeric(unclass(x)) %in% col_codes) else 0L
+      if (length(by_label) > 0 && !is.numeric(by_label)) {
+        n <- n + sum(na_code_hits(x, by_label))
+      }
+      as.integer(n)
     }))
   }))
 }
@@ -95,6 +208,40 @@ replace_na_codes <- function(
                       rownames = "欄位")
   }
   list(data = df, detail = detail)
+}
+
+#' 依數值標籤把各欄的遺漏值代碼改為 NA（每欄只轉換自己標成遺漏的值）
+#'
+#' 沒有遺漏標籤的值（例如體重剛好 99 公斤）不會轉換。
+#'
+#' @param df 資料框
+#' @param keywords 遺漏值標籤關鍵字
+#' @param exclude 不處理的欄位
+#' @return list(data, detail)；detail 每列一個有替換的欄位：欄位、轉換的代碼、合計
+#' @noRd
+replace_na_by_labels <- function(df, keywords, exclude = character(0)) {
+  found <- label_na_codes(df, keywords, exclude)
+  rows <- list()
+  for (col in names(found)) {
+    x <- df[[col]]
+    codes <- found[[col]]
+    hit <- na_code_hits(x, codes)
+    counts <- vapply(seq_along(codes), function(i) {
+      sum(na_code_hits(x, codes[i]))
+    }, integer(1))
+    x <- drop_value_labels(x, codes)
+    x[hit] <- NA
+    df[[col]] <- x
+    if (any(hit)) {
+      shown <- counts > 0
+      rows[[col]] <- tibble::tibble(
+        欄位 = col,
+        轉換的代碼 = format_label_codes(codes[shown], counts[shown]),
+        合計 = sum(hit)
+      )
+    }
+  }
+  list(data = df, detail = if (length(rows) == 0) NULL else dplyr::bind_rows(rows))
 }
 
 #' 移除指定值的數值標籤；標籤全部移除時不再是 labelled（保留變項標籤）
