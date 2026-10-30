@@ -104,22 +104,18 @@ mod_missing_server <- function(id, files) {
     )
     mode <- shiny::reactive(if (identical(input$na_mode, "labels")) "labels" else "codes")
 
-    # 新的一批檔案：KIT 代碼一格都沒有、但 SPSS 數值標籤標了遺漏值時，改用「依數值標籤」
+    # 新的一批檔案：SPSS 數值標籤標的遺漏值遠多於 KIT 代碼時，改用「依數值標籤」（na_mode_suggestion()）
     auto_note <- shiny::reactiveVal(NULL)
     shiny::observeEvent(files$keys(), {
       dfs <- files$data()
       auto_note(NULL)
-      if (length(dfs) == 0) return()
-      kit_cells <- count_code_cells(dfs)
-      label_cells <- count_code_cells(dfs, codes = numeric(0), keywords = keywords())
-      if (kit_cells == 0 && label_cells > 0 && mode() == "codes") {
-        shiny::updateRadioButtons(session, "na_mode", selected = "labels")
-        auto_note(paste0(
-          "資料中沒有 7777、9999 這類 KIT 代碼，但 SPSS 數值標籤標示了 ", label_cells,
-          " 格遺漏值（例如「遺漏值」「跳答」），所以已改用「依 SPSS 數值標籤」。",
-          "要用自己的代碼清單，請改選「依代碼清單」。"
-        ))
-      }
+      if (length(dfs) == 0 || mode() != "codes") return()
+      s <- na_mode_suggestion(
+        count_code_cells(dfs),
+        count_code_cells(dfs, codes = numeric(0), keywords = keywords())
+      )
+      if (isTRUE(s$switch)) shiny::updateRadioButtons(session, "na_mode", selected = "labels")
+      auto_note(s$note)
     })
     output$mode_note <- shiny::renderUI({
       note <- auto_note()

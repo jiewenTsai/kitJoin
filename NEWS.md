@@ -31,7 +31,9 @@ SPSS files whose ID column, item names and missing-value codes differ from KIT's
   weight of 99 kg stays. 不知道 / 不清楚 / "don't know" are not in the default keywords
   (they can be a valid answer); add them in ② when you want them turned into NA. ⑥ uses
   the same rule when it looks for suspected codes. This mode is chosen automatically when
-  the KIT codes are absent but such labels exist; the code list is still available.
+  the labels mark missing values and the KIT codes are absent or at least ten times rarer
+  (TDCYP has a few dozen real values that happen to equal 9999); when labels mark more
+  cells but not that many more, ② only suggests it. The code list is still available.
 * ② results are cleared when the codes, excluded columns or text matching change, and
   ③–⑦ say that ② must be run again instead of silently using the raw data.
 * SPSS files saved as Big5 without a proper encoding record are re-read as CP950 (①

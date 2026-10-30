@@ -126,6 +126,36 @@ na_code_hits <- function(x, codes) {
   !is.na(val) & val %in% trimws(gsub("[[:cntrl:]]", "", codes))
 }
 
+#' ② 的判斷方式要不要改成「依數值標籤」
+#'
+#' 資料沒有 KIT 代碼，或數值標籤標的遺漏值是 KIT 代碼格數的 10 倍以上時改用依標籤
+#' （TDCYP 有幾十格真實值剛好等於 9999，但標籤標了幾十萬格遺漏值）；
+#' 兩者都有、標籤較多但沒有多到 10 倍時只建議，不改；標籤沒有比較多時什麼都不說。
+#' @param kit_cells KIT 代碼的格數（count_code_cells()）
+#' @param label_cells 數值標籤標為遺漏值的格數
+#' @return list(switch = TRUE/FALSE, note = 一句話或 NULL)
+#' @noRd
+na_mode_suggestion <- function(kit_cells, label_cells) {
+  fmt <- \(x) format(x, big.mark = ",", scientific = FALSE, trim = TRUE)
+  if (label_cells == 0 || label_cells <= kit_cells) return(list(switch = FALSE, note = NULL))
+  what <- paste0("SPSS 數值標籤標示了 ", fmt(label_cells), " 格遺漏值（例如「遺漏值」「跳答」）")
+  if (kit_cells == 0 || label_cells >= 10 * kit_cells) {
+    kit <- if (kit_cells == 0) {
+      "資料中沒有 7777、9999 這類 KIT 代碼，"
+    } else {
+      paste0("資料中只有 ", fmt(kit_cells), " 格等於 7777、9999 這類 KIT 代碼（可能是真實的值），")
+    }
+    return(list(switch = TRUE, note = paste0(
+      kit, "但", what, "，所以已改用「依 SPSS 數值標籤」。",
+      "要用自己的代碼清單，請改選「依代碼清單」。"
+    )))
+  }
+  list(switch = FALSE, note = paste0(
+    "資料中有 ", fmt(kit_cells), " 格等於 KIT 代碼，", what,
+    "。如果資料的遺漏值是寫在數值標籤裡，可以改選「依 SPSS 數值標籤」。"
+  ))
+}
+
 #' 資料中像遺漏值代碼的格數（不含 ID 欄），用來提醒使用者先處理
 #'
 #' 數值欄等於 codes 的格；給 keywords 時，另加各欄數值標籤標成遺漏的值。

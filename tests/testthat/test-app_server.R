@@ -269,6 +269,35 @@ test_that("② 依數值標籤轉換；沒有 KIT 代碼時自動建議這個方
   })
 })
 
+test_that("② 標籤標的遺漏值遠多於 KIT 代碼時也改用依數值標籤（TDCYP：91 格等於 9999 這類值）", {
+  expect_identical(na_mode_suggestion(0, 0), list(switch = FALSE, note = NULL))
+  expect_false(na_mode_suggestion(500, 300)$switch)
+  expect_null(na_mode_suggestion(500, 300)$note)
+  s <- na_mode_suggestion(0, 120)
+  expect_true(s$switch)
+  expect_match(s$note, "資料中沒有 7777、9999")
+  s <- na_mode_suggestion(91, 687525)
+  expect_true(s$switch)
+  expect_match(s$note, "只有 91 格等於")
+  expect_match(s$note, "687,525 格遺漏值")
+  s <- na_mode_suggestion(100, 300)
+  expect_false(s$switch)
+  expect_match(s$note, "可以改選「依 SPSS 數值標籤」")
+
+  dir <- withr::local_tempdir()
+  df <- tibble::tibble(
+    id = 1:12,
+    q1 = haven::labelled(c(rep(99, 11), 1), c(同意 = 1, 遺漏值 = 99)),
+    money = c(9999, rep(10, 11))
+  )
+  path <- file.path(dir, "w2.sav")
+  haven::write_sav(df, path)
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = upload_df(path))
+    expect_match(output[["missing-mode_note"]]$html, "只有 1 格等於")
+  })
+})
+
 test_that("② 改了代碼、排除欄或文字比對後，舊結果失效，③ 會提醒（A8）", {
   dir <- withr::local_tempdir()
   w1 <- write_wave(dir, "w1.csv", data.frame(release_id = 1:3, score = c(1, 9999, 3)))
