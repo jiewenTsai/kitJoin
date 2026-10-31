@@ -660,6 +660,7 @@ kits_upload_text <- function(x) {
 #' 計分對照的文字：「1=0;2=1」（原分數=計分，用分號隔開；還沒有計分的寫「1=」）
 #' @noRd
 kits_map_text <- function(raw, score) {
+  if (length(raw) == 0) return("")   # 沒有可以計分的值（例如開放題的文字欄）
   shown <- ifelse(is.na(score), "", format(score, trim = TRUE, drop0trailing = TRUE))
   paste0(format(raw, trim = TRUE, drop0trailing = TRUE), "=", shown, collapse = ";")
 }
@@ -668,7 +669,10 @@ kits_map_text <- function(raw, score) {
 #' @return list(raw, score)
 #' @noRd
 kits_parse_map <- function(text) {
-  if (is.na(text) || !nzchar(trimws(text))) return(list(raw = numeric(0), score = numeric(0)))
+  # 空白，或舊版寫出的「=」（沒有可以計分的值）：沒有對照
+  if (is.na(text) || !nzchar(gsub("[=;,，、；[:space:]]", "", text))) {
+    return(list(raw = numeric(0), score = numeric(0)))
+  }
   # 分號是正式寫法；逗號、頓號也接受（例如 1=0,2=1）
   parts <- strsplit(trimws(text), "[;,，、；]+")[[1]]
   pairs <- strsplit(trimws(parts[nzchar(trimws(parts))]), "=", fixed = TRUE)
@@ -1557,7 +1561,7 @@ kits_visit_rule <- function(map, per_file = list()) {
     parts = c("cohort", "subj_id", "wave_m"),
     note = paste0(
       "沒有對應波次標籤欄，visit_id 改由 {cohort}_{subj_id}_{wave_m} 組成。",
-      "如果之前的檔案是用波次標籤（例如 m108g03）組的，請對應波次標籤欄，兩邊才接得起來。"
+      "如果之前做的作答檔是用波次標籤組的，請在第 1 步的「還有…」對應波次標籤欄，兩邊才接得起來。"
     )
   )
 }
@@ -1843,8 +1847,9 @@ kits_score_warnings <- function(stats, persons, spec) {
     ))
   }
   # 7777 以上的值一定是疑似遺漏值代碼，已經由 kits_codes_warning() 提醒（這裡不重複）
+  # 只有像 KIT 的資料（有 lan、motor、cog 其中之一）才提醒：別的資料用自己的領域名稱沒有關係
   doms <- setdiff(unique(stats::na.omit(per_item$domain)), KITS_ANCHOR_DOMAINS)
-  if (length(doms) > 0) {
+  if (length(doms) > 0 && any(per_item$domain %in% KITS_ANCHOR_DOMAINS)) {
     out <- c(out, paste0(
       "領域 ", paste(doms, collapse = "、"), " 不是 lan、motor、cog；",
       "外部連結的錨題只認這三個名稱（其他領域只做內部連結時沒關係）。"
@@ -1857,8 +1862,11 @@ kits_score_warnings <- function(stats, persons, spec) {
       paste(utils::head(empty, 8), collapse = "、"), if (length(empty) > 8) "…" else "", "。"
     ))
   }
+  # age_m 有對應、只是部分缺：提醒；完全沒有 age_m（例如不是 KIT 的資料）不用提醒
   n_age <- length(unique(persons$visit_id[is.na(persons$age_m)]))
-  if (n_age > 0) out <- c(out, paste0(n_age, " 個列次沒有 age_m（題目表的通過年齡要用它）。"))
+  if (n_age > 0 && any(!is.na(persons$age_m))) {
+    out <- c(out, paste0(n_age, " 個列次沒有 age_m（題目表的通過年齡要用它）。"))
+  }
   out
 }
 

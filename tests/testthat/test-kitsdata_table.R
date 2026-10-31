@@ -362,7 +362,7 @@ test_that("像題目的欄：欄名開頭一樣的一組；小數、超過 20、
   expect_equal(nrow(kits_item_groups(kits_settings_empty(), list())), 0)
   sf <- kits_item_settings(list(tibble::tibble(frac = c(0.5, 1))), "frac")
   expect_named(kits_item_groups(sf, list()),
-               c("stem", "cols", "n", "range", "label", "n_in", "domain"))
+               c("stem", "cols", "n", "range", "label", "labels", "n_in", "domain"))
   expect_equal(nrow(kits_item_groups(sf, list())), 0)
 })
 
@@ -405,4 +405,41 @@ test_that("組名：_數字、補零的數字、開頭沒有數字的同一組�
   expect_equal(kits_col_stems(c("q1", "q2", "q10")), rep("q", 3))
   expect_equal(kits_col_stems(c("w1a2", "w1a3")), c("w1a2", "w1a3"))
   expect_equal(kits_col_stems(c("x", "item")), c("x", "item"))
+})
+
+test_that("合成同一組題號：各組依順序給題號；題數不一樣、少於 2 組、沒有開頭時停下來", {
+  df <- tibble::tibble(w1d5_1 = 1:3, w1d5_2 = 1:3, w2d5_1 = 1:3, w2d5_2 = 1:3, w3c_1 = 1:3)
+  s <- kits_item_settings(list(df), names(df), include = TRUE)
+  g <- kits_item_groups(s, list(df))
+  out <- kits_merge_groups(s, g, c("w1d5_", "w2d5_"), "bsrs")
+  expect_equal(out$item_id_out[match(c("w1d5_1", "w1d5_2", "w2d5_1", "w2d5_2"), out$column)],
+               c("bsrs1", "bsrs2", "bsrs1", "bsrs2"))
+  expect_error(kits_merge_groups(s, g, c("w1d5_", "w3c_"), "x"), "題數不一樣")
+  expect_error(kits_merge_groups(s, g, "w1d5_", "x"), "至少選 2 組")
+  expect_error(kits_merge_groups(s, g, c("w1d5_", "w2d5_"), " "), "題號的開頭")
+})
+
+test_that("共同題號：各檔案沒有共同題時是要決定的事；合成以後沒問題；只有一個檔案不看", {
+  s <- kits_item_settings(list(tibble::tibble(a_1 = 0:2, b_1 = 0:2)), c("a_1", "b_1"), include = TRUE)
+  s$domain <- "d"
+  files <- list(c("id", "a_1"), c("id", "b_1"))
+  ch <- kits_step3_checks(s, file_cols = files)
+  expect_equal(ch$common$state, "todo")
+  expect_equal(kits_step3_checks(s, file_cols = files, ack = list(common = TRUE))$common$state, "ok")
+  s$item_id_out <- "q1"
+  expect_match(kits_step3_checks(s, file_cols = files)$common$title, "1 個題號在 2 個以上的檔案")
+  expect_null(kits_step3_checks(s, file_cols = files[1])$common)
+})
+
+test_that("題目設定：沒有可以計分的值的欄寫成空白，讀回來也不會出錯（舊版的「=」也接受）", {
+  expect_equal(kits_map_text(numeric(0), numeric(0)), "")
+  expect_equal(kits_parse_map("=")$raw, numeric(0))
+  expect_equal(kits_parse_map("")$raw, numeric(0))
+})
+
+test_that("第 1 步的預設：檔名裡的世代代碼、「檔案上傳」頁的波次名稱（數字）", {
+  dfs <- list(tibble::tibble(id = 1), tibble::tibble(id = 1))
+  g <- kits_step1_guess(dfs, c("kit_M03_M12.csv", "data.csv"), c("2009", "t2"))
+  expect_equal(g$cohort, c("M03", ""))
+  expect_equal(g$wave_m, c("2009", ""))
 })

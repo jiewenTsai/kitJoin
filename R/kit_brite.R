@@ -664,5 +664,10 @@ body > .container-fluid { padding-top: 1rem; }
   .kit-file-table td { display: block; border: 0; padding: 0.2rem 0; }
   .kit-file-table td[data-label]::before { content: attr(data-label); display: block; font-size: 0.82rem; color: #5a5a5a; }
 }
+/* 第 2 步：一組的每一題（打開看）、合成同一組題號 */
+.kit-group-more { margin-top: 0.3rem; }
+.kit-group-more > summary { font-size: 0.82rem; color: #4d4d4d; }
+.kit-group-more ol { padding-left: 1.4rem; margin: 0.3rem 0 0; font-size: 0.85rem; }
+.kit-merge { margin: 1.2rem 0 0.6rem; padding-top: 0.8rem; border-top: 1px solid #e3ded2; }
 )---"
 }

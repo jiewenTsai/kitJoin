@@ -51,6 +51,7 @@ mod_kitsdata_ui <- function(id) {
           shiny::tags$p("已經照欄名猜好了（淡黃色），請看一遍，不對就改。",
                         "每一格可以選檔案裡的一欄，也可以直接打字填一個值（例如 2009）。"),
           shiny::uiOutput(ns("files_table")),
+          shiny::actionLink(ns("fill_cohort"), "第一列的世代套用到每一列"),
           shiny::tags$div(
             class = "kit-inline",
             shiny::selectInput(ns("wave_unit"), "波次的單位", choices = KITS_WAVE_UNITS,
@@ -91,6 +92,7 @@ mod_kitsdata_ui <- function(id) {
             shiny::actionButton(ns("grp_next"), "下一頁", class = "btn-sm btn-default")
           ),
           shiny::uiOutput(ns("groups_table")),
+          shiny::uiOutput(ns("merge_ui")),
           shiny::uiOutput(ns("items_status")),
           kit_details_row(
             kit_detail(
@@ -277,7 +279,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     all_cols <- shiny::reactive(unique(unlist(purrr::map(dfs(), names))))
 
     # 第 1 步 ----
-    guess <- shiny::reactive(kits_step1_guess(dfs()))
+    guess <- shiny::reactive(kits_step1_guess(dfs(), files$names(), files$labels()))
     cell_id <- function(field, key) paste0("cell_", field, "_", key)
     cells <- shiny::reactive({
       keys <- files$keys()
@@ -374,6 +376,20 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       if (is.null(example)) return(NULL)
       shiny::tags$small(class = "kit-hint", "作答檔裡的列次編號會長這樣：", shiny::tags$code(example))
     })
+    # 第一列的世代套用到每一列（在瀏覽器裡改選單；testServer 不會改 input）
+    shiny::observeEvent(input$fill_cohort, {
+      v <- cells()$cohort[1]
+      if (!nzchar(v)) {
+        shiny::showNotification("第一列的世代還沒有填。", type = "warning")
+        return()
+      }
+      keys <- files$keys()
+      for (k in seq_along(keys)[-1]) {
+        shiny::updateSelectizeInput(session, cell_id("cohort", keys[k]),
+                                    choices = c("", names(dfs()[[k]]), v), selected = v)
+      }
+    })
+
     step1_msg <- shiny::reactiveVal(NULL)
     output$step1_problems <- shiny::renderUI({
       msg <- step1_msg()
@@ -441,7 +457,11 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       f <- input$item_file
       up <- tryCatch(
         kits_settings_import(read_data_file(f$datapath, f$name)$data),
-        error = function(e) e
+        error = function(e) {
+          # 只留最裡面那一句中文（不要 rlang 的「In index: 37. Caused by error」）
+          while (inherits(e$parent, "condition")) e <- e$parent
+          simpleError(conditionMessage(e))
+        }
       )
       if (!inherits(up, "error")) up$name <- f$name
       upload(up)
@@ -505,7 +525,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       s <- shiny::isolate(settings())
       doms <- sort(unique(stats::na.omit(s$domain)))
       shiny::isolate(grp_sel_prev(group_on(s, g)))
-      rows <- purrr::pmap(g, function(stem, cols, n, range, label, n_in, domain, k) {
+      rows <- purrr::pmap(g, function(stem, cols, n, range, label, labels, n_in, domain, k) {
         on <- all(s$include[match(cols, s$column)])
         dom <- unique(stats::na.omit(s$domain[match(cols, s$column)]))
         selected <- if (length(dom) == 1) dom else ""
@@ -518,8 +538,18 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           )),
           shiny::tags$td(shiny::tags$strong(kits_group_cols_text(cols)), shiny::tags$br(),
                          shiny::tags$small(class = "kit-hint", paste0("分數 ", range))),
-          shiny::tags$td(class = "kit-group-label", if (nzchar(label)) label else
-            shiny::tags$span(class = "kit-muted", "（沒有題目內容）")),
+          shiny::tags$td(
+            class = "kit-group-label",
+            if (nzchar(label)) label else shiny::tags$span(class = "kit-muted", "（沒有題目內容）"),
+            # 一組不只一題：可以打開看每一題（同一組裡也可能混了別的概念）
+            if (n > 1 && any(nzchar(labels))) shiny::tags$details(
+              class = "kit-group-more",
+              shiny::tags$summary(paste0("看全部 ", n, " 題")),
+              shiny::tags$ol(lapply(seq_along(cols), function(j) shiny::tags$li(
+                shiny::tags$code(cols[j]), " ", if (nzchar(labels[j])) labels[j] else "（沒有題目內容）"
+              )))
+            )
+          ),
           shiny::tags$td(shiny::selectizeInput(
             ns(id), NULL, choices = c("", union(doms, dom)),
             selected = selected, width = "11rem",
@@ -543,6 +573,52 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         )
       )
     })
+    # 各波欄名不同、其實是同一份量表：勾選的組依題目順序合成同一組題號（bsrs1、bsrs2…）
+    # 選單只在「納入了哪些組」變了才重畫（打題號時不會被打斷）
+    included_groups <- shiny::reactiveVal(character(0))
+    shiny::observe({
+      g <- groups_all()
+      s <- settings()
+      on <- if (nrow(g) == 0) character(0) else group_on(s, g)
+      if (!identical(on, shiny::isolate(included_groups()))) included_groups(on)
+    })
+    output$merge_ui <- shiny::renderUI({
+      on <- included_groups()
+      if (length(on) < 2) return(NULL)
+      g <- shiny::isolate(groups_all())
+      g <- g[g$stem %in% on, ]
+      shiny::tags$div(
+        class = "kit-merge",
+        shiny::tags$p(shiny::tags$strong("各波欄名不同、其實是同一份量表？"),
+                      "把每一波的那一組選進來，依題目順序合成同一組題號，kits 才能把各波連起來。"),
+        shiny::tags$div(
+          class = "kit-inline",
+          shiny::selectizeInput(
+            ns("merge_groups"), "要合成的組（每一波一組）", multiple = TRUE, width = "26rem",
+            choices = stats::setNames(g$stem, paste0(g$stem, "（", g$n, " 題）")),
+            selected = kits_merge_suggest(g)
+          ),
+          shiny::textInput(ns("merge_name"), "題號的開頭", width = "10rem", placeholder = "例如 bsrs"),
+          shiny::actionButton(ns("merge_apply"), "合成同一組題號", class = "btn-default")
+        ),
+        shiny::tags$small(class = "kit-hint",
+          "例如 w1d5_1、w2d5_1、w3c5_1 都會變成題號 bsrs1。已經合成的題號在「看挑出來的題目」裡看得到。")
+      )
+    })
+    shiny::observeEvent(input$merge_apply, {
+      out <- tryCatch(
+        kits_merge_groups(settings(), groups_all(), input$merge_groups, input$merge_name),
+        error = function(e) e
+      )
+      if (inherits(out, "error")) {
+        shiny::showNotification(conditionMessage(out), type = "error")
+        return()
+      }
+      settings(out)
+      shiny::showNotification(paste0("已經合成 ", length(input$merge_groups), " 組的題號。"),
+                              type = "message")
+    })
+
     # 勾選：只改使用者這次勾或取消的組（和上一次的值比），其他組不動
     shiny::observeEvent(input$grp_sel, {
       g <- grp_rows()
@@ -684,7 +760,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     })
 
     # 第 3 步：計分檢查 ----
-    ack <- shiny::reactiveValues(codes = NULL, shift = NULL, shifted = 0)
+    ack <- shiny::reactiveValues(codes = NULL, shift = NULL, shifted = 0, common = FALSE)
     side_cells <- shiny::reactive({
       s <- step1()
       kits_code_cells(dfs(), unlist(kits_side_cols(s$map, s$per_file)), codes_2())
@@ -696,9 +772,10 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     checks <- shiny::reactive({
       kits_step3_checks(
         settings(), side_cells(), na_applied = identical(working$source(), "na"),
-        ack = list(codes = ack$codes, shift = ack$shift, shifted = ack$shifted),
+        ack = list(codes = ack$codes, shift = ack$shift, shifted = ack$shifted, common = ack$common),
         reverse_used = !is.null(upload()) && !inherits(upload(), "error"),
-        side_codes = side_codes()
+        side_codes = side_codes(),
+        file_cols = lapply(dfs(), names)
       )
     })
     n_todo <- shiny::reactive(sum(vapply(checks(), function(x) x$state == "todo", logical(1))))
@@ -723,7 +800,11 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
                                 options = list(create = TRUE, placeholder = "選或輸入領域")),
           btn("do_fix_domain", "這幾欄都設成這個領域")
         ),
-        frac = function(x) if (x$state == "todo") list(btn("do_drop_frac", "不要這幾欄（建議）"))
+        frac = function(x) if (x$state == "todo") list(btn("do_drop_frac", "不要這幾欄（建議）")),
+        common = function(x) if (x$state == "todo") list(
+          btn("go_merge", "回第 2 步合成同一組題號（建議）"),
+          btn("ack_common", "它們不是同一份量表")
+        ) else if (isTRUE(ack$common)) list(shiny::actionLink(ns("unack_common"), "改回來"))
       )
       shiny::tags$ul(class = "kit-checklist", lapply(ch, function(x) {
         kitsdata_check(x$state, x$title, x$text, if (!is.null(actions[[x$id]])) actions[[x$id]](x))
@@ -735,6 +816,9 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       if (!is.null(ch)) ack$codes <- n
     })
     shiny::observeEvent(input$unack_codes, ack$codes <- NULL)
+    shiny::observeEvent(input$ack_common, ack$common <- TRUE)
+    shiny::observeEvent(input$unack_common, ack$common <- FALSE)
+    shiny::observeEvent(input$go_merge, if (ok$s1) open(2L))
     shiny::observeEvent(input$do_shift, {
       m <- kits_settings_shift_hint(settings())
       if (is.null(m)) return()

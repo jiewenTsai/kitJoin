@@ -19,16 +19,30 @@ KITS_ITEMS_PAGE <- 25L
 #' 第 1 步每一格的預設值：猜得到的欄名（世代不猜）
 #' @return 具名 list：欄 → 每個檔案一個值（猜不到是 ""）
 #' @noRd
-kits_step1_guess <- function(dfs) {
+kits_step1_guess <- function(dfs, file_names = NULL, wave_labels = NULL) {
   n <- length(dfs)
   each <- kits_guess_per_file(dfs)
   common <- kits_guess_map(unique(unlist(purrr::map(dfs, names))))
-  out <- list(cohort = rep("", n))
+  # 世代：檔名裡像 M03、B85 的代碼（KIT 的 kit_M03_M12.csv → M03）；猜不到是空白
+  coh <- if (is.null(file_names)) rep("", n) else {
+    hit <- regmatches(file_names, regexpr("(?<![A-Za-z0-9])[MB][0-9]{2}(?![0-9])", file_names, perl = TRUE))
+    out_c <- rep("", n)
+    has <- grepl("(?<![A-Za-z0-9])[MB][0-9]{2}(?![0-9])", file_names, perl = TRUE)
+    out_c[has] <- hit
+    out_c
+  }
+  out <- list(cohort = coh)
   for (field in c(KITS_STEP1_MAIN[-1], KITS_STEP1_MORE)) {
     out[[field]] <- if (field %in% names(each)) each[[field]] else {
       g <- common[[field]] %||% ""
       vapply(dfs, function(df) if (nzchar(g) && g %in% names(df)) g else "", character(1))
     }
+  }
+  # 時間點：沒有 wave_m 欄時，用「檔案上傳」頁的波次名稱（是數字的話，例如 2009）
+  if (!is.null(wave_labels) && length(wave_labels) == n) {
+    num <- !is.na(suppressWarnings(as.numeric(wave_labels)))
+    fill <- !nzchar(out$wave_m) & num
+    out$wave_m[fill] <- wave_labels[fill]
   }
   out
 }
@@ -170,10 +184,11 @@ kits_pick_cols <- function(cols, text) {
 #'   shifted = 已經減掉的分數)
 #' @param reverse_used TRUE 時用了題目表（反向題才有意義）
 #' @param side_codes kits_side_codes()：性別、wave_m、age_m 裡的代碼（欄名 → tibble(value, why)）
+#' @param file_cols 每個檔案的欄名（list）：看各檔案之間有沒有共同的題號
 #' @return list：每一列 list(id, state, title, text)
 #' @noRd
 kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack = list(),
-                              reverse_used = FALSE, side_codes = list()) {
+                              reverse_used = FALSE, side_codes = list(), file_cols = NULL) {
   inc <- settings[settings$include & lengths(settings$raw) > 0, ]
   if (nrow(inc) == 0) return(list())
   row <- function(id, state, title, text = "") list(id = id, state = state, title = title, text = text)
@@ -253,6 +268,23 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
                    "如果負數是遺漏值代碼，請先用「遺漏值處理」改成 NA。")
   }
 
+  # 各檔案之間有沒有共同的題號：kits 靠共同題把各波放到同一把尺上
+  common <- kits_common_items(settings, file_cols)
+  if (!is.null(common)) {
+    if (common$n_shared == 0 && !isTRUE(ack$common)) {
+      out$common <- row(
+        "common", "todo", paste0(common$n_files, " 個檔案之間沒有共同的題號"),
+        paste0("kits 要靠各波都有的題（同一個題號）把各波放到同一把尺上。現在每個檔案的題號都不一樣",
+               "（例如 ", paste(utils::head(common$examples, 3), collapse = "、"), "）。",
+               "如果它們是同一份量表，請回第 2 步「合成同一組題號」。")
+      )
+    } else if (common$n_shared == 0) {
+      out$common <- row("common", "ok", "各檔案的題目不是同一份量表，不用共同題號（你選的）")
+    } else {
+      out$common <- row("common", "ok", paste0(common$n_shared, " 個題號在 2 個以上的檔案都有（可以連結）"))
+    }
+  }
+
   # 反向題（用了題目表時才看）
   if (isTRUE(reverse_used)) {
     rev <- sum(!is.na(inc$source) & startsWith(inc$source, "題目表（原題"))
@@ -266,6 +298,55 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
 #' @noRd
 kits_codes_total <- function(settings, side_cells = 0) {
   sum(settings$n_codes[settings$include] %||% 0) + side_cells
+}
+
+#' 各檔案之間共同的題號：每個納入的欄換成輸出題號，看出現在幾個檔案
+#' @param file_cols 每個檔案的欄名（list）；只有一個檔案時回傳 NULL（不用看）
+#' @return NULL，或 list(n_files = 有題目的檔案數, n_shared = 出現在 2 個以上檔案的題號數, examples)
+#' @noRd
+kits_common_items <- function(settings, file_cols) {
+  if (is.null(file_cols) || length(file_cols) < 2) return(NULL)
+  on <- settings[settings$include, ]
+  if (nrow(on) == 0) return(NULL)
+  out_id <- ifelse(is.na(on[["item_id_out"]] %||% NA), on$column, on[["item_id_out"]])
+  per_file <- lapply(file_cols, function(cc) unique(out_id[on$column %in% cc]))
+  used <- lengths(per_file) > 0
+  if (sum(used) < 2) return(NULL)
+  n_in <- table(unlist(per_file[used]))
+  list(n_files = sum(used), n_shared = sum(n_in >= 2),
+       examples = vapply(per_file[used], `[`, character(1), 1))
+}
+
+#' 看起來是同一份量表的幾組（各波欄名不同）：題數一樣、第一題的內容（最後一段）一樣
+#' @param groups kits_item_groups() 裡已經納入的組
+#' @return 組名（最多的那一群）；找不到是 character(0)
+#' @noRd
+kits_merge_suggest <- function(groups) {
+  if (nrow(groups) < 2) return(character(0))
+  tail <- sub(".*[_：:]", "", groups$label)
+  key <- paste(groups$n, tail, sep = "|")
+  key[!nzchar(tail)] <- NA
+  tab <- table(key[!is.na(key)])
+  if (length(tab) == 0 || max(tab) < 2) return(character(0))
+  groups$stem[!is.na(key) & key == names(tab)[which.max(tab)]]
+}
+
+#' 把幾組合成同一組題號：每一組的第 1 欄 → 題號 name1、第 2 欄 → name2…（組的題數要一樣）
+#' @noRd
+kits_merge_groups <- function(settings, groups, stems, name) {
+  name <- trimws(name %||% "")
+  if (length(stems) < 2) kit_abort("請至少選 2 組（例如每一波各一組）。")
+  if (!nzchar(name) || grepl("[[:space:]]", name)) kit_abort("請填題號的開頭，例如 bsrs（不要有空白）。")
+  g <- groups[match(stems, groups$stem), ]
+  if (length(unique(g$n)) != 1) {
+    kit_abort(paste0("這幾組的題數不一樣（", paste0(g$stem, " ", g$n, " 題", collapse = "、"),
+                     "），不能一題對一題合成。"))
+  }
+  if (is.null(settings[["item_id_out"]])) settings$item_id_out <- NA_character_
+  for (cols in g$cols) {
+    settings$item_id_out[match(cols, settings$column)] <- paste0(name, seq_along(cols))
+  }
+  settings
 }
 
 #' 第 3 步收起來時的一行
@@ -409,7 +490,8 @@ kits_col_stems <- function(cols) {
 #' @noRd
 kits_item_groups <- function(settings, dfs) {
   empty <- tibble::tibble(stem = character(0), cols = list(), n = integer(0), range = character(0),
-                          label = character(0), n_in = integer(0), domain = character(0))
+                          label = character(0), labels = list(), n_in = integer(0),
+                          domain = character(0))
   if (nrow(settings) == 0) return(empty)
   like <- purrr::map_lgl(settings$raw, function(r) {
     length(r) >= 2 && length(r) <= KITS_GROUP_MAX_VALUES && all(r == round(r)) &&
@@ -432,6 +514,7 @@ kits_item_groups <- function(settings, dfs) {
       lab <- labels[i][nzchar(labels[i])]
       if (length(lab) == 0) "" else lab[1]
     }, character(1)),
+    labels = lapply(idx, function(i) labels[i]),
     n_in = vapply(idx, function(i) sum(s$include[i]), integer(1)),
     domain = vapply(idx, function(i) {
       d <- unique(stats::na.omit(s$domain[i]))
