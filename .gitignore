@@ -21,3 +21,7 @@ renv/staging/
 
 # run.bat 執行時產生的 log
 kitjoin_log.txt
+
+# testthat 測試失敗時自動產生的檔案
+tests/testthat/_problems/
+tests/testthat/testthat-problems.rds
