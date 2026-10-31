@@ -44,7 +44,7 @@ mod_kitsdata_ui <- function(id) {
 
       # 第 1 步 ----
       shiny::tags$section(
-        class = "kit-stepcard",
+        class = "kit-stepcard", `aria-labelledby` = ns("steptitle1"),
         shiny::uiOutput(ns("head1")),
         shiny::conditionalPanel(
           open_is(1), ns = ns, shiny::tags$div(class = "kit-stepbody",
@@ -74,7 +74,7 @@ mod_kitsdata_ui <- function(id) {
 
       # 第 2 步 ----
       shiny::tags$section(
-        class = "kit-stepcard",
+        class = "kit-stepcard", `aria-labelledby` = ns("steptitle2"),
         shiny::uiOutput(ns("head2")),
         shiny::conditionalPanel(
           open_is(2), ns = ns, shiny::tags$div(class = "kit-stepbody",
@@ -82,7 +82,10 @@ mod_kitsdata_ui <- function(id) {
           shiny::tags$div(
             class = "kit-inline",
             shiny::textInput(ns("grp_search"), NULL, width = "20rem",
-                             placeholder = "找欄名或題目內容，例如 d5 或 緊張"),
+                             placeholder = "找欄名或題目內容，例如 d5 或 緊張")
+          ),
+          shiny::tags$div(
+            class = "kit-pager",
             shiny::actionButton(ns("grp_prev"), "上一頁", class = "btn-sm btn-default"),
             shiny::textOutput(ns("grp_page"), inline = TRUE),
             shiny::actionButton(ns("grp_next"), "下一頁", class = "btn-sm btn-default")
@@ -128,7 +131,7 @@ mod_kitsdata_ui <- function(id) {
 
       # 第 3 步 ----
       shiny::tags$section(
-        class = "kit-stepcard",
+        class = "kit-stepcard", `aria-labelledby` = ns("steptitle3"),
         shiny::uiOutput(ns("head3")),
         shiny::conditionalPanel(
           open_is(3), ns = ns, shiny::tags$div(class = "kit-stepbody",
@@ -153,13 +156,18 @@ mod_kitsdata_ui <- function(id) {
 
 # 逐題表上面：找欄名、要不要顯示沒挑的欄、換頁、勾選
 kitsdata_items_tools <- function(ns) {
-  shiny::tags$div(
-    class = "kit-inline",
-    shiny::textInput(ns("tbl_search"), NULL, placeholder = "找欄名，例如 d5", width = "14rem"),
-    shiny::checkboxInput(ns("tbl_all"), "也顯示沒挑的欄", value = FALSE),
-    shiny::actionButton(ns("tbl_prev"), "上一頁", class = "btn-sm btn-default"),
-    shiny::textOutput(ns("tbl_page"), inline = TRUE),
-    shiny::actionButton(ns("tbl_next"), "下一頁", class = "btn-sm btn-default")
+  shiny::tagList(
+    shiny::tags$div(
+      class = "kit-inline",
+      shiny::textInput(ns("tbl_search"), NULL, placeholder = "找欄名，例如 d5", width = "14rem"),
+      shiny::checkboxInput(ns("tbl_all"), "也顯示沒挑的欄", value = FALSE)
+    ),
+    shiny::tags$div(
+      class = "kit-pager",
+      shiny::actionButton(ns("tbl_prev"), "上一頁", class = "btn-sm btn-default"),
+      shiny::textOutput(ns("tbl_page"), inline = TRUE),
+      shiny::actionButton(ns("tbl_next"), "下一頁", class = "btn-sm btn-default")
+    )
   )
 }
 
@@ -285,7 +293,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     step1 <- shiny::reactive(kits_step1_spec(dfs(), files$names(), cells()))
 
     # 一格：選檔案裡的一欄，或打字填一個值
-    cell_input <- function(field, key, df, k, width = "11rem") {
+    cell_input <- function(field, key, df, k, width = "11rem", fname = "") {
       id <- cell_id(field, key)
       prev <- shiny::isolate(input[[id]])
       g <- guess()[[field]][k] %||% ""
@@ -299,11 +307,16 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           # 選單掛在整頁上：表格外框會左右捲動（overflow），選單放在裡面會被切掉
           dropdownParent = "body",
           placeholder = if (field == "cohort") "例如 M03" else "選一欄或打字",
+          # 表格裡的選單沒有看得到的標籤：給螢幕閱讀器「檔名 的 世代」
+          onInitialize = I(sprintf("function() { this.$control_input.attr('aria-label', %s); }",
+                                   jsonlite::toJSON(paste0(fname, " 的", KITS_STEP1_LABELS[[field]]),
+                                                    auto_unbox = TRUE))),
           render = I("{option_create: function(d, esc) {
             return '<div class=\"create\">填入「' + esc(d.input) + '」</div>'; }}")
         )
       )
-      shiny::tags$td(class = if (is.null(prev) && nzchar(g)) "kit-guess", box)
+      shiny::tags$td(class = if (is.null(prev) && nzchar(g)) "kit-guess",
+                     `data-label` = KITS_STEP1_LABELS[[field]], box)
     }
     file_rows <- function(fields) {
       keys <- files$keys()
@@ -311,7 +324,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         shiny::tags$tr(
           shiny::tags$td(shiny::tags$strong(name), shiny::tags$br(),
                          shiny::tags$small(class = "kit-hint", format_dims(nrow(df), ncol(df)))),
-          purrr::map(fields, function(field) cell_input(field, key, df, k))
+          purrr::map(fields, function(field) cell_input(field, key, df, k, fname = name))
         )
       })
     }
@@ -832,11 +845,16 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       can_edit <- state == "done" && (k == 1 || ok$s1 && (k == 2 || ok$s2))
       shiny::tags$div(
         class = paste0("kit-stephead is-", state),
-        shiny::tags$span(class = "kit-stepnum", if (state == "done") "✓" else k),
-        shiny::tags$span(class = "kit-steptitle", title),
+        `aria-current` = if (state == "current") "step",
+        shiny::tags$span(class = "kit-stepnum", `aria-hidden` = "true", if (state == "done") "✓" else k),
+        shiny::tags$span(class = "visually-hidden",
+                         paste0("第 ", k, " 步，", c(current = "現在這一步", done = "做完了",
+                                                    locked = "還不能做")[[state]], "：")),
+        shiny::tags$span(class = "kit-steptitle", id = ns(paste0("steptitle", k)), title),
         if (state == "done") shiny::tags$span(class = "kit-stepsum", summary),
         if (state == "locked") shiny::tags$span(class = "kit-stepsum", paste0("先完成第 ", k - 1, " 步")),
-        if (can_edit) shiny::actionLink(ns(paste0("edit", k)), "改", class = "kit-stepedit")
+        if (can_edit) shiny::actionLink(ns(paste0("edit", k)), "改", class = "kit-stepedit",
+                                        `aria-label` = paste0("改第 ", k, " 步：", title))
       )
     }
     output$head1 <- shiny::renderUI(head_ui(
@@ -999,13 +1017,15 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
   })
 }
 
-#' 檢查清單的一列：✓（沒問題）、!（要決定）、·（提醒）；按鈕放在說明下面
+#' 檢查清單的一列：✓（沒問題）、!（要決定）、i（提醒）；記號旁邊有給螢幕閱讀器的文字；按鈕放在說明下面
 #' @noRd
 kitsdata_check <- function(state, title, text = "", actions = NULL) {
-  mark <- c(ok = "✓", todo = "!", note = "·")[[state]]
+  mark <- c(ok = "✓", todo = "!", note = "i")[[state]]
+  said <- c(ok = "沒問題：", todo = "要決定：", note = "提醒：")[[state]]
   shiny::tags$li(
     class = paste("kit-check", state),
-    shiny::tags$span(class = "kit-check-mark", mark),
+    shiny::tags$span(class = "kit-check-mark", `aria-hidden` = "true", mark),
+    shiny::tags$span(class = "visually-hidden", said),
     shiny::tags$div(
       class = "kit-check-text",
       shiny::tags$strong(title),

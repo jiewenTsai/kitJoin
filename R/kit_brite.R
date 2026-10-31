@@ -16,7 +16,7 @@ kit_css_brite <- function() {
   --nb-page: #faf7f0;
   --nb-card: #ffffff;
   --nb-lime: #c6d033;     /* KIT 點綴色，當主要色塊 */
-  --nb-green: #2d7535;    /* KIT 主色，用在連結與小標籤 */
+  --nb-green: #006835;    /* KIT 主色＝標誌的深綠，用在連結與小標籤 */
   --nb-sky: #a8dcff;
   --nb-yellow: #ffde59;
   --nb-salmon: #ff9b8f;
@@ -446,8 +446,10 @@ details > summary {
 /* ── 新元件：步驟分頁的進度 ── */
 /* 做完的分頁打 ✓；還不能用的分頁灰色（滑過時 title 說明要先做什麼）；
    要重新執行時 ✓ 拿掉（kit-tab-stale 沒有額外的樣子） */
-.nav-tabs .nav-link.kit-tab-done::after { content: " ✓"; color: var(--nb-green); font-weight: 700; }
-.nav-tabs .nav-link.active.kit-tab-done::after { color: var(--nb-ink); }
+/* kitJoin 的分組分頁用 ::after 畫 ✓；kitsUI 的分頁裡已經有 .kit-tab-mark，不要再畫一個 */
+.nav-tabs .nav-link.kit-tab-done::after { content: none; }
+.kit-navgroups .nav-link.kit-tab-done::after { content: " ✓"; color: var(--nb-green); font-weight: 700; }
+.kit-navgroups .nav-link.active.kit-tab-done::after { color: var(--nb-ink); }
 /* kitsUI 的 ✓ 是分頁裡的 .kit-tab-mark（kit_tabs_js()）；kitJoin 用 ::after */
 .nav-tabs .nav-link .kit-tab-mark { margin-left: 0.35rem; font-weight: 900; }
 .nav-tabs .nav-link.kit-tab-locked:not(.active):hover { transform: none; box-shadow: none; }
@@ -585,6 +587,82 @@ details > summary {
 @media (max-width: 576px) {
   .kit-dg-flow { flex-direction: column; align-items: flex-start; }
   .kit-dg-arrow { transform: rotate(90deg); margin-left: 1rem; }
+}
+
+/* ── 審查修正（設計審查 2026-10-31，reports/review/design.md 第 7 節） ── */
+/* 2 鍵盤焦點：分頁、檔案按鈕、勾選框都看得到 */
+.nav-tabs > li > a.nav-link:focus-visible,
+.kit-navgroups a.nav-link:focus-visible { outline: 3px solid #0044ff; outline-offset: 3px; }
+.btn-file:focus-within { outline: 3px solid #0044ff; outline-offset: 3px; }
+.form-check-input:focus-visible,
+input[type="checkbox"]:focus-visible { outline: 3px solid #0044ff; outline-offset: 2px; box-shadow: none; }
+/* 3 窄螢幕不要左右捲：輸入元件最寬到版面寬度（蓋過 inline 的 width） */
+.shiny-input-container { max-width: 100%; }
+/* 4 程式碼不要連字：<- 照原樣顯示（3.11） */
+pre, code, .kit-code-block, .kit-dg-table td { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+/* 8 淡的字也要夠清楚（4.5:1 以上） */
+.btn-primary:disabled, .btn-primary[disabled] {
+  opacity: 1; background: #e8e4d8; color: #5a5a5a; border-color: #8a8a8a; box-shadow: none;
+}
+.kit-stephead.is-locked .kit-steptitle, .kit-stephead.is-locked .kit-stepsum,
+.kit-stephead.is-locked .kit-stepnum, .kit-muted, .kit-items tr.kit-row-off td { color: #6e6a60; }
+.kit-stepcard:has(.kit-stephead.is-locked), .kit-stepcard:has(.kit-stephead.is-done) { border-color: #8a8a8a; }
+.kit-stephead.is-locked .kit-stepnum { border-color: #8a8a8a; }
+.nav-tabs .nav-link.kit-tab-locked:not(.active) { color: #5a5a5a; }
+/* 9 手機：頁首小一點；分頁一排左右滑（kitJoin 的分組也一樣） */
+.kit-header-logo { height: 5.6rem; width: auto; flex: none; }
+@media (max-width: 576px) {
+  .kit-header { padding: 0.8rem 1rem; }
+  .kit-header-logo { height: 3.6rem; }
+  .kit-header h1 { font-size: 1.35rem; }
+  .kit-header p { font-size: 0.82rem; }
+}
+@media (max-width: 768px) {
+  .kit-navgroups { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; }
+  .kit-navgroup { flex: none; }
+  .kit-navgroup .nav-tabs { flex-wrap: nowrap; }
+}
+/* 10 提示框是配角：沒有陰影（陰影留給結果的狀態框） */
+.kit-callout, .kit-callout-warn, .kit-callout-warning { box-shadow: none; }
+/* 11 舊的結果摘要框：不要框疊框（過渡期；內容之後併進狀態框） */
+.kit-summary { background: transparent; border: 0; border-radius: 0; padding: 0; margin: 0 0 1.2rem; }
+/* 13 勾選框、單選一樣大、一樣顏色 */
+input[type="checkbox"], input[type="radio"] { width: 1.25rem; height: 1.25rem; accent-color: var(--nb-green); }
+.form-check-input:checked { background-color: var(--nb-green); border-color: var(--nb-ink); }
+/* 14 第 2 步：長題目不要跑到領域選單底下 */
+.kit-groups td.kit-group-label { white-space: normal; min-width: 14rem; max-width: 26rem; }
+/* 18 減少動態效果時，滑過不位移 */
+@media (prefers-reduced-motion: reduce) {
+  .btn:hover, .btn:active, .nav-tabs .nav-link:hover, .kit-download.btn-primary:hover { transform: none; }
+}
+/* 20 小目標放大一點：收合標題、「改」、小按鈕 */
+details > summary { padding: 0.35rem 0; }
+.kit-stepedit { display: inline-block; padding: 0.5rem 0.75rem; margin: -0.5rem -0.75rem; }
+.btn-sm { min-height: 2.25rem; }
+/* 21 檢查清單的記號 */
+.kit-check.todo .kit-check-mark { color: #a14a00; }
+.kit-check.note .kit-check-mark { font-style: normal; color: #5a5a5a; }
+/* 25 間距：頁首離視窗頂端、分頁到內容 */
+body > .container-fluid { padding-top: 1rem; }
+.kit-navgroups { margin-bottom: 0.6rem; }
+.tab-content { padding-top: 0.6rem; }
+/* 26 上傳進度條寫中文；上傳中用墨色字 */
+.shiny-file-input-progress .progress-bar { font-size: 0; }
+.shiny-file-input-progress .progress-bar::after { content: "上傳完成"; font-size: 0.8rem; color: #fff; }
+.shiny-file-input-progress.active .progress-bar::after { content: "上傳中…"; color: var(--nb-ink); }
+/* 27 圖解裡新加的欄用淡萊姆（天藍是「資訊」的顏色） */
+.kit-dg-table .kit-dg-added { background: #e8f0a0; }
+/* 28 步驟卡裡的表頭淡一點（黑表頭留給主要資料表） */
+.kit-stepbody .table > thead > tr > th { background: #f3f0e6; color: var(--nb-ink); border-bottom: 2px solid var(--nb-ink); }
+/* 30 換頁列一行對齊 */
+.kit-pager { display: flex; align-items: center; gap: 0.5rem; flex-wrap: nowrap; }
+.kit-pager .form-group, .kit-pager .shiny-input-container { margin-bottom: 0; }
+/* 31 手機：卡片裡的檔案表一個檔案一塊，每格前面寫欄名 */
+@media (max-width: 576px) {
+  .kit-file-table thead { display: none; }
+  .kit-file-table tr { display: block; padding: 0.8rem 0; border-bottom: 1.5px solid #d9d4c5; }
+  .kit-file-table td { display: block; border: 0; padding: 0.2rem 0; }
+  .kit-file-table td[data-label]::before { content: attr(data-label); display: block; font-size: 0.82rem; color: #5a5a5a; }
 }
 )---"
 }

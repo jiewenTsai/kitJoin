@@ -25,9 +25,9 @@ kit_theme <- function() {
   bslib::bs_theme(
     version = 5,
     bootswatch = "brite",
-    primary = "#2d7535",
+    primary = "#006835",
     secondary = "#616161",
-    success = "#2d7535",
+    success = "#006835",
     info = "#2778c4",
     warning = "#d9730d",
     danger = "#d9534f",
@@ -35,15 +35,15 @@ kit_theme <- function() {
     # 全文統一用圓體；標題靠字重（700）和內文分開
     heading_font = kit_font,
     code_font = code_font,
-    "navbar-bg" = "#2d7535",
+    "navbar-bg" = "#006835",
     "body-bg" = "#faf7f0",
     "headings-font-weight" = 700,
     # neo-brutalism：2px 近黑線條（Brite 預設 2px 純黑）
     "border-width" = "2px",
     "border-color" = "#141414",
     # 連結用 KIT 綠（萊姆色當文字太淡）
-    "link-color" = "#2d7535",
-    "link-hover-color" = "#1d4f23",
+    "link-color" = "#006835",
+    "link-hover-color" = "#004d27",
     # 內文 1rem（Brite 預設 0.875rem）；html 的基準字級在 kit_css_brite() 設成 17px
     "font-size-base" = "1rem"
   )
@@ -70,7 +70,7 @@ kit_app_description <- function() {
 #' @export
 kit_colors <- function() {
   list(
-    primary = "#2d7535",
+    primary = "#006835",
     primary_light = "#3a8f45",
     accent = "#c6d033",
     subtitle = "#e8f0a0",
@@ -477,8 +477,7 @@ kit_header <- function(
     shiny::tags$head(shiny::tags$link(rel = "icon", type = "image/png", href = kit_logo_uri(64))),
     shiny::div(
       style = "display: flex; align-items: center; gap: 1.1rem;",
-      shiny::tags$img(src = kit_logo_uri(192, "logo"), alt = "KIT 標誌",
-                      style = "height: 5.6rem; width: auto; flex: none;"),
+      shiny::tags$img(src = kit_logo_uri(192, "logo"), alt = "KIT 標誌", class = "kit-header-logo"),
       shiny::div(
         shiny::h1(title),
         shiny::p(
