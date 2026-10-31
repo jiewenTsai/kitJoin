@@ -1,3 +1,7 @@
+# kitJoin 0.7.3
+
+* Uses kitDesign 0.6.0 (the same version as kitsUI and kitverse). Nothing changes on screen.
+
 # kitJoin 0.7.2
 
 ## Fixes
