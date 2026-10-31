@@ -672,5 +672,9 @@ body > .container-fluid { padding-top: 1rem; }
 .kit-group-more > summary { font-size: 0.82rem; color: #4d4d4d; }
 .kit-group-more ol { padding-left: 1.4rem; margin: 0.3rem 0 0; font-size: 0.85rem; }
 .kit-merge { margin: 1.2rem 0 0.6rem; padding-top: 0.8rem; border-top: 1px solid #e3ded2; }
+/* 32 程式碼框不能超出版面：細節列是 flex，打開的細節預設 min-width: auto，
+   長的程式碼行會把它撐寬、整頁左右捲。程式碼只在自己的框裡左右捲 */
+.kit-details .kit-detail, .kit-detail-body { min-width: 0; max-width: 100%; }
+pre, .kit-code-block, .kit-code-panel { max-width: 100%; overflow-x: auto; }
 )---"
 }

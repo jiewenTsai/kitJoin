@@ -618,7 +618,7 @@ kit_code_blocks <- function(snips) {
       # 直接組 HTML：避免 tags$pre() 排版時在程式碼前插入縮排空白
       shiny::HTML(paste0(
         "<pre><code>",
-        htmltools::htmlEscape(sub("\\s+$", "", code)),
+        htmltools::htmlEscape(kit_code_wrap(sub("\\s+$", "", code))),
         "</code></pre>"
       ))
     )

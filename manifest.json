@@ -1876,6 +1876,9 @@
     "R/code_snippets.R": {
       "checksum": "344bca042cecc606c490db385d5cf4e8"
     },
+    "R/code_wrap.R": {
+      "checksum": "5b20765175280b34d4705f438dadf1a6"
+    },
     "R/constants.R": {
       "checksum": "5c9a2e1db3882e7050d3931252dd4abd"
     },
@@ -1892,7 +1895,7 @@
       "checksum": "9a5110346c31b5300943a896ada4eafe"
     },
     "R/kit_brite.R": {
-      "checksum": "516c319780a77a608f098015545537d5"
+      "checksum": "266a9714825efd6e8c35d234b3d71aa4"
     },
     "R/kit_theme.R": {
       "checksum": "d689bf5727fb49c26130879ea0200437"
@@ -1946,7 +1949,7 @@
       "checksum": "94fc6bcec59b344c4faaa159fa79375e"
     },
     "R/ui_helpers.R": {
-      "checksum": "53631789aa27c3b43a9efedf01fb221a"
+      "checksum": "66b26ed8807851009cba371456616f67"
     },
     "R/utils.R": {
       "checksum": "4dc126d5e03608df8ee21ed3efcc2dc0"
