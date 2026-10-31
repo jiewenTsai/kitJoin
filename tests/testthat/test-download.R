@@ -98,3 +98,37 @@ test_that("回應：寫檔函式可以讀 reactive；出錯時回 500 並寫 log
   expect_equal(res$status, 500)
   expect_match(res$content, "下載失敗")
 })
+
+test_that("下載失敗：在這個 session 跳出紅色通知（不會自己消失）；kit_abort() 的訊息照原文", {
+  shown <- list()
+  testthat::local_mocked_bindings(
+    showNotification = function(ui, action = NULL, duration = 5, closeButton = TRUE, id = NULL,
+                                type = "default", session = shiny::getDefaultReactiveDomain()) {
+      shown[[length(shown) + 1]] <<- list(ui = ui, duration = duration, type = type,
+                                          session = session)
+      invisible(id)
+    },
+    .package = "shiny"
+  )
+  session <- shiny::MockShinySession$new()
+  kit_download_button(session, "dl", "下載", "x.csv", function(file) stop("內部的錯誤"))
+  expect_message(res <- kit_test_download(session, "dl"), "內部的錯誤")
+  expect_equal(res$status, 500)
+  expect_length(shown, 1)
+  expect_equal(shown[[1]]$ui, "下載失敗，請重新執行後再試一次。")
+  expect_equal(shown[[1]]$type, "error")
+  expect_null(shown[[1]]$duration)
+  expect_identical(shown[[1]]$session, session)
+  expect_equal(res$content, "下載失敗，請重新執行後再試一次。")
+
+  kit_download_button(session, "dl", "下載", "x.csv", function(file) kit_abort("先算分數。"))
+  expect_message(res <- kit_test_download(session, "dl"), "先算分數")
+  expect_equal(shown[[2]]$ui, "下載失敗：先算分數。")
+  expect_equal(res$content, "下載失敗：先算分數。")
+
+  # 通知送不出去（例如連線已經關了）時照樣回 500
+  testthat::local_mocked_bindings(showNotification = function(...) stop("closed"),
+                                  .package = "shiny")
+  expect_message(res <- kit_test_download(session, "dl"), "先算分數")
+  expect_equal(res$status, 500)
+})

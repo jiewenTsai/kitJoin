@@ -72,7 +72,8 @@ kit_content_disposition <- function(filename) {
 #' 收到下載請求時：寫暫存檔、回傳 httpResponse
 #'
 #' content(file) 在 session 的 reactive domain、isolate() 裡執行，可以讀 reactive。
-#' 出錯時回 500 與一句純文字，錯誤寫進 log。
+#' 出錯時：錯誤寫進 log；app 裡跳出紅色通知（不會自己消失），因為 <a download> 失敗時
+#' 瀏覽器頂多在下載列寫「失敗」；回應是 500 與同一句純文字。
 #' @noRd
 kit_download_filter <- function(session) {
   function(data, req) {
@@ -80,10 +81,33 @@ kit_download_filter <- function(session) {
       shiny::withReactiveDomain(session, shiny::isolate(kit_download_response(data))),
       error = function(e) {
         message("kitJoin 下載失敗（", data$filename, "）：", conditionMessage(e))
-        shiny::httpResponse(500, "text/plain; charset=UTF-8", "下載失敗，請重新執行後再試。")
+        text <- kit_download_error_text(e)
+        kit_download_notify(session, text)
+        shiny::httpResponse(500, "text/plain; charset=UTF-8", text)
       }
     )
   }
+}
+
+#' 下載失敗時給使用者看的一句話：kit_abort() 的訊息照原文；其他錯誤不給內部訊息
+#' @noRd
+kit_download_error_text <- function(e) {
+  if (inherits(e, "kit_user_error")) return(paste0("下載失敗：", conditionMessage(e)))
+  "下載失敗，請重新執行後再試一次。"
+}
+
+#' 在這個 session 跳出錯誤通知。下載請求是 HTTP，不在 Shiny 的 reactive 流程裡：
+#' showNotification() 直接經 websocket 送出，不等 flush。通知送不出去（例如連線已經關了）
+#' 也不影響回應
+#' @noRd
+kit_download_notify <- function(session, text) {
+  tryCatch(
+    shiny::withReactiveDomain(
+      session, shiny::showNotification(text, type = "error", duration = NULL)
+    ),
+    error = function(e) NULL
+  )
+  invisible()
 }
 
 # 寫暫存檔（副檔名照下載檔名），回傳檔案本身；httpuv 送完會刪掉（owned = TRUE）
