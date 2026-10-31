@@ -12,10 +12,13 @@
 
 ## Under the hood
 
-* kitJoin now uses **kitDesign** (`Imports: kitDesign (>= 0.2.0)`, installed from GitHub
+* kitJoin now uses **kitDesign** (`Imports: kitDesign (>= 0.4.0)`, installed from GitHub
   `jiewenTsai/kitDesign`) for the page, the shared components and the styles. Its own
   copies (`kit_brite.R`, `code_wrap.R`, `kit_theme.R`, the logo) are gone, about 2,000 lines.
   Every output file is byte-identical to 0.5.0's.
+* The download button (`R/download.R`) and the cloud-version check and footer moved into
+  kitDesign 0.4.0 (`kit_download_button()`, `kit_is_cloud()`, `kit_cloud_footer()`);
+  `R/cloud.R` keeps only kitJoin's text. Same file names, headers and bytes as before.
 * `run.bat` installs or upgrades the packages that are missing or older than DESCRIPTION
   asks for (an old bslib used to break the app on the first screen), including the GitHub
   ones (kitDesign).

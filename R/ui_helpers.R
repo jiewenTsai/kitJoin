@@ -113,7 +113,7 @@ kit_source_note_ui <- function(n_files, source, code_cells, ns) {
 #' 沒有結果時顯示停用的按鈕與「先執行」提示；有結果時顯示下載按鈕、
 #' 檔名與 SAV 自動改名提醒。
 #'
-#' 按鈕用 kit_download_button()（R/download.R）：檔名在畫出按鈕時決定，
+#' 按鈕用 kitDesign::kit_download_button()：檔名在畫出按鈕時決定，
 #' 檔案內容就是畫面上這份結果（結果更新時按鈕會重畫、網址跟著換）。
 #'
 #' @param session,output 模組的 session 與 output

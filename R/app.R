@@ -12,6 +12,11 @@ kit_app <- function() {
   shiny::shinyApp(ui = kit_ui, server = kit_server)
 }
 
+# 下載的 log 與 ASCII 備用檔名用的 app 名稱（kitDesign::kit_download_button()）
+.onLoad <- function(libname, pkgname) {
+  if (is.null(getOption("kitDesign.app"))) options(kitDesign.app = "kitJoin")
+}
+
 #' 啟動前的 Shiny 設定（上傳上限）
 #' @noRd
 kit_set_options <- function() {
@@ -61,7 +66,7 @@ kit_ui <- function(request) {
       shiny::tabPanel("長/寬格式轉換", value = "reshape", mod_reshape_ui("reshape")),
       shiny::tabPanel("檔案格式轉換", value = "convert", mod_convert_ui("convert"))
     ),
-    if (kit_is_cloud()) kit_cloud_footer()
+    if (kit_is_cloud()) kitjoin_cloud_footer()
   )
 }
 

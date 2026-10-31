@@ -29,7 +29,11 @@ test_that("⑧ 中文檔名：download、網址結尾、標頭都是「第一波
   expect_equal(download_attrs(out$html), 'download="第一波 資料.sav"')
   expect_match(out$href, "/%E7%AC%AC%E4%B8%80%E6%B3%A2%20%E8%B3%87%E6%96%99.sav?", fixed = TRUE)
   expect_equal(
-    out$res$headers[["Content-Disposition"]], kit_content_disposition("第一波 資料.sav")
+    out$res$headers[["Content-Disposition"]],
+    paste0(
+      'attachment; filename="kitjoin.sav"; ',
+      "filename*=UTF-8''%E7%AC%AC%E4%B8%80%E6%B3%A2%20%E8%B3%87%E6%96%99.sav"
+    )
   )
   expect_true(out$same)
   expect_equal(as.vector(haven::read_sav(out$res$content$file)$id), c("0012", "0013"))
