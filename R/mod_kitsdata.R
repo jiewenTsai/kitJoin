@@ -1036,7 +1036,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           kit_kitsui_link("開啟 kitsUI，上傳這個檔 →", class = "kit-next-link")
         ),
         shiny::h5("每個世代、每個領域有幾列"),
-        shiny::tableOutput(ns("summary")),
+        kit_table_scroll(shiny::tableOutput(ns("summary"))),
         kit_details_row(
           kit_detail(
             "作答檔預覽",
