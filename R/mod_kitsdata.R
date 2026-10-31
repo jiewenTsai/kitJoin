@@ -691,7 +691,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       }
       shiny::tagList(
         if (!is.null(up_line)) kit_checklist(up_line),
-        if (length(clash) > 0) shiny::tags$div(class = "kit-problems", lapply(clash, shiny::tags$div)),
+        kit_problems(clash, bullets = FALSE),
         kitsdata_mixed_note(candidates()$mixed, files$names())
       )
     })

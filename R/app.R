@@ -37,15 +37,14 @@ kit_open_browser <- function(url) {
 #' 頁面（每次連線時產生，雲端判斷才會反映目前環境）
 #'
 #' 主題、樣式、頁首、瀏覽器端的小程式都由 kitDesign::kit_page() 放好；
-#' 這裡只加 kitJoin 自己的東西：雲端版提醒、分頁、kits 作答檔題目表的樣式。
+#' 這裡只加 kitJoin 自己的東西：雲端版提醒、分頁。
 #' @noRd
 kit_ui <- function(request) {
-  meta <- kitjoin_description()
+  meta <- kit_app_description("kitJoin")
   kit_page(
     "KIT 資料串接工具", "臺灣幼兒發展調查資料庫",
     tagline = "跨波次資料處理",
     version = meta$version, date = meta$date,
-    shiny::tags$head(shiny::tags$style(KIT_JOIN_CSS)),
     if (kit_is_cloud()) kit_cloud_banner(kit_cloud_banner_text()),
     # 分頁列：三組、不編號（kit_navgroups()）；下面是真的 Shiny 分頁，只是把它自己的分頁列藏起來，
     # 所以 input$tabs 與 updateTabsetPanel() 照常可以用
@@ -65,26 +64,6 @@ kit_ui <- function(request) {
     if (kit_is_cloud()) kit_cloud_footer()
   )
 }
-
-#' kitJoin 的版本與日期（頁首的版本行）
-#'
-#' 雲端版、本機 run.bat、套件 run_kitjoin() 都以 DESCRIPTION 的 Version / Date 為準。
-#' 以套件載入時讀套件的 DESCRIPTION；用 runApp(資料夾) 跑時（雲端版、run.bat）讀工作目錄的
-#' DESCRIPTION（不能讀已經安裝的 kitJoin：可能是舊版）。
-#' @noRd
-kitjoin_description <- function() {
-  if ("kitJoin" %in% loadedNamespaces()) return(kit_app_description("kitJoin"))
-  kit_app_description(path = "DESCRIPTION")
-}
-
-# kitJoin 自己的樣式：kits 作答檔第 3 步，檢查清單下面直接是題目表（不收起來）；
-# 細線隔開，下面一個小的下載按鈕（kitDesign 還沒有這個元件）
-KIT_JOIN_CSS <- "
-.kit-itemtable { margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid #e3ded2; min-width: 0; }
-.kit-itemtable-title { margin: 0 0 0.2rem; }
-.kit-itemtable-title + .kit-hint { margin: 0 0 0.3rem; }
-.kit-itemtable-dl { margin: 0.8rem 0 0.2rem; }
-"
 
 #' 伺服器邏輯：各分頁模組之間只透過 files / working 兩組 reactive 傳資料
 #'
