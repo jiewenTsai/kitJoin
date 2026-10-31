@@ -841,6 +841,44 @@
         "RemoteSha": "2.0.0"
       }
     },
+    "kitDesign": {
+      "Source": "github",
+      "Repository": null,
+      "description": {
+        "Package": "kitDesign",
+        "Title": "Shared 'Shiny' User Interface Components for KIT Research Tools",
+        "Version": "0.4.0",
+        "Date": "2026-10-31",
+        "Authors@R": "person(\"Jie-Wen\", \"Tsai\", email = \"tsai.jiewen@gmail.com\", role = c(\"aut\", \"cre\"))",
+        "Description": "The shared user interface layer of the KIT research tools built\n    with 'shiny': a 'bslib' theme based on Bootswatch Brite, the KIT style\n    sheets and logos, a page wrapper with the KIT header, and documented\n    components (page guide, buttons, download buttons, callouts, cloud-version\n    banner and footer, status boxes, details rows, code panels, step cards,\n    checklists, step tabs, diagrams, tables and a 'plotly' chart style),\n    a skeleton for tabs with one run button (page order and status flow),\n    plus a few server-side helpers (run gate, scroll to result, tab states,\n    notifications, number formatting, user-facing errors), value objects\n    for status boxes, checklists and code, 'shiny' modules for the stateful\n    pieces (step cards, step tabs, run gate, code panel) and a scaffold for\n    new apps. Load it with one call to kit_page() and build the page from\n    kit_*() components. The logo and the colour palette come from a brand\n    object (kit_brand()), so projects other than KIT can use their own.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://github.com/jiewenTsai/kitDesign,\nhttps://jiewentsai.github.io/kitDesign/",
+        "BugReports": "https://github.com/jiewenTsai/kitDesign/issues",
+        "Encoding": "UTF-8",
+        "Depends": "R (>= 4.1.0)",
+        "Imports": "bslib (>= 0.11.0), grDevices, htmltools, shiny, utils",
+        "Suggests": "htmlwidgets, knitr, pkgload, plotly, rmarkdown, testthat (>=\n3.0.0)",
+        "VignetteBuilder": "knitr",
+        "Config/testthat/edition": "3",
+        "Roxygen": "list(markdown = TRUE)",
+        "RoxygenNote": "8.0.0",
+        "RemoteType": "github",
+        "RemoteHost": "api.github.com",
+        "RemoteRepo": "kitDesign",
+        "RemoteUsername": "jiewenTsai",
+        "RemoteRef": "v0.4.0",
+        "RemoteSha": "8b7527a0073deb2ff0ebfb5e1a90abb70b4195ff",
+        "GithubRepo": "kitDesign",
+        "GithubUsername": "jiewenTsai",
+        "GithubRef": "v0.4.0",
+        "GithubSHA1": "8b7527a0073deb2ff0ebfb5e1a90abb70b4195ff",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-10-31 11:52:12 UTC; jiewentsai",
+        "Author": "Jie-Wen Tsai [aut, cre]",
+        "Maintainer": "Jie-Wen Tsai <tsai.jiewen@gmail.com>",
+        "Built": "R 4.5.3; ; 2026-10-31 11:52:12 UTC; unix"
+      }
+    },
     "later": {
       "Source": "CRAN",
       "Repository": "https://cloud.r-project.org",
@@ -1820,10 +1858,10 @@
       "checksum": "bb342508559278376ac4aea59055229e"
     },
     "app.R": {
-      "checksum": "0eade2d4e1626bbb124b0d23795d6c55"
+      "checksum": "372aeb831f0de01abc06ecde1ee38160"
     },
     "DESCRIPTION": {
-      "checksum": "389daad130880fc9b3a8639a76cbe7d7"
+      "checksum": "b4b0882fab035f37804c8dc4388df6fd"
     },
     "inst/extdata/example_t1.csv": {
       "checksum": "86b287c755537d1155c134d0572929a5"
@@ -1834,38 +1872,23 @@
     "inst/extdata/example_t3.csv": {
       "checksum": "9618a7eceb62dd5e640fb34d579bd306"
     },
-    "inst/logo/kit-logo-128.png": {
-      "checksum": "58d92ac12f7f0951fbd7cdc947a5dbf5"
-    },
-    "inst/logo/kit-logo-192.png": {
-      "checksum": "17d310a853e895b423e8cfd6fcbf9ab5"
-    },
-    "inst/logo/kit-mark-256.png": {
-      "checksum": "6df62c78c3387f4ad2628ffb3d328d8b"
-    },
-    "inst/logo/kit-mark-64.png": {
-      "checksum": "563ae6ca3e8f8fa64e78b43f0ec3b73c"
-    },
-    "inst/logo/kit-mark-96.png": {
-      "checksum": "c875b46e31e97fd8032d1550f7bcaa80"
-    },
     "LICENSE": {
       "checksum": "336c98a424ec7b4ab73c3bc89ea68b20"
     },
     "NAMESPACE": {
-      "checksum": "cce648823b7b69b74e913cbc57d67c7e"
+      "checksum": "12210821c1ef62c9965932db4c65c5da"
     },
     "NEWS.md": {
-      "checksum": "119b24ea5a3fef1f6386d4d1de114c3e"
+      "checksum": "cc8b8ee030c87ae1f7767ace0c035fc4"
     },
     "R/app.R": {
-      "checksum": "6171cd7b7268af4dc63a2269446edb89"
+      "checksum": "5bd6d2e2d10a0a51a73d5e70543723b4"
     },
     "R/attrition_pipeline.R": {
       "checksum": "a019e69fe73172ab5ab9ad6700d147a0"
     },
     "R/cloud.R": {
-      "checksum": "81809e4a2bdf4afda1c5f56c23672f2b"
+      "checksum": "d49f8fb41b1654e1340d75e91a0740c8"
     },
     "R/code_kitsdata.R": {
       "checksum": "483eb2a375b4f919b27f69f006e774ca"
@@ -1874,34 +1897,22 @@
       "checksum": "d0e30a83235c55f14762caa74f4104b0"
     },
     "R/code_snippets.R": {
-      "checksum": "344bca042cecc606c490db385d5cf4e8"
-    },
-    "R/code_wrap.R": {
-      "checksum": "5b20765175280b34d4705f438dadf1a6"
+      "checksum": "3548419e41b26c6c22453cf36d119f23"
     },
     "R/constants.R": {
-      "checksum": "5c9a2e1db3882e7050d3931252dd4abd"
+      "checksum": "eb241b0695631180c93a25f08d64aba3"
     },
     "R/convert_pipeline.R": {
-      "checksum": "69465ebd1c8e3a0efedb96bcc5f2bdf6"
-    },
-    "R/download.R": {
-      "checksum": "1e37e3fe29d130c51bdebea23f46740f"
+      "checksum": "1a0b122980b4ee656a4db93ae0677c32"
     },
     "R/io_data.R": {
-      "checksum": "22fc43751f1fce876149797b1b844b20"
+      "checksum": "af8f135f9110f1f8ae8e9943684c5525"
     },
     "R/join_pipeline.R": {
-      "checksum": "9a5110346c31b5300943a896ada4eafe"
-    },
-    "R/kit_brite.R": {
-      "checksum": "254d6e88875cf34cff690c596fd74dfa"
-    },
-    "R/kit_theme.R": {
-      "checksum": "5728a1322839f2fd96afb93aaf55a463"
+      "checksum": "e51352298559a68d7e2478175fd9d86f"
     },
     "R/kitsdata_pipeline.R": {
-      "checksum": "506016d76740ffb9e6e2d68cd43918a5"
+      "checksum": "1c38032a472e7982380d6aa5e2f21af9"
     },
     "R/kitsdata_steps.R": {
       "checksum": "6ce11a76624f76d822bd69924d52f73a"
@@ -1910,52 +1921,52 @@
       "checksum": "3b4a69c6ab0dbf950870fcc225a44d24"
     },
     "R/mod_attrition.R": {
-      "checksum": "0cb0ddef1c80021a341829bcea7a68b0"
+      "checksum": "8b1a8e92c09d388d88f95826d449e026"
     },
     "R/mod_convert.R": {
-      "checksum": "3f0107904efc350121e7ce49fecbf7b2"
+      "checksum": "0bfac914691f49ef4afdbf67f4f1b626"
     },
     "R/mod_join.R": {
-      "checksum": "d1503c08c95902fd4f8ec08fc1cc0047"
+      "checksum": "e7c1f66e9a472c075bf4569252f6795f"
     },
     "R/mod_kitsdata.R": {
-      "checksum": "fdb20d9279db2f6cc1f8c34810ca3cc5"
+      "checksum": "39211ba411e3bff1ddbd7293965bf173"
     },
     "R/mod_missing.R": {
-      "checksum": "9db00b456c39c70a31ede8ab3e04e2a6"
+      "checksum": "293955720e9d9cdb674698c02eef7ab2"
     },
     "R/mod_pivot_longer.R": {
-      "checksum": "709813d1425ae361b707904abc983cc9"
+      "checksum": "bfcef0a75658d6f1ddce84c40b125381"
     },
     "R/mod_reshape.R": {
-      "checksum": "feed6120fee4a8b718792554765eb373"
+      "checksum": "5e1a8a3d87cd43ea6c1e9a277f75d94f"
     },
     "R/mod_stack.R": {
-      "checksum": "fa8e47b55536355fe4eae4a95db7933c"
+      "checksum": "12c20f4f9dc9b975ab04f81adc8f0a3a"
     },
     "R/mod_upload.R": {
-      "checksum": "16a0202abcbe4a34ed6a22e710c48cb5"
+      "checksum": "5d454c0e9b0e892e660cd85f19c993dd"
     },
     "R/reshape_pipeline.R": {
-      "checksum": "535551c7a56718da9ab6934e0b6cf5a7"
+      "checksum": "7f46dd18a86935aa593e2649dfc715a0"
     },
     "R/run_kitjoin.R": {
       "checksum": "f8e2ee1feb11c13df40d7a32162da7d4"
     },
     "R/stack_pipeline.R": {
-      "checksum": "4514eab8b57b6fba3d97594172a70359"
+      "checksum": "e61e1b441b585469bd441b0a700681a7"
     },
     "R/tab_states.R": {
-      "checksum": "94fc6bcec59b344c4faaa159fa79375e"
+      "checksum": "69b11346677d0fa2713ac1273d3d1849"
     },
     "R/ui_helpers.R": {
-      "checksum": "66b26ed8807851009cba371456616f67"
+      "checksum": "238babbe5c6b2cdc4dcb43df523ab56f"
     },
     "R/utils.R": {
-      "checksum": "4dc126d5e03608df8ee21ed3efcc2dc0"
+      "checksum": "90835e65c1a77ce1483a3a0b9c141160"
     },
     "README.md": {
-      "checksum": "eb84e9b9891cbe2c6789b6e740b9d64a"
+      "checksum": "8d7256866bae92a72a541d6ef3b99320"
     }
   },
   "users": null
