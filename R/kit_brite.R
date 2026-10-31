@@ -661,6 +661,7 @@ body > .container-fluid { padding-top: 1rem; }
 .kit-pager .form-group, .kit-pager .shiny-input-container { margin-bottom: 0; }
 /* 31 手機：卡片裡的檔案表一個檔案一塊，每格前面寫欄名 */
 @media (max-width: 576px) {
+  .kit-file-table, .kit-file-table tbody { display: block; width: 100%; }
   .kit-file-table thead { display: none; }
   .kit-file-table tr { display: block; padding: 0.8rem 0; border-bottom: 1.5px solid #d9d4c5; }
   .kit-file-table td { display: block; border: 0; padding: 0.2rem 0; }
