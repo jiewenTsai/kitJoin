@@ -74,7 +74,7 @@ test_that("check_id_constant：同一個 visit 的 round 不同會被拆成兩�
 
   out <- reshape_wider(mixed, preset)
   expect_equal(nrow(out$result), 7)
-  expect_match(out$warnings, "round.*visit_id.*values_from")
+  expect_match(out$warnings, "round.*visit_id.*要填進新欄的值")
 
   ok <- check_id_constant(scores, "visit_id", preset$id_cols)
   expect_true(ok$ok)
@@ -270,10 +270,10 @@ test_that("猜 ID 欄：subj_id、id 優先，item_id 不算", {
   expect_null(reshape_guess_id(c("item_id", "valid", "width")))
 })
 
-test_that("方向和猜測相反時提醒", {
-  expect_match(reshape_direction_note("long", "longer"), "已經是長格式")
-  expect_match(reshape_direction_note("wide", "wider"), "已經是寬格式")
-  expect_null(reshape_direction_note("long", "wider"))
-  expect_null(reshape_direction_note("unknown", "longer"))
-  expect_null(reshape_direction_note(NULL, "longer"))
+test_that("錯誤訊息用主畫面的中文名稱，不用 tidyr 的參數名", {
+  df <- tibble::tibble(id = c(1, 1), k = c("a", "b"), x = 1:2)
+  expect_error(reshape_wider(df, wider_args(names_from = character(0), values_from = "x")),
+               "哪一欄的值變成新的欄名")
+  expect_error(reshape_wider(df, wider_args(names_from = "k", values_from = character(0))),
+               "要填進新欄的值")
 })

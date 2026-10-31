@@ -33,10 +33,30 @@ PIVOT_LONGER_LABELS <- c(
   values_drop_na = "去掉空白的值"
 )
 
-#' 控制項的標題：「中文（參數名稱）」
+# 主畫面上的控制項（只寫中文）；其他的在「進階設定」裡，標題後面附參數名稱
+PIVOT_LONGER_MAIN <- c("cols", "names_to", "values_to")
+
+#' 控制項的標題：主畫面只有中文；進階設定裡是「中文（參數名稱）」
 #' @noRd
 pivot_label <- function(arg, labels = PIVOT_LONGER_LABELS) {
+  if (arg %in% PIVOT_LONGER_MAIN) return(labels[[arg]])
   shiny::tagList(labels[[arg]], shiny::tags$code(paste0("（", arg, "）")))
+}
+
+#' 進階設定最上面一行：主畫面的控制項對應 tidyr::pivot_longer() 的哪個參數
+#' @noRd
+pivot_longer_arg_map <- function(labels = PIVOT_LONGER_LABELS) {
+  shiny::tags$p(
+    class = "kit-hint",
+    "對照 R 的 ", shiny::tags$code("tidyr::pivot_longer()"), "：",
+    lapply(seq_along(PIVOT_LONGER_MAIN), function(i) {
+      a <- PIVOT_LONGER_MAIN[i]
+      shiny::tagList(
+        "「", labels[[a]], "」是 ", shiny::tags$code(a),
+        if (i < length(PIVOT_LONGER_MAIN)) "；" else "。"
+      )
+    })
+  )
 }
 
 #' pivot_longer() 設定的畫面
@@ -77,7 +97,9 @@ mod_pivot_longer_server <- function(id, data, fixed = list()) {
         },
         shiny::tags$div(class = "kit-pivot-row", text("names_to"), text("values_to")),
         kit_advanced(
+          title = "進階設定：欄名的開頭、規則、空白的值、R 的參數名稱",
           open = any(c("names_prefix", "names_pattern", "values_drop_na") %in% names(fixed)),
+          pivot_longer_arg_map(),
           text("names_prefix", "例如 score_"),
           text("names_pattern", "例如 (.*)_t(\\d)"),
           if (locked("values_drop_na")) {
@@ -201,7 +223,7 @@ pivot_quick_ui <- function(input_id, groups) {
     )
   }
   group_btns <- purrr::map(seq_len(nrow(groups)), function(i) {
-    label <- paste0(groups$prefix[i], " 開頭（", groups$n[i], " 欄）")
+    label <- paste0(groups$prefix[i], " 開頭（", kit_num(groups$n[i]), " 欄）")
     btn(paste0("g", i), label)
   })
   shiny::tags$div(
@@ -256,8 +278,8 @@ pivot_cols_count_text <- function(all, picked, exclude) {
     paste0("（", paste(utils::head(x, n), collapse = "、"), if (length(x) > n) "…", "）")
   }
   paste0(
-    "會轉 ", length(conv), " 欄", few(conv, 4), "，",
-    "保留 ", length(keep), " 欄不動", if (length(keep) > 0) few(keep, 6), "。"
+    "會轉 ", kit_num(length(conv)), " 欄", few(conv, 4), "，",
+    "保留 ", kit_num(length(keep)), " 欄不動", if (length(keep) > 0) few(keep, 6), "。"
   )
 }
 
@@ -302,7 +324,7 @@ pivot_locked_ui <- function(ns, arg) {
 pivot_locked_text <- function(arg, value) {
   if (arg == "cols") {
     if (length(value) == 0) return("（還沒有題目欄）")
-    more <- if (length(value) > 6) paste0("…（共 ", length(value), " 欄）") else ""
+    more <- if (length(value) > 6) paste0("…（共 ", kit_num(length(value)), " 欄）") else ""
     return(paste0(paste(utils::head(value, 6), collapse = "、"), more, "　固定"))
   }
   if (is.null(value)) return("（不用）　固定")
@@ -414,15 +436,23 @@ pivot_longer_cols <- function(df, args) {
 
 # 轉換前的檢查；沒問題時 NULL
 pivot_longer_problem <- function(df, cols, args) {
-  if (length(cols) == 0) return("請選要轉成長格式的欄（cols）。")
+  if (length(cols) == 0) return("請選要轉成長格式的欄。")
   new_cols <- c(args$names_to, args$values_to)
-  if (any(!nzchar(new_cols))) return("names_to 與 values_to 不能空白。")
+  if (any(!nzchar(new_cols))) {
+    return(paste0(
+      "「", PIVOT_LONGER_LABELS[["names_to"]], "」與「", PIVOT_LONGER_LABELS[["values_to"]],
+      "」不能空白。"
+    ))
+  }
   clash <- intersect(new_cols, setdiff(names(df), cols))
   if (length(clash) > 0) {
     return(paste0("新的欄名 ", paste(clash, collapse = "、"), " 和留下來的欄撞名了，請換一個名字。"))
   }
   if (length(args$names_to) > 1 && is.null(args$names_pattern)) {
-    return("names_to 有好幾個名稱時，要用 names_pattern 說明怎麼從欄名切出各部分。")
+    return(paste0(
+      "「", PIVOT_LONGER_LABELS[["names_to"]], "」填了好幾個名稱時，要在進階設定填「",
+      PIVOT_LONGER_LABELS[["names_pattern"]], "（names_pattern）」，說明怎麼從欄名切出各部分。"
+    ))
   }
   NULL
 }

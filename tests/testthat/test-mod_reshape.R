@@ -64,7 +64,7 @@ test_that("一般資料不顯示 kitsUI 預設按鈕；id_cols 預設為其餘�
       names_sep = "_", names_prefix = "", names_vary = "fastest", values_fill = ""
     )
     expect_null(output$preset)
-    expect_match(output$id_note$html, "id 欄（1 欄）：id")
+    expect_match(output$id_note$html, "辨認同一列的欄（1 欄）：id")
     session$setInputs(run = 1)
     expect_named(result()$result, c("id", "x_a", "x_b", "y_a", "y_b"))
     expect_no_match(output$code$html, "id_cols =")
@@ -97,7 +97,7 @@ test_that("round 在同一個 visit 內不同：提醒並列出不一致的列",
     session$setInputs(run = 1)
     expect_match(output$status$html, "完成，但請注意")
     expect_match(output$status$html, "round")
-    expect_match(output$result_details$html, "id 欄不一致的列")
+    expect_match(output$result_details$html, "辨認同一列的欄不一致的列")
     expect_match(output$id_rows, "M03_001_12")
   })
 })
@@ -147,7 +147,9 @@ test_that("選第二個檔案、② 處理後的資料也會被使用", {
 
 test_that("沒有檔案時提示先上傳", {
   shiny::testServer(mod_reshape_server, args = reshape_args(list()), {
-    expect_match(output$source_note$html, "還沒有檔案")
+    expect_null(output$source_note)
+    expect_match(output$ready$html, "kit-ready todo")
+    expect_match(output$ready$html, "先加入檔案")
     session$setInputs(direction = "wider", run = 1)
     expect_match(output$status$html, "請先到")
   })
@@ -185,14 +187,16 @@ test_that("轉換前提示格式；方向相反時提醒；寬轉長的程式碼
   )
   shiny::testServer(mod_reshape_server, args = reshape_args(list(wide)), {
     session$setInputs(file = "f1", direction = "wider")
-    expect_match(output$guess$html, "用哪一欄當 ID")
-    expect_match(output$guess_text$html, "寬格式")
-    expect_match(output$guess_flip$html, "改選「寬轉長」")
-    expect_match(output$direction_note$html, "已經是寬格式")
+    # 一個提示框：方向和判斷相反時是黃色；「改選…」的按鈕在框外面
+    html <- output$guess$html
+    expect_match(html, "寬格式")
+    expect_match(html, "kit-callout-warn")
+    expect_match(html, "現在選的是「長轉寬」")
+    expect_match(html, "</div>\\s*<div class=\"mb-3\">\\s*<button[^>]*guess_flip_btn")
+    expect_no_match(html, "selectize|pivot_wider")
 
     session$setInputs(direction = "longer")
-    expect_null(output$direction_note)
-    expect_null(output$guess_flip)
+    expect_no_match(output$guess$html, "kit-callout-warn|guess_flip_btn")
     session$setInputs(
       `longer-cols_mode` = "include", `longer-cols` = c("score_t1", "score_t2")
     )
@@ -202,15 +206,15 @@ test_that("轉換前提示格式；方向相反時提醒；寬轉長的程式碼
 
     # 自己選 ID：sex 每個值一列 → 還是寬格式
     session$setInputs(guess_id = "sex")
-    expect_match(output$guess_text$html, "每個 sex 一列")
+    expect_match(output$guess$html, "每個 sex 一列")
   })
 
   long <- sim_kitsui_scores()
   shiny::testServer(mod_reshape_server, args = reshape_args(list(long)), {
     session$setInputs(file = "f1", direction = "longer")
-    expect_match(output$guess_text$html, "長格式")
-    expect_match(output$direction_note$html, "已經是長格式")
+    expect_match(output$guess$html, "長格式")
+    expect_match(output$guess$html, "kit-callout-warn")
     session$setInputs(direction = "wider")
-    expect_null(output$direction_note)
+    expect_no_match(output$guess$html, "kit-callout-warn")
   })
 })

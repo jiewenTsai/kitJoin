@@ -9,7 +9,7 @@ mod_join_ui <- function(id) {
       steps = kit_steps(
         "選擇用來辨識同一個人的 ID 欄位（各檔欄名不同時，可以分別指定）",
         "選擇要保留哪些人",
-        "按「執行串接」，看結果摘要與預覽",
+        "按「執行串接」，看結果與預覽",
         "下載 CSV 或 SAV"
       ),
       output = "寬格式資料：一人一列；欄位是 ID 加上各波的變項。",
@@ -30,12 +30,12 @@ mod_join_ui <- function(id) {
       shiny::selectizeInput(
         ns("by_vars"), "用哪個欄位辨識同一個人？（ID，可多選）",
         choices = NULL, multiple = TRUE,
-        options = list(create = FALSE, placeholder = "請選擇 ID 欄位，例如 release_id")
+        options = list(create = FALSE, placeholder = "請選擇 ID 欄位，例如 id")
       ),
       shiny::tags$small(
         class = "kit-hint",
         "只列出每個檔案都有的欄位；括號裡是「不重複的比例」，ID 應該接近 100%。",
-        "請選每個人唯一的編號，例如 release_id；不要用姓名，因為可能有人同名。"
+        "請選每個人唯一的編號（例如受訪者編號）；不要用姓名，因為可能有人同名。"
       )
     ),
     shiny::conditionalPanel(
@@ -61,7 +61,8 @@ mod_join_ui <- function(id) {
       )
     ),
     shiny::uiOutput(ns("settings_line")),
-    kit_button(ns("run"), "執行串接", "primary"),
+    shiny::uiOutput(ns("ready")),
+    kit_button(ns("run"), "執行串接", "primary", disabled = TRUE),
     shiny::uiOutput(ns("status")),
     shiny::uiOutput(ns("result")),
     kit_download_ui(ns),
@@ -135,11 +136,12 @@ mod_join_server <- function(id, files, working, goto) {
           cols <- names(dfs[[i]])
           choices <- id_choices(dfs[i], cols)
           prev <- intersect(shiny::isolate(input[[id]]) %||% character(0), cols)
+          # 寬度跟著內容（約 28rem）：不拉滿整頁；手機上由 CSS 的 max-width: 100% 收窄
           shiny::selectizeInput(
             ns(id), paste0(names_shown[i], "的 ID 欄"),
             choices = choices,
             selected = if (length(prev) > 0) prev else default_id_choice(choices),
-            multiple = TRUE, width = "100%",
+            multiple = TRUE, width = "28rem",
             options = list(create = FALSE, placeholder = "請選擇這個檔案的 ID 欄")
           )
         })
@@ -153,6 +155,23 @@ mod_join_server <- function(id, files, working, goto) {
       }
       cols <- purrr::map(files$keys(), function(k) input[[paste0("id_", k)]] %||% character(0))
       list(by_vars = if (length(cols) > 0) cols[[1]] else character(0), id_cols = cols)
+    })
+
+    # 主要按鈕：檔案不夠或還沒選 ID 時停用，上面一行寫還差什麼
+    kit_run_gate(session, output, missing = shiny::reactive({
+      n <- length(files$keys())
+      need <- kit_need_files(n, 2L)
+      if (!is.null(need)) return(need)
+      spec <- id_spec()
+      if (length(spec$by_vars) == 0) {
+        return(if (isTRUE(input$id_per_file)) "選第 1 個檔案的 ID 欄" else "選 ID 欄")
+      }
+      if (!is.null(spec$id_cols) && any(lengths(spec$id_cols) != length(spec$by_vars))) {
+        return("每個檔案選一樣多個 ID 欄")
+      }
+      character(0)
+    }), link = function() {
+      if (length(files$keys()) < 2) shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →")
     })
 
     # 選好 ID 後，先看各檔的 ID 有沒有重複、空白
@@ -198,7 +217,7 @@ mod_join_server <- function(id, files, working, goto) {
         "ID：還沒選"
       }
       kit_settings_line(c(
-        paste0(n, " 個檔案"), id_text, kit_join_method_short(input$method),
+        paste0(kit_num(n), " 個檔案"), id_text, kit_join_method_short(input$method),
         kit_source_short(working$source())
       ))
     })
@@ -240,7 +259,7 @@ mod_join_server <- function(id, files, working, goto) {
               format_dims(nrow(out$result), ncol(out$result)),
               "。"
             ),
-            warnings = out$warnings, notes = out$notes
+            warnings = out$warnings, notes = out$notes, points = out$summary
           )
         }),
         # 結果會暴增：跳出確認視窗，使用者按「仍要執行」才繼續
@@ -262,7 +281,10 @@ mod_join_server <- function(id, files, working, goto) {
         }
       )
       status(st)
-      if (!asked) kit_notify(st)
+      if (!asked) {
+        kit_notify(st)
+        kit_scroll_to("status")
+      }
     }
     shiny::observeEvent(input$run, run_join(confirm_large = FALSE))
     shiny::observeEvent(input$run_confirm, {
@@ -282,12 +304,18 @@ mod_join_server <- function(id, files, working, goto) {
       run_label = "執行串接"
     )
 
-    # 重點：結果摘要；預覽與詳細核對收在下面一排細節裡
+    # 重點（狀態框下面）：各檔案的人數；預覽與詳細核對收在下面一排細節裡
     output$result <- shiny::renderUI({
       res <- result()
       if (is.null(res)) return(NULL)
-      kit_summary_ui(res$summary)
+      shiny::tagList(
+        shiny::h5("各檔案的人數"),
+        shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("people")))
+      )
     })
+    output$people <- shiny::renderTable(
+      result()$people, digits = 0, format.args = list(big.mark = ",")
+    )
     output$result_details <- shiny::renderUI({
       res <- result()
       if (is.null(res)) return(NULL)

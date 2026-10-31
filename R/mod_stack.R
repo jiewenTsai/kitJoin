@@ -8,7 +8,7 @@ mod_stack_ui <- function(id) {
       goal = "把各波資料上下疊起來：每個人在每一波各佔一列，並用 wave 欄標示是哪一波。",
       steps = kit_steps(
         "確認「檔案上傳」中每個檔案的波次名稱（會填進 wave 欄）",
-        "按「執行疊加」，看結果摘要與預覽",
+        "按「執行疊加」，看結果與預覽",
         "下載 CSV 或 SAV"
       ),
       output = "長格式資料：列數等於各檔列數相加；欄位是各檔欄位的聯集，再加上 wave 欄。",
@@ -20,9 +20,9 @@ mod_stack_ui <- function(id) {
     ),
     shiny::uiOutput(ns("source_note")),
     shiny::uiOutput(ns("settings_line")),
-    kit_button(ns("run"), "執行疊加", "primary"),
+    shiny::uiOutput(ns("ready")),
+    kit_button(ns("run"), "執行疊加", "primary", disabled = TRUE),
     shiny::uiOutput(ns("status")),
-    shiny::uiOutput(ns("result")),
     kit_download_ui(ns),
     kit_details_row(
       shiny::uiOutput(ns("result_details"), inline = TRUE),
@@ -49,13 +49,20 @@ mod_stack_server <- function(id, files, working, goto) {
       )
     })
 
+    # 主要按鈕：不到 2 個檔案時停用，上面一行寫還差什麼
+    kit_run_gate(
+      session, output,
+      missing = shiny::reactive(kit_need_files(length(files$keys()), 2L)),
+      link = function() shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →")
+    )
+
     # 設定摘要：「本次：5 個檔案 · wave 欄填 t1、t2… · 原始資料」
     output$settings_line <- shiny::renderUI({
       n <- length(files$keys())
       if (n < 2) return(NULL)
       labels <- files$labels()
       kit_settings_line(c(
-        paste0(n, " 個檔案"),
+        paste0(kit_num(n), " 個檔案"),
         paste0("wave 欄填 ", paste(utils::head(labels, 6), collapse = "、"),
                if (length(labels) > 6) "…"),
         kit_source_short(working$source())
@@ -81,7 +88,7 @@ mod_stack_server <- function(id, files, working, goto) {
               format_dims(nrow(out$result), ncol(out$result)),
               "。"
             ),
-            warnings = out$warnings
+            warnings = out$warnings, points = out$summary
           )
         }),
         error = function(e) {
@@ -90,6 +97,7 @@ mod_stack_server <- function(id, files, working, goto) {
       )
       status(st)
       kit_notify(st)
+      kit_scroll_to("status")
     })
 
     output$status <- shiny::renderUI(make_status_ui(status()))
@@ -112,12 +120,7 @@ mod_stack_server <- function(id, files, working, goto) {
       run_label = "執行疊加"
     )
 
-    # 重點：結果摘要；預覽與詳細核對收在下面一排細節裡
-    output$result <- shiny::renderUI({
-      res <- result()
-      if (is.null(res)) return(NULL)
-      kit_summary_ui(res$summary)
-    })
+    # 重點都在狀態框裡（各檔列數、wave 欄、只在部分波次的欄）；預覽與詳細核對收在下面一排細節裡
     output$result_details <- shiny::renderUI({
       if (is.null(result())) return(NULL)
       shiny::tagList(

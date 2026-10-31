@@ -214,41 +214,41 @@ empty_cells_by_name <- function(data, id_cols, names_from, values_from) {
 #' @noRd
 reshape_wider <- function(data, args, check_id = NULL) {
   if (length(args$names_from) != 1) {
-    kit_abort("請選一個「新欄名來自哪一欄（names_from）」，例如 domain。")
+    kit_abort("請選「哪一欄的值變成新的欄名」，例如 wave。")
   }
   if (length(args$values_from) == 0) {
-    kit_abort("請至少選一個「要攤開的值（values_from）」，例如 d_score。")
+    kit_abort("請至少選一欄「要填進新欄的值」，例如 score。")
   }
   if (args$names_from %in% args$values_from) {
-    kit_abort(args$names_from, " 不能同時是 names_from 和 values_from。")
+    kit_abort(args$names_from, " 不能同時是「變成新欄名的欄」和「要填進新欄的值」。")
   }
   id_cols <- wider_id_cols(data, args)
   overlap <- intersect(id_cols, c(args$names_from, args$values_from))
   if (length(overlap) > 0) {
     kit_abort(
-      paste(overlap, collapse = "、"), " 同時在 id_cols 和 names_from／values_from，",
-      "請從 id_cols 拿掉。"
+      paste(overlap, collapse = "、"), " 同時是「辨認同一列的欄」和「新欄名／要填的值」，",
+      "請從「辨認同一列的欄」拿掉。"
     )
   }
   dup <- check_key_unique(data, c(id_cols, args$names_from))
   if (!dup$ok) {
     kit_abort(
-      "有 ", dup$n_keys, " 組 id_cols × ", args$names_from, " 出現不只一次，",
+      "有 ", kit_num(dup$n_keys), " 組「辨認同一列的欄 × ", args$names_from, "」出現不只一次，",
       "同一格會有好幾個值，所以停下來沒有轉換（本工具不自動彙總）。",
-      "請看下方列出的重複列：把能區分它們的欄位加進 id_cols，或先回原檔處理重複。"
+      "請看下方列出的重複列：把能區分它們的欄位加進「辨認同一列的欄」，或先回原檔處理重複。"
     )
   }
   nm <- check_wider_names(data, args)
   if (length(nm$collide) > 0) {
     kit_abort(
       "轉換後的新欄名和 id 欄同名：", paste(nm$collide, collapse = "、"), "。",
-      "請改「欄名格式（names_glue）」或 names_prefix，讓新欄名不一樣。"
+      "請在進階設定改「欄名格式」或「欄名前綴」，讓新欄名不一樣。"
     )
   }
   if (length(nm$dup) > 0) {
     kit_abort(
       "轉換後有重複的新欄名：", paste(utils::head(nm$dup, 5), collapse = "、"), "。",
-      "請在「欄名格式（names_glue）」放進 {.value}，讓每個值欄的名字不同。"
+      "請在進階設定的「欄名格式」放進 {.value}，讓每個值欄的名字不同。"
     )
   }
 
@@ -289,10 +289,10 @@ wider_summary <- function(data, result, args, new_names) {
       "轉換後 ", format_dims(nrow(result), ncol(result)), "。"
     ),
     paste0(
-      args$names_from, " 有 ", length(levels), " 個值（",
+      args$names_from, " 有 ", kit_num(length(levels)), " 個值（",
       paste(utils::head(levels, 6), collapse = "、"),
       if (length(levels) > 6) "…" else "",
-      "），新增 ", length(new_names), " 欄，例如 ",
+      "），新增 ", kit_num(length(new_names)), " 欄，例如 ",
       paste(utils::head(new_names, 3), collapse = "、"), "。"
     )
   )
@@ -305,28 +305,28 @@ wider_warnings <- function(data, args, fill, id_check, check_id, nm) {
   c(
     if (!id_check$ok) {
       paste0(
-        "id_cols 裡的 ", paste(id_check$cols, collapse = "、"), " 在同一個 ",
-        check_id, " 內不只一個值，有 ", id_check$n_ids, " 個 ", check_id,
-        " 被拆成好幾列（見下方「id 欄不一致的列」）。",
+        "辨認同一列的欄裡，", paste(id_check$cols, collapse = "、"), " 在同一個 ",
+        check_id, " 內不只一個值，有 ", kit_num(id_check$n_ids), " 個 ", check_id,
+        " 被拆成好幾列（見下方「辨認同一列的欄不一致的列」）。",
         "建議把 ", paste(id_check$cols, collapse = "、"),
-        " 移到「要攤開的值（values_from）」，或從 id_cols 拿掉。"
+        " 移到「要填進新欄的值」，或從「辨認同一列的欄」拿掉。"
       )
     },
     if (n_na_name > 0) {
       paste0(
-        args$names_from, " 有 ", n_na_name, " 列是空白，",
+        args$names_from, " 有 ", kit_num(n_na_name), " 列是空白，",
         "轉換後會變成名稱含 NA 的欄位。"
       )
     },
     if (!is.null(args$values_fill) && is.null(fill)) {
       paste0(
-        "「缺的格子填什麼（values_fill）」填的是「", args$values_fill, "」，",
+        "進階設定的「缺的格子填什麼」填的是「", args$values_fill, "」，",
         "但要攤開的值沒有同型別的欄（數字只填數值欄、文字只填文字欄），所以沒有填。"
       )
     },
     if (length(nm$sav) > 0) {
       paste0(
-        "有 ", length(nm$sav), " 個新欄名不符合 SPSS 規則，下載 SAV 時會自動改名，例如 ",
+        "有 ", kit_num(length(nm$sav)), " 個新欄名不符合 SPSS 規則，下載 SAV 時會自動改名，例如 ",
         paste(utils::head(paste(names(nm$sav), "→", nm$sav), 3), collapse = "、"), "。"
       )
     }
@@ -362,11 +362,11 @@ reshape_longer <- function(data, args) {
         "轉換後 ", format_dims(nrow(result), ncol(result)), "。"
       ),
       paste0(
-        "轉換 ", length(cols), " 欄",
+        "轉換 ", kit_num(length(cols)), " 欄",
         if (isTRUE(args$values_drop_na)) {
           "，並去掉空白的值。"
         } else {
-          paste0("；原本每一列變成 ", nrow(result) %/% max(nrow(data), 1L), " 列。")
+          paste0("；原本每一列變成 ", kit_num(nrow(result) %/% max(nrow(data), 1L)), " 列。")
         }
       ),
       if (labels$zap_var) "要轉的欄變項標籤不一樣，值欄不放變項標籤。"
@@ -374,7 +374,7 @@ reshape_longer <- function(data, args) {
     warnings = c(
       labels$warning,
       if (length(tidyr_warn) > 0) {
-        paste0("tidyr 的提醒：", paste(utils::head(tidyr_warn, 3), collapse = "；"))
+        paste0("R（tidyr）的提醒：", paste(utils::head(tidyr_warn, 3), collapse = "；"))
       }
     ),
     labels = labels[c("conflict", "zap_var", "cols")]
@@ -497,14 +497,14 @@ reshape_guess_text <- function(g) {
       if (length(g$varying) > 0) {
         paste0(
           "；同一個 ", g$id_col, " 內會變的欄：", paste(g$varying, collapse = "、"),
-          "（可能就是「新欄名來自哪一欄」）"
+          "（可能就是「哪一欄的值變成新的欄名」）"
         )
       },
       "。通常要選「長轉寬」。"
     ))
   }
   if (identical(g$format, "wide")) {
-    shown <- paste0(utils::head(g$groups$prefix, 3), " 開頭 ", utils::head(g$groups$n, 3), " 欄")
+    shown <- paste0(utils::head(g$groups$prefix, 3), " 開頭 ", big(utils::head(g$groups$n, 3)), " 欄")
     return(paste0(
       "目前看起來是寬格式：每個 ", g$id_col, " 一列（", big(g$n_ids), " 個），",
       "有 ", nrow(g$groups), " 組題目欄（", paste(shown, collapse = "、"),

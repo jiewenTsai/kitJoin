@@ -34,18 +34,51 @@ kit_tab_guide <- function(goal, steps, output, technical = NULL, note = NULL, di
   shiny::tags$div(class = "kit-guide kit-guide-wrap", guide, diagram)
 }
 
-#' 開啟 kitsUI 雲端版的按鈕（新分頁）
-#' @param kind 按鈕種類（KIT_BTN）：平常是次要按鈕；⑥ 最下面的「下一步」是主要按鈕
+#' 到 kitsUI：依本機版、雲端版給不同的東西（一個 tag）
+#'
+#' - 雲端版（kit_is_cloud()）：開新分頁連到 KITSUI_URL，後面一行小字說明開的是雲端版。
+#' - 本機版：不放連結（連結會把人帶到雲端版，作答檔就上傳到雲端了），
+#'   改成一行說明：在 R 執行 kitsUI::run_kitsui()。
+#'
+#' @param label 連結文字，例如「開啟 kitsUI」「開啟 kitsUI，上傳這個檔 →」
+#' @param kind "link"（文字連結）或 KIT_BTN 的名稱（"secondary"、"primary"）
+#' @param class 連結另外加的 class（例如 "btn-sm"、"kit-next-link"）
+#' @param cloud 是不是雲端版（預設 kit_is_cloud()；測試用）
+#' @return 雲端版：<span class="kit-kitsui-link"><a …>label</a> <small>…</small></span>；
+#'   本機版：<span class="kit-hint kit-kitsui-local">本機版：…</span>
+#' @noRd
+kit_kitsui_link <- function(label = "開啟 kitsUI", kind = "link", class = NULL,
+                            cloud = kit_is_cloud()) {
+  if (!isTRUE(cloud)) {
+    return(shiny::tags$span(
+      class = "kit-hint kit-kitsui-local",
+      "本機版：在 R 執行 ", shiny::tags$code("kitsUI::run_kitsui()"),
+      " 開啟 kitsUI，作答檔不會離開這台電腦。"
+    ))
+  }
+  link_class <- if (identical(kind, "link")) class else {
+    paste(c("btn kit-ext-btn", KIT_BTN[[kind]], class), collapse = " ")
+  }
+  shiny::tags$span(
+    class = "kit-kitsui-link",
+    shiny::tags$a(
+      href = KITSUI_URL,
+      target = "_blank",
+      rel = "noopener noreferrer",
+      class = link_class,
+      if (!identical(kind, "link")) shiny::icon("arrow-up-right-from-square"),
+      label
+    ),
+    " ",
+    shiny::tags$small(class = "kit-hint", "（開啟網路上的雲端版 kitsUI）")
+  )
+}
+
+#' 開啟 kitsUI 的按鈕（舊名，和 kit_kitsui_link(kind = "secondary") 一樣）
+#' @param kind 按鈕種類（KIT_BTN）
 #' @noRd
 kit_kitsui_button <- function(label = "開啟 kitsUI", kind = "secondary") {
-  shiny::tags$a(
-    href = KITSUI_URL,
-    target = "_blank",
-    rel = "noopener noreferrer",
-    class = paste("btn kit-ext-btn", KIT_BTN[[kind]]),
-    shiny::icon("arrow-up-right-from-square"),
-    label
-  )
+  kit_kitsui_link(label, kind = kind)
 }
 
 
@@ -220,27 +253,33 @@ KIT_STATUS_MAX_POINTS <- 3L
 #' @param notes 補充說明（灰色小字）
 #' @param details 原始訊息（收起）
 #' @param action 怎麼辦的按鈕或連結（tag；可 NULL）
+#' @param points 結果的重點（條列，排在 warnings 後面；不會讓狀態變成「請注意」）
 #' @noRd
 kit_status <- function(state = "idle", message = "", warnings = character(0),
-                       notes = character(0), details = NULL, action = NULL) {
+                       notes = character(0), details = NULL, action = NULL,
+                       points = character(0)) {
   list(
     state = state,
     message = message,
     warnings = warnings,
     notes = notes,
     details = details,
-    action = action
+    action = action,
+    points = points
   )
 }
 
 #' 執行結果的狀態：有提醒時為 warning，否則為 success
+#' @param points 結果的重點（例如「6,864 人，其中 688 人每個檔案都有資料」）：
+#'   和 warnings 一起條列在狀態框裡，取代舊的「結果摘要」框
 #' @noRd
 kit_done_status <- function(
     message,
     warnings = character(0),
-    notes = character(0)) {
+    notes = character(0),
+    points = character(0)) {
   state <- if (length(warnings) > 0) "warning" else "success"
-  kit_status(state, message, warnings = warnings, notes = notes)
+  kit_status(state, message, warnings = warnings, notes = notes, points = points)
 }
 
 #' 執行失敗的狀態（停下來）：白話錯誤直接顯示；未預期的錯誤寫怎麼辦，原始訊息收起來
@@ -277,7 +316,8 @@ kit_stale_status <- function(run_label) {
 make_status_ui <- function(st) {
   if (is.null(st) || identical(st$state, "idle")) return(NULL)
   look <- KIT_STATUS_LOOK[[st$state]]
-  points <- st$warnings
+  # 要注意的事在前，結果的重點在後；直接列 3 點，其他收進「還有 N 點」
+  points <- c(st$warnings, st$points)
   shown <- utils::head(points, KIT_STATUS_MAX_POINTS)
   more <- points[-seq_along(shown)]
   shiny::tags$div(
@@ -340,31 +380,60 @@ kit_notify <- function(st) {
   }
 }
 
-#' 白話摘要框
+#' 主要按鈕上面一行「還差：…」（KIT 設計語言 3.12；和 kits 作答檔同一個 .kit-ready.todo）
+#'
+#' @param missing 還差的事（字串；空的時候回傳 NULL，什麼都不顯示）
+#' @param link 跟在後面的連結（例如「到「檔案上傳」加入檔案 →」；可 NULL）
 #' @noRd
-kit_summary_ui <- function(sentences, title = "結果摘要") {
-  shiny::tags$div(
-    class = "kit-summary",
-    shiny::tags$strong(title),
-    shiny::tags$ul(lapply(sentences, shiny::tags$li))
+kit_ready_line <- function(missing, link = NULL) {
+  missing <- missing[!is.na(missing) & nzchar(missing)]
+  if (length(missing) == 0) return(NULL)
+  shiny::tags$p(
+    class = "kit-ready todo",
+    paste0("還差：", paste(missing, collapse = "；"), "。"),
+    if (!is.null(link)) " ", link
   )
+}
+
+#' 主要按鈕還不能按時：停用它，上面一行寫還差什麼
+#'
+#' 頁面上放 `shiny::uiOutput(ns("ready"))`，緊接著 `kit_button(ns("run"), …, disabled = TRUE)`
+#' （一開始停用；伺服器算好以後才打開）。按鈕的 observeEvent() 裡仍要自己檢查一次
+#' （停用只是畫面上的，不能當成唯一的防線）。
+#'
+#' @param missing reactive：還差的事（字串；空的 = 可以執行）
+#' @param link function()：跟在「還差」後面的連結（tag 或 NULL）
+#' @param button_id 主要按鈕的 id（模組內的 id，不加 ns）
+#' @noRd
+kit_run_gate <- function(session, output, missing, link = function() NULL, button_id = "run") {
+  output$ready <- shiny::renderUI({
+    m <- missing()
+    kit_ready_line(m, if (length(m) > 0) link())
+  })
+  shiny::observe({
+    shiny::updateActionButton(session, button_id, disabled = length(missing()) > 0)
+  })
+}
+
+#' 「還差」：檔案不夠時的那一句（夠了是 NULL）
+#' @param need 這一頁至少要幾個檔案
+#' @noRd
+kit_need_files <- function(n_files, need = 2L) {
+  if (n_files >= need) return(NULL)
+  if (need == 1L) return("先加入檔案")
+  paste0("至少要 ", need, " 個波次的檔案，目前", if (n_files == 0) "還沒有" else paste0("只有 ", n_files, " 個"))
 }
 
 #' 目前使用哪一份資料（原始 / 遺漏值處理後），以及檔案數不足的提醒
 #'
-#' @param n_files 已上傳檔案數
+#' @param n_files 已上傳檔案數（不到 2 個時回傳 NULL：由主要按鈕上面的「還差」說）
 #' @param source "raw"、"na" 或 "stale"（② 的結果已清除、等待重新執行）
 #' @param code_cells 原始資料中等於遺漏值代碼的格數
 #' @param ns 模組的 namespace 函式（連結按鈕用）
 #' @noRd
 kit_source_note_ui <- function(n_files, source, code_cells, ns) {
-  if (n_files < 2) {
-    return(kit_callout(
-      warn = TRUE,
-      "這個功能需要至少 2 個波次的檔案，目前只有 ", n_files, " 個。",
-      shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案")
-    ))
-  }
+  # 檔案不夠時不另開提示框：主要按鈕停用，上面一行「還差」（kit_run_gate()）已經說了
+  if (n_files < 2) return(NULL)
   if (identical(source, "na")) {
     return(shiny::tags$p(
       class = "kit-source-note",
@@ -382,7 +451,7 @@ kit_source_note_ui <- function(n_files, source, code_cells, ns) {
   if (code_cells > 0) {
     return(kit_callout(
       warn = TRUE,
-      "目前使用：原始資料。資料中有 ", code_cells, " 格看起來是遺漏值代碼",
+      "目前使用：原始資料。資料中有 ", kit_num(code_cells), " 格看起來是遺漏值代碼",
       "（7777、9999 等，或 SPSS 數值標籤寫著「遺漏值」「跳答」的值），",
       "若它們代表遺漏，請先",
       shiny::actionLink(ns("goto_missing"), "到「遺漏值處理」處理"),
@@ -458,7 +527,7 @@ kit_download_server <- function(session, output, data_fn, filename_fn, run_label
         "CSV.GZ 是壓縮過的 CSV，檔案較小，可直接上傳 kitsUI；Excel 不能直接開。",
         if (length(renamed) > 0) {
           paste0(
-            "匯出 SAV 時，有 ", length(renamed), " 個欄名不符合 SPSS 規則，會自動改名：",
+            "匯出 SAV 時，有 ", kit_num(length(renamed)), " 個欄名不符合 SPSS 規則，會自動改名：",
             paste(
               utils::head(paste(names(renamed), "→", renamed), 5),
               collapse = "、"
@@ -488,6 +557,14 @@ timestamped_name <- function(prefix) {
 #' 小表格（直接放在 renderUI() 裡，不用另開 output）
 #' @noRd
 kit_static_table <- function(df) {
+  # 整數加千分位（3389 → 3,389）；有小數的照 df_for_display() 的寫法
+  df <- as.data.frame(df, stringsAsFactors = FALSE, check.names = FALSE)
+  for (j in seq_along(df)) {
+    x <- df[[j]]
+    if (is.numeric(x) && !haven::is.labelled(x) && all(is.na(x) | x == round(x))) {
+      df[[j]] <- ifelse(is.na(x), NA_character_, kit_num(x))
+    }
+  }
   cells <- df_for_display(df)
   shiny::tags$table(
     class = "table table-sm table-striped",
@@ -560,6 +637,25 @@ kit_code_blocks <- function(snips) {
 
 # ── 瀏覽器端的小程式 ─────────────────────────────────────────────────────────
 
+#' 執行完把狀態框捲到畫面上方（KIT 設計語言 2.2「先結果、後細節」）
+#'
+#' 在主要按鈕的 observeEvent() 最後呼叫：kit_scroll_to("status")。
+#' 等這一輪的 output 都送到瀏覽器以後（session$onFlushed）才捲，狀態框已經畫好了。
+#' 瀏覽器端是 kit_app_js() 的 kit-scroll；使用者設定「減少動態效果」時直接跳過去，不平滑捲動。
+#'
+#' @param id 模組裡的 output id（會自動加上模組的 namespace），例如 "status"
+#' @param session 預設是目前的 session（模組裡呼叫就是模組的 session）
+#' @return 不可見的完整 id
+#' @noRd
+kit_scroll_to <- function(id, session = shiny::getDefaultReactiveDomain()) {
+  if (is.null(session)) return(invisible(NULL))
+  full <- session$ns(id)
+  session$onFlushed(function() {
+    session$sendCustomMessage("kit-scroll", full)
+  }, once = TRUE)
+  invisible(full)
+}
+
 #' app 的 JavaScript（放在頁面最後，shiny.js 已經載入）
 #'
 #' 1. 收合區塊（<details>）打開時，通知 Shiny 重新檢查裡面的 output 看不看得到；
@@ -569,6 +665,8 @@ kit_code_blocks <- function(snips) {
 #' 3. kit-tab-states：依伺服器算好的狀態，替分頁列的連結加上 class 與滑過時的說明
 #'    （kit-tab-done 打 ✓、kit-tab-locked 灰色、kit-tab-stale 拿掉 ✓）。
 #' 4. kit-open-details：打開指定 id 的收合區塊（例如套用預設後打開進階設定）。
+#' 5. kit-scroll：把指定 id 的元素捲到畫面上方（kit_scroll_to()）；
+#'    prefers-reduced-motion 時不做平滑捲動。
 #' @noRd
 kit_app_js <- function() {
   shiny::tags$script(shiny::HTML("
@@ -614,6 +712,15 @@ kit_app_js <- function() {
   Shiny.addCustomMessageHandler('kit-open-details', function(id) {
     var d = document.getElementById(id);
     if (d) d.open = true;
+  });
+  Shiny.addCustomMessageHandler('kit-scroll', function(id) {
+    var el = document.getElementById(id);
+    // uiOutput 的 div 是 display: contents（沒有框），要捲到裡面第一個真的元素（狀態框）
+    while (el && getComputedStyle(el).display === 'contents') el = el.firstElementChild;
+    if (!el || !el.scrollIntoView) return;
+    var reduce = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({block: 'start', behavior: reduce ? 'auto' : 'smooth'});
   });
 })();
 "))

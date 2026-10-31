@@ -11,8 +11,12 @@ test_that("left join（向後追蹤樣本）以第一個檔案為準，欄名加
   expect_equal(nrow(out$result), 4)
   expect_named(out$result, c("release_id", "score_t1", "score_t2"))
   expect_length(out$warnings, 0)
-  expect_match(out$summary[1], "4 人為準")
-  expect_match(out$summary[2], "3 人有資料.*1 人沒有.*另有 1 人")
+  expect_match(out$summary[1], "4 人為準.*3 人每個檔案都有資料.*另有 1 人")
+  # 各檔案的人數（狀態框下面的小表；取代舊的「結果摘要」框）
+  expect_equal(out$people$人數, c(4, 4))
+  expect_equal(out$people$結果中有資料, c(4, 3))
+  expect_equal(out$people$結果中這一波空白, c(0, 1))
+  expect_equal(out$people$沒有納入, c(0, 1))
 })
 
 test_that("inner / full join 的列數", {
@@ -33,6 +37,17 @@ test_that("inner / full join 的列數", {
   expect_equal(nrow(inner$result), 3)
   expect_equal(nrow(full$result), 5)
   expect_equal(full$audit$checks$核對, c("符合", "符合"))
+  expect_equal(inner$people$沒有納入, c(1, 1))
+  expect_equal(full$people$結果中這一波空白, c(1, 1))
+  expect_match(full$summary[1], "5 人，全部保留；其中 3 人")
+})
+
+test_that("人數加千分位：3389 人寫成 3,389 人", {
+  big1 <- tibble::tibble(id = 1:3389, x = 1)
+  big2 <- tibble::tibble(id = 1:2061, x = 2)
+  out <- join_waves(list(big1, big2), c("a", "b"), c("t1", "t2"), "id")
+  expect_match(out$summary[1], "3,389 人為準，其中 2,061 人")
+  expect_match(as.character(kit_static_table(tibble::tibble(n = 3389L, r = 0.5))), "3,389")
 })
 
 test_that("不合法的 join 方法會被拒絕", {

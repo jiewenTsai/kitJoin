@@ -272,7 +272,7 @@ sav_fix_message <- function(written) {
     "SAV 檔照原樣寫出後讀不回來（原檔的數值標籤有 SPSS 存不了的內容），",
     "所以", what, "再重新寫出：",
     paste(utils::head(cols, 10), collapse = "、"),
-    if (length(cols) > 10) paste0(" 等 ", length(cols), " 欄") else "",
+    if (length(cols) > 10) paste0(" 等 ", kit_num(length(cols)), " 欄") else "",
     "。資料值與變項標籤都沒有改。"
   )
 }

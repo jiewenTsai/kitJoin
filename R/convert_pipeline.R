@@ -207,7 +207,7 @@ convert_df <- function(path, name, kind, out, target, labels_as_text = FALSE) {
     renamed <- sav_renamed_cols(names(data))
     if (length(renamed) > 0) {
       notes <- c(notes, paste0(
-        "有 ", length(renamed), " 個欄名不符合 SPSS 規則，已改名：",
+        "有 ", kit_num(length(renamed)), " 個欄名不符合 SPSS 規則，已改名：",
         paste(paste(names(renamed), "→", renamed), collapse = "、"), "。"
       ))
     }

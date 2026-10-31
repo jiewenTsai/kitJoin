@@ -9,7 +9,7 @@ mod_attrition_ui <- function(id) {
       steps = kit_steps(
         "選擇前期樣本（基準）與後期樣本（比對）",
         "選擇用來辨識同一個人的 ID 欄位（前後期欄名不同時，可以分別指定）",
-        "按「建立流失樣本」，看摘要與預覽",
+        "按「建立流失樣本」，看結果與預覽",
         "下載 CSV 或 SAV"
       ),
       output = "前期的全部資料，加上一個 attrition 欄：0 = 留存，1 = 流失。列數等於前期樣本列數。",
@@ -39,7 +39,7 @@ mod_attrition_ui <- function(id) {
         shiny::selectizeInput(
           ns("id_vars"), "用哪個欄位辨識同一個人？（ID，可多選）",
           choices = NULL, multiple = TRUE,
-          options = list(create = FALSE, placeholder = "請選擇 ID 欄位，例如 release_id"),
+          options = list(create = FALSE, placeholder = "請選擇 ID 欄位，例如 id"),
           width = "100%"
         )
       ),
@@ -62,7 +62,8 @@ mod_attrition_ui <- function(id) {
       "括號裡是「不重複的比例」，ID 應該接近 100%。"
     ),
     shiny::uiOutput(ns("settings_line")),
-    kit_button(ns("run"), "建立流失樣本", "primary"),
+    shiny::uiOutput(ns("ready")),
+    kit_button(ns("run"), "建立流失樣本", "primary", disabled = TRUE),
     shiny::uiOutput(ns("status")),
     shiny::uiOutput(ns("result")),
     kit_download_ui(ns),
@@ -173,6 +174,23 @@ mod_attrition_server <- function(id, files, working, goto) {
       if (isTRUE(input$id_per_file)) input$follow_id_vars %||% character(0) else input$id_vars
     })
 
+    # 主要按鈕：檔案不夠、前後期同一個檔、還沒選 ID 時停用，上面一行寫還差什麼
+    kit_run_gate(session, output, missing = shiny::reactive({
+      need <- kit_need_files(length(files$keys()), 2L)
+      if (!is.null(need)) return(need)
+      pos <- picked()$pos
+      if (anyNA(pos)) return("選前期與後期樣本")
+      if (pos[1] == pos[2]) return("前期與後期要選不同的檔案")
+      ids <- input$id_vars %||% character(0)
+      if (length(ids) == 0) return("選 ID 欄")
+      if (length(follow_ids() %||% character(0)) != length(ids)) {
+        return("後期要選一樣多個 ID 欄")
+      }
+      character(0)
+    }), link = function() {
+      if (length(files$keys()) < 2) shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →")
+    })
+
     # 設定摘要：「本次：前期 t1（w1.sav）→ 後期 t2（w2.sav） · ID：w1_id → w2_id」
     output$settings_line <- shiny::renderUI({
       if (length(files$keys()) < 2) return(NULL)
@@ -236,6 +254,7 @@ mod_attrition_server <- function(id, files, working, goto) {
       })
       status(st)
       kit_notify(st)
+      kit_scroll_to("status")
     })
 
     output$status <- shiny::renderUI(make_status_ui(status()))
@@ -250,12 +269,12 @@ mod_attrition_server <- function(id, files, working, goto) {
       run_label = "建立流失樣本"
     )
 
-    # 重點：摘要表；預覽收在下面一排細節裡
+    # 重點：狀態框下面一張人數表；預覽收在下面一排細節裡
     output$result <- shiny::renderUI({
       res <- result()
       if (is.null(res)) return(NULL)
       shiny::tagList(
-        shiny::h4("摘要"),
+        shiny::h5("各項人數"),
         shiny::tableOutput(ns("summary"))
       )
     })

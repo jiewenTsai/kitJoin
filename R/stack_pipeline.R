@@ -194,18 +194,18 @@ stack_stats <- function(dfs, wave_labels, result, wave_col) {
   )
 }
 
+#' 狀態框裡的重點（最多 3 句）
 #' @noRd
 stack_plain_summary <- function(stats, names_shown, wave_col) {
   c(
     paste0(
       "共疊加 ", length(names_shown), " 個檔案：",
-      paste0(names_shown, " ", stats$n_rows, " 列", collapse = "、"), "。"
+      paste0(names_shown, " ", kit_num(stats$n_rows), " 列", collapse = "、"), "。"
     ),
-    paste0("結果共 ", format_dims(stats$nrow_out, stats$ncol_out), "，",
-           "每一列的 ", wave_col, " 欄標示它來自哪一波。"),
+    paste0("每一列的 ", wave_col, " 欄標示它來自哪一波。"),
     if (length(stats$partial_cols) > 0) {
       paste0(
-        "有 ", length(stats$partial_cols), " 個欄位只出現在部分波次（例如 ",
+        "有 ", kit_num(length(stats$partial_cols)), " 個欄位只出現在部分波次（例如 ",
         paste(utils::head(stats$partial_cols, 3), collapse = "、"),
         "），沒有這些欄位的波次會是空白。"
       )

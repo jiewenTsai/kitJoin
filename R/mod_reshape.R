@@ -1,6 +1,9 @@
 # 長/寬格式轉換：tidyr::pivot_wider() / pivot_longer()
+#
+# 主畫面只寫白話（「哪一欄的值變成新的欄名」）；tidyr 的函式名與參數名
+# 收在「進階設定」與「用 R 怎麼做」裡（KIT 設計語言 1.7 白話先行）。
 
-#' 控制項標籤：中文說明 + tidyr 參數名
+#' 進階設定裡的控制項標籤：中文說明 + tidyr 參數名
 #' @noRd
 arg_label <- function(text, arg) {
   shiny::tagList(text, " ", shiny::tags$code(arg))
@@ -17,9 +20,9 @@ mod_reshape_ui <- function(id) {
         "例如 kitsUI 分數表（每次施測 × 每個領域一列）轉成每次施測一列、各領域並排。"
       ),
       steps = kit_steps(
-        "選要轉換的檔案與方向",
-        "設定欄位（每個控制項旁邊是對應的 tidyr 參數名）",
-        "按「執行轉換」，看結果摘要、檢查與預覽",
+        "選要轉換的檔案與方向（會先依資料的樣子幫你選好）",
+        "設定欄位（R 的參數名稱在「進階設定」與「用 R 怎麼做」裡）",
+        "按「執行轉換」，看結果、檢查與預覽",
         "下載 CSV 或 SAV"
       ),
       output = "轉換後的一個資料檔；轉換前後的列數 × 欄數會並列在摘要中。",
@@ -41,25 +44,32 @@ mod_reshape_ui <- function(id) {
         shiny::radioButtons(
           ns("direction"), "方向",
           choices = c(
-            "長轉寬（pivot_wider）" = "wider",
-            "寬轉長（pivot_longer）" = "longer"
+            "長轉寬（每人一列、各題並排）" = "wider",
+            "寬轉長（每人每題一列）" = "longer"
           ),
           selected = "wider", inline = TRUE
         )
       )
     ),
+    # 一個提示：資料看起來是長或寬格式；和方向相反時是黃色，「改選…」的按鈕在框外面
     shiny::uiOutput(ns("guess")),
+    kit_advanced(
+      title = "判斷錯了？換一欄當 ID 再看一次",
+      shiny::selectizeInput(
+        ns("guess_id"), "判斷長、寬格式時，用哪一欄當 ID",
+        choices = c("（請選）" = ""), width = "16rem"
+      )
+    ),
     shiny::conditionalPanel(is_wider, ns = ns, wider_controls_ui(ns)),
     shiny::conditionalPanel(
       "input.direction == 'longer'", ns = ns,
       mod_pivot_longer_ui(ns("longer"))
     ),
-    shiny::uiOutput(ns("direction_note")),
     shiny::uiOutput(ns("settings_line")),
-    kit_button(ns("run"), "執行轉換", "primary"),
+    shiny::uiOutput(ns("ready")),
+    kit_button(ns("run"), "執行轉換", "primary", disabled = TRUE),
     shiny::uiOutput(ns("status")),
     shiny::uiOutput(ns("blocked")),
-    shiny::uiOutput(ns("result")),
     kit_download_ui(ns),
     kit_details_row(
       shiny::uiOutput(ns("result_details"), inline = TRUE),
@@ -68,7 +78,14 @@ mod_reshape_ui <- function(id) {
   )
 }
 
-#' 長轉寬的控制項（參數一對一對應 tidyr::pivot_wider()）
+# 長轉寬控制項的白話名稱（主畫面、設定摘要、錯誤訊息用同一套）
+WIDER_LABELS <- c(
+  names_from = "哪一欄的值變成新的欄名",
+  values_from = "要填進新欄的值",
+  id_cols = "辨認同一列的欄"
+)
+
+#' 長轉寬的控制項（參數一對一對應 tidyr::pivot_wider()；參數名在進階設定裡）
 #' @noRd
 wider_controls_ui <- function(ns) {
   shiny::tagList(
@@ -77,45 +94,53 @@ wider_controls_ui <- function(ns) {
       shiny::column(
         5,
         shiny::selectizeInput(
-          ns("names_from"), arg_label("新欄名來自哪一欄", "names_from"),
+          ns("names_from"), WIDER_LABELS[["names_from"]],
           choices = NULL,
-          options = list(placeholder = "例如 domain")
+          options = list(placeholder = "例如 wave 或 item")
         )
       ),
       shiny::column(
         7,
         shiny::selectizeInput(
-          ns("values_from"), arg_label("要攤開的值（可多選）", "values_from"),
+          ns("values_from"), paste0(WIDER_LABELS[["values_from"]], "（可多選）"),
           choices = NULL, multiple = TRUE,
-          options = list(placeholder = "例如 d_score")
+          options = list(placeholder = "例如 score")
         )
       )
     ),
     shiny::checkboxInput(
       ns("id_auto"),
-      arg_label("哪些欄是 id：用 tidyr 預設（其餘全部欄位）", "id_cols = NULL"),
+      "其餘的欄都用來辨認同一列（預設）",
       value = TRUE, width = "100%"
     ),
     shiny::conditionalPanel(
       "!input.id_auto", ns = ns,
       shiny::selectizeInput(
-        ns("id_cols"), arg_label("哪些欄是 id（可多選）", "id_cols"),
+        ns("id_cols"), paste0(WIDER_LABELS[["id_cols"]], "（可多選）"),
         choices = NULL, multiple = TRUE, width = "100%"
       )
     ),
     shiny::uiOutput(ns("id_note")),
     kit_advanced(
       id = ns("advanced"),
-      title = "進階設定：欄名格式（分隔符號）、欄位排列、缺的格子",
+      title = "進階設定：欄名格式、欄位排列、缺的格子、R 的參數名稱",
       wider_advanced_ui(ns)
     )
   )
 }
 
-#' 長轉寬的進階控制項（預設收起）
+#' 長轉寬的進階控制項（預設收起）：最上面一行對照 tidyr 的參數名
 #' @noRd
 wider_advanced_ui <- function(ns) {
   shiny::tagList(
+    shiny::tags$p(
+      class = "kit-hint",
+      "對照 R 的 ", shiny::tags$code("tidyr::pivot_wider()"), "：",
+      "「", WIDER_LABELS[["names_from"]], "」是 ", shiny::tags$code("names_from"), "；",
+      "「", WIDER_LABELS[["values_from"]], "」是 ", shiny::tags$code("values_from"), "；",
+      "「", WIDER_LABELS[["id_cols"]], "」是 ", shiny::tags$code("id_cols"),
+      "（勾「其餘的欄」時是 ", shiny::tags$code("id_cols = NULL"), "）。"
+    ),
     shiny::radioButtons(
       ns("name_mode"), "新欄名怎麼組？",
       choices = c(
@@ -143,18 +168,18 @@ wider_advanced_ui <- function(ns) {
       "input.name_mode == 'glue'", ns = ns,
       shiny::textInput(
         ns("names_glue"), arg_label("欄名格式", "names_glue"), "",
-        placeholder = "{.value}_{domain}"
+        placeholder = "{.value}_{wave}"
       ),
       shiny::tags$small(
         class = "kit-hint",
-        "{.value} 是值欄的名稱（如 d_score），{domain} 是欄名來源欄的值（如 lan）。"
+        "{.value} 是值欄的名稱（如 score），{wave} 是欄名來源欄的值（如 t1）。"
       )
     ),
     shiny::radioButtons(
       ns("names_vary"), arg_label("欄位排列", "names_vary"),
       choices = c(
-        "fastest：同一個值欄放在一起（d_score_lan、d_score_cog、scale_lan…）" = "fastest",
-        "slowest：同一個領域放在一起（d_score_lan、scale_lan、d_score_cog…）" = "slowest"
+        "fastest：同一個值欄放在一起（score_t1、score_t2、se_t1…）" = "fastest",
+        "slowest：同一個欄名來源的值放在一起（score_t1、se_t1、score_t2…）" = "slowest"
       ),
       selected = "fastest", width = "100%"
     ),
@@ -226,6 +251,10 @@ mod_reshape_server <- function(id, files, working, goto) {
       shiny::updateSelectizeInput(
         session, "id_cols", choices = all, selected = keep(input$id_cols)
       )
+      guess_sel <- if (isTRUE(input$guess_id %in% all)) input$guess_id else reshape_guess_id(all)
+      shiny::updateSelectizeInput(
+        session, "guess_id", choices = c("（請選）" = "", all), selected = guess_sel %||% ""
+      )
     }, ignoreNULL = FALSE)
 
     # 取消「用預設」時，把目前的預設 id 欄填進去，方便從那裡刪減
@@ -265,41 +294,40 @@ mod_reshape_server <- function(id, files, working, goto) {
       id <- input$guess_id
       reshape_guess_format(df, if (isTRUE(id %in% names(df))) id)
     })
+    # 換檔案時：方向預設跟著判斷走（看起來是寬格式 → 寬轉長）；之後使用者可以自己改
+    shiny::observeEvent(input$file, {
+      to <- shiny::isolate(guess())$suggest
+      if (!is.null(to) && !identical(to, input$direction)) {
+        shiny::updateRadioButtons(session, "direction", selected = to)
+      }
+    }, ignoreInit = TRUE)
+
+    # 一個提示框：判斷的結果；方向和判斷相反時是黃色，框外面一顆「改選…」
     output$guess <- shiny::renderUI({
-      all <- cols()
-      if (length(all) == 0) return(NULL)
-      kit_callout(
-        shiny::uiOutput(ns("guess_text")),
-        shiny::tags$div(
-          class = "d-flex flex-wrap align-items-end gap-3 mt-2",
-          shiny::selectizeInput(
-            ns("guess_id"), "用哪一欄當 ID", choices = c("（請選）" = "", all),
-            selected = reshape_guess_id(all) %||% "", width = "16em"
-          ),
-          shiny::tags$div(class = "mb-3", shiny::uiOutput(ns("guess_flip")))
-        )
-      )
-    })
-    output$guess_text <- shiny::renderUI({
       g <- guess()
       if (is.null(g)) return(NULL)
-      shiny::tags$div(reshape_guess_text(g))
-    })
-    output$guess_flip <- shiny::renderUI({
-      to <- guess()$suggest
-      if (is.null(to) || identical(to, input$direction)) return(NULL)
-      label <- c(wider = "長轉寬", longer = "寬轉長")[[to]]
-      kit_button(ns("guess_flip_btn"), paste0("改選「", label, "」"))
+      to <- g$suggest
+      against <- !is.null(to) && !identical(to, input$direction)
+      names_dir <- c(wider = "長轉寬", longer = "寬轉長")
+      shiny::tagList(
+        kit_callout(
+          warn = against,
+          paste0(
+            reshape_guess_text(g),
+            if (against) paste0("現在選的是「", names_dir[[input$direction]], "」，確定嗎？")
+          )
+        ),
+        if (against) {
+          shiny::tags$div(
+            class = "mb-3",
+            kit_button(ns("guess_flip_btn"), paste0("改選「", names_dir[[to]], "」"))
+          )
+        }
+      )
     })
     shiny::observeEvent(input$guess_flip_btn, {
       to <- guess()$suggest
       if (!is.null(to)) shiny::updateRadioButtons(session, "direction", selected = to)
-    })
-    # 方向和猜測相反時，在執行鈕旁邊提醒（不擋）
-    output$direction_note <- shiny::renderUI({
-      note <- reshape_direction_note(guess()$format, input$direction)
-      if (is.null(note)) return(NULL)
-      kit_callout(warn = TRUE, note)
     })
 
     output$id_note <- shiny::renderUI({
@@ -309,25 +337,26 @@ mod_reshape_server <- function(id, files, working, goto) {
       shiny::tags$small(
         class = "kit-hint",
         paste0(
-          "目前的 id 欄（", length(ids), " 欄）：",
+          "目前用來辨認同一列的欄（", kit_num(length(ids)), " 欄）：",
           paste(utils::head(ids, 12), collapse = "、"),
           if (length(ids) > 12) " …" else "", "。",
-          "轉換後每一組 id 欄的值是一列。"
+          "轉換後，這些欄的每一組值是一列。"
         )
       )
     })
 
-    # kitsUI 分數表：顯示套用預設的按鈕（只填控制項，不自動執行）
+    # kitsUI 分數表：一行小字加一顆按鈕（只填控制項，不自動執行；不放進提示框）
     output$preset <- shiny::renderUI({
       if (!is_kitsui_score_table(cols())) return(NULL)
-      kit_callout(
-        "這個檔案看起來是 kitsUI 的分數表（一列 = 一次施測 × 一個領域）。",
-        kit_button(ns("apply_preset"), "套用 kitsUI 分數表預設"),
-        shiny::tags$div(
+      shiny::tags$div(
+        class = "kit-preset mb-3",
+        shiny::tags$p(
           class = "kit-hint",
-          "只會填好下方設定，不會自動執行；values_from 多放 scale，",
+          "這個檔案看起來是 kitsUI 的分數表（一列 = 一次施測 × 一個領域）。",
+          "按下面的按鈕只會填好設定，不會自動執行；要填的值會多放 scale，",
           "d_score 空白時才分得出是沒測這個領域，還是有測但還沒放上 D 量尺。"
-        )
+        ),
+        kit_button(ns("apply_preset"), "套用 kitsUI 分數表預設")
       )
     })
     shiny::observeEvent(input$apply_preset, {
@@ -348,6 +377,24 @@ mod_reshape_server <- function(id, files, working, goto) {
       )
     })
 
+    # 主要按鈕：沒有檔案、還沒選欄時停用，上面一行寫還差什麼
+    kit_run_gate(session, output, missing = shiny::reactive({
+      if (length(files$keys()) == 0) return(kit_need_files(0L, 1L))
+      if (is.null(picked())) return("選要轉換的檔案")
+      if (identical(input$direction, "longer")) {
+        a <- longer()
+        if (length(a$cols) == 0 && !isTRUE(a$cols_exclude)) return("選要轉成長格式的欄")
+        return(character(0))
+      }
+      w <- wider()
+      c(
+        if (length(w$names_from) == 0) paste0("選「", WIDER_LABELS[["names_from"]], "」"),
+        if (length(w$values_from) == 0) paste0("選「", WIDER_LABELS[["values_from"]], "」")
+      )
+    }), link = function() {
+      if (length(files$keys()) == 0) shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →")
+    })
+
     # 設定摘要：「本次：t1（scores.csv） · 長轉寬 · names_from：domain · values_from：d_score」
     output$settings_line <- shiny::renderUI({
       p <- picked()
@@ -358,16 +405,16 @@ mod_reshape_server <- function(id, files, working, goto) {
         a <- longer()
         n <- length(a$cols)
         c("寬轉長", if (n > 0) {
-          paste0(if (isTRUE(a$cols_exclude)) "不轉 " else "轉 ", n, " 欄")
+          paste0(if (isTRUE(a$cols_exclude)) "不轉 " else "轉 ", kit_num(n), " 欄")
         } else {
           "還沒選要轉的欄"
         })
       } else {
         w <- wider()
         c("長轉寬",
-          if (length(w$names_from) > 0) paste0("names_from：", paste(w$names_from, collapse = "、")),
+          if (length(w$names_from) > 0) paste0("新欄名來自 ", paste(w$names_from, collapse = "、")),
           if (length(w$values_from) > 0) {
-            paste0("values_from：", paste(w$values_from, collapse = "、"))
+            paste0("填入 ", paste(w$values_from, collapse = "、"))
           })
       }
       kit_settings_line(c(shown[pos], args))
@@ -406,7 +453,7 @@ mod_reshape_server <- function(id, files, working, goto) {
               "轉換完成：結果共 ",
               format_dims(nrow(out$result), ncol(out$result)), "。"
             ),
-            warnings = out$warnings
+            warnings = out$warnings, points = out$summary
           )
         }),
         error = function(e) {
@@ -415,6 +462,7 @@ mod_reshape_server <- function(id, files, working, goto) {
       )
       status(st)
       kit_notify(st)
+      kit_scroll_to("status")
     })
 
     output$status <- shiny::renderUI(make_status_ui(status()))
@@ -444,12 +492,7 @@ mod_reshape_server <- function(id, files, working, goto) {
       run_label = "執行轉換"
     )
 
-    # 重點：結果摘要；空白格、預覽、id 欄不一致的列收在下面一排細節裡
-    output$result <- shiny::renderUI({
-      res <- result()
-      if (is.null(res)) return(NULL)
-      kit_summary_ui(res$summary)
-    })
+    # 重點都在狀態框裡；空白格、預覽、id 欄不一致的列收在下面一排細節裡
     output$result_details <- shiny::renderUI({
       res <- result()
       if (is.null(res)) return(NULL)
@@ -466,7 +509,7 @@ mod_reshape_server <- function(id, files, working, goto) {
             shiny::tags$p(
               class = "kit-hint",
               "轉成寬格式後，下面兩種情況都會是空白：",
-              "「沒有這一列」＝原檔沒有這組 id 欄 × ", names(res$empty)[1], " 的列；",
+              "「沒有這一列」＝原檔沒有這組（辨認同一列的欄 × ", names(res$empty)[1], "）的列；",
               "「有列但空白」＝有這一列，但值本來就是空的。"
             ),
             shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("empty_table")))
@@ -475,7 +518,7 @@ mod_reshape_server <- function(id, files, working, goto) {
         if (is_wider && !res$id_check$ok) {
           kit_audit_detail(
             shiny::h6(paste0(
-              "id 欄不一致的列（", kit_rows_note(nrow(res$id_check$rows), NULL, 50), "）"
+              "辨認同一列的欄不一致的列（", kit_rows_note(nrow(res$id_check$rows), NULL, 50), "）"
             )),
             shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("id_rows")))
           )
@@ -536,28 +579,11 @@ run_wider <- function(df, args, blocked) {
   reshape_wider(df, args)
 }
 
-#' 方向和資料格式的猜測相反時的提醒；沒有問題時 NULL
-#' @noRd
-reshape_direction_note <- function(format, direction) {
-  if (identical(format, "long") && identical(direction, "longer")) {
-    return("資料看起來已經是長格式，確定要再轉成長格式嗎？")
-  }
-  if (identical(format, "wide") && identical(direction, "wider")) {
-    return("資料看起來已經是寬格式，確定要再轉成寬格式嗎？")
-  }
-  NULL
-}
-
 #' 目前使用哪一份資料；只要 1 個檔案就能用
 #' @noRd
 reshape_source_note_ui <- function(n_files, source, code_cells, ns) {
-  if (n_files == 0) {
-    return(kit_callout(
-      warn = TRUE,
-      "還沒有檔案。",
-      shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案")
-    ))
-  }
+  # 還沒有檔案時不另開提示框：主要按鈕上面一行「還差」已經說了
+  if (n_files == 0) return(NULL)
   kit_source_note_ui(max(n_files, 2L), source, code_cells, ns)
 }
 

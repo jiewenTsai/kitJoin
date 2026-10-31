@@ -86,7 +86,7 @@ label_na_codes <- function(df, keywords, exclude = character(0)) {
 format_label_codes <- function(codes, counts = NULL) {
   value <- if (is.numeric(codes)) num_to_text(codes) else trimws(codes)
   text <- paste(value, trimws(names(codes)))
-  if (!is.null(counts)) text <- paste0(text, "（", counts, " 格）")
+  if (!is.null(counts)) text <- paste0(text, "（", kit_num(counts), " 格）")
   paste(text, collapse = "、")
 }
 
@@ -141,9 +141,9 @@ na_mode_suggestion <- function(kit_cells, label_cells) {
   what <- paste0("SPSS 數值標籤標示了 ", fmt(label_cells), " 格遺漏值（例如「遺漏值」「跳答」）")
   if (kit_cells == 0 || label_cells >= 10 * kit_cells) {
     kit <- if (kit_cells == 0) {
-      "資料中沒有 7777、9999 這類 KIT 代碼，"
+      "資料中沒有 7777、9999 這類遺漏值代碼，"
     } else {
-      paste0("資料中只有 ", fmt(kit_cells), " 格等於 7777、9999 這類 KIT 代碼（可能是真實的值），")
+      paste0("資料中只有 ", fmt(kit_cells), " 格等於 7777、9999 這類遺漏值代碼（可能是真實的值），")
     }
     return(list(switch = TRUE, note = paste0(
       kit, "但", what, "，所以已改用「依 SPSS 數值標籤」。",
@@ -151,7 +151,7 @@ na_mode_suggestion <- function(kit_cells, label_cells) {
     )))
   }
   list(switch = FALSE, note = paste0(
-    "資料中有 ", fmt(kit_cells), " 格等於 KIT 代碼，", what,
+    "資料中有 ", fmt(kit_cells), " 格等於 7777、9999 這類遺漏值代碼，", what,
     "。如果資料的遺漏值是寫在數值標籤裡，可以改選「依 SPSS 數值標籤」。"
   ))
 }

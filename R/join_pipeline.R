@@ -16,7 +16,8 @@ KIT_JOIN_MAX_CELLS <- 2e8
 #' @param id_cols 各檔自己的 ID 欄名（list，每個檔案一個字元向量，依序對應 by_vars）；
 #'   NULL 表示每個檔案都用 by_vars。各檔欄名不同時（w1_id、w2_id、w3id）
 #'   先改名成 by_vars 再比對。
-#' @return list(result, audit, summary, warnings, notes)
+#' @return list(result, audit, summary, people, warnings, notes)：summary 是狀態框裡的重點
+#'   （幾句話），people 是「各檔案的人數」小表
 #' @noRd
 join_waves <- function(dfs, file_names, wave_labels, by_vars,
                        method = "left_join", keys_as_text = TRUE,
@@ -70,6 +71,7 @@ join_waves <- function(dfs, file_names, wave_labels, by_vars,
     result = result,
     audit = join_audit_tables(stats, steps, names_shown, method),
     summary = join_plain_summary(stats, names_shown, method, result),
+    people = join_people_table(stats, names_shown, method),
     warnings = dup_key_warnings(stats, names_shown),
     notes = notes
   )
@@ -197,7 +199,8 @@ check_join_size <- function(dfs, by_vars, method, names_shown, confirm_large) {
   times <- floor(estimate / n_rows[biggest])
   why <- paste0(
     "預估串接結果有 ", format(estimate, scientific = FALSE, big.mark = ","), " 列，",
-    "是最大檔案（", names_shown[biggest], "，", n_rows[biggest], " 列）的 ", times, " 倍。",
+    "是最大檔案（", names_shown[biggest], "，", kit_num(n_rows[biggest]), " 列）的 ",
+    kit_num(times), " 倍。",
     "這通常表示 ID 欄選錯（例如選到出生年、權數），或 ID 大量重複：",
     "同一個 ID 在兩個檔案各有多列時，會兩兩配對成很多列。"
   )
@@ -411,7 +414,7 @@ dup_key_examples <- function(df, by_vars, n = 5) {
   values <- strsplit(names(shown), "\r", fixed = TRUE)
   vapply(seq_along(shown), function(i) {
     pairs <- paste(by_vars, "=", values[[i]], collapse = "、")
-    paste0(pairs, "（", shown[[i]], " 次）")
+    paste0(pairs, "（", kit_num(shown[[i]]), " 次）")
   }, character(1))
 }
 
@@ -462,48 +465,59 @@ join_stats <- function(dfs, by_vars, method, result) {
   )
 }
 
-#' 白話摘要：誰被留下、誰被排除
+#' 狀態框裡的重點：誰被留下（整體一兩句；各檔案的人數在 join_people_table()）
 #' @return 字元向量，每個元素一句
 #' @noRd
 join_plain_summary <- function(stats, names_shown, method, result) {
   sets <- stats$key_sets
   first <- names_shown[1]
+  n <- kit_num
   out <- switch(method,
-    left_join = c(
-      paste0("以 ", first, "的 ", length(sets[[1]]), " 人為準。"),
-      vapply(seq_along(sets)[-1], function(i) {
-        found <- sum(sets[[1]] %in% sets[[i]])
-        missing <- length(sets[[1]]) - found
-        extra <- sum(!sets[[i]] %in% sets[[1]])
-        paste0(
-          names_shown[i], "：其中 ", found, " 人有資料",
-          if (missing > 0) paste0("，", missing, " 人沒有（他們在這一波的欄位會是空白）"),
-          if (extra > 0) {
-            paste0("；另有 ", extra, " 人不在 ", first, "，依「向後追蹤樣本」沒有納入")
-          },
-          "。"
-        )
-      }, character(1))
-    ),
-    inner_join = c(
-      paste0("共有 ", stats$n_in_all, " 人在每個檔案都有資料，結果只保留這些人。"),
-      vapply(seq_along(sets), function(i) {
-        dropped <- length(sets[[i]]) - stats$n_in_all
-        if (dropped == 0) return(NA_character_)
-        paste0(names_shown[i], "有 ", dropped, " 人因為不是每個檔案都有而被排除。")
-      }, character(1))
+    left_join = {
+      later <- unique(unlist(sets[-1]))
+      extra <- sum(!later %in% sets[[1]])
+      paste0(
+        "以 ", first, "的 ", n(length(sets[[1]])), " 人為準，其中 ", n(stats$n_in_all),
+        " 人每個檔案都有資料；在某一波沒有資料的人，那一波的欄位是空白",
+        if (extra > 0) paste0("。另有 ", n(extra), " 人不在 ", first, "，依「向後追蹤樣本」沒有納入"),
+        "。"
+      )
+    },
+    inner_join = paste0(
+      "共有 ", n(stats$n_in_all), " 人在每個檔案都有資料，結果只保留這些人；",
+      "其他 ", n(stats$n_in_any - stats$n_in_all), " 人因為不是每個檔案都有而沒有納入。"
     ),
     full_join = paste0(
-      "所有檔案合計出現過 ", stats$n_in_any, " 人，全部保留；其中 ", stats$n_in_all,
+      "所有檔案合計出現過 ", n(stats$n_in_any), " 人，全部保留；其中 ", n(stats$n_in_all),
       " 人每個檔案都有資料，其他人在缺席波次的欄位會是空白。"
     )
   )
   n_na <- sum(stats$n_na_key)
   c(
-    out[!is.na(out)],
-    if (n_na > 0) paste0("有 ", n_na, " 列的 ID 是空白，無法比對，這些列不會和其他檔案配對。"),
-    paste0("結果共 ", format_dims(nrow(result), ncol(result)), "。"),
+    out,
+    if (n_na > 0) paste0("有 ", n(n_na), " 列的 ID 是空白，無法比對，這些列不會和其他檔案配對。"),
     if (stats$any_dup) "因為有 ID 重複（見上方提醒），列數會比人數多。"
+  )
+}
+
+#' 各檔案的人數：每個檔案有幾人、在結果中有資料的、這一波空白的、沒有納入的
+#'
+#' 「結果中這一波空白」= 結果裡有這個人、但這個檔案沒有他（那一波的欄位是空白）。
+#' 「沒有納入」= 這個檔案有他、但結果沒有（向後追蹤樣本：不在第一個檔案；全勤樣本：不是每個檔案都有）。
+#' @noRd
+join_people_table <- function(stats, names_shown, method) {
+  sets <- stats$key_sets
+  kept <- switch(method,
+    left_join = sets[[1]],
+    inner_join = Reduce(intersect, sets),
+    full_join = Reduce(union, sets)
+  )
+  tibble::tibble(
+    檔案 = names_shown,
+    人數 = lengths(sets),
+    結果中有資料 = purrr::map_int(sets, function(s) sum(kept %in% s)),
+    結果中這一波空白 = purrr::map_int(sets, function(s) sum(!kept %in% s)),
+    沒有納入 = purrr::map_int(sets, function(s) sum(!s %in% kept))
   )
 }
 
@@ -513,7 +527,7 @@ dup_key_warnings <- function(stats, names_shown) {
   idx <- which(stats$n_dup > 0)
   vapply(idx, function(i) {
     paste0(
-      names_shown[i], "有 ", stats$n_dup[i], " 個 ID 出現不只一次",
+      names_shown[i], "有 ", kit_num(stats$n_dup[i]), " 個 ID 出現不只一次",
       "（例：", paste(stats$dup_examples[[i]], collapse = "；"), "），",
       "所以這些人在結果中會佔多列，不再是「每人一列」。",
       "請確認檔案是否重複匯出，或改選能唯一辨識每個人的欄位（例如再加上其他 ID 欄）。"

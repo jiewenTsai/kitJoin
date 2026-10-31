@@ -133,6 +133,7 @@ mod_convert_server <- function(id) {
       )
       status(st)
       kit_notify(st)
+      kit_scroll_to("status")
     })
 
     output$status <- shiny::renderUI(make_status_ui(status()))

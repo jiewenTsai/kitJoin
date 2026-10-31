@@ -14,7 +14,7 @@ mod_missing_ui <- function(id) {
       ),
       steps = kit_steps(
         "選擇判斷方式：用一組代碼套用到所有欄，或依 SPSS 數值標籤逐欄判斷",
-        "確認代碼（已預填 KIT 常用代碼）或遺漏值標籤的關鍵字",
+        "確認代碼（已預填常用的 7777、9999 等）或遺漏值標籤的關鍵字",
         "確認不要處理的欄位（ID 已預先排除）",
         "按「執行轉換」，檢查每個欄位替換了幾格",
         "只想改遺漏值：在「下載處理後的檔案」下載就完成了（1 個檔案就可以）",
@@ -34,11 +34,10 @@ mod_missing_ui <- function(id) {
       ),
       diagram = missing_diagram()
     ),
-    shiny::uiOutput(ns("source_note")),
     shiny::radioButtons(
       ns("na_mode"), "怎麼判斷遺漏值？",
       choices = c(
-        "依代碼清單：同一組代碼套用到所有欄（例如 KIT 的 7777、9999）" = "codes",
+        "依代碼清單：同一組代碼套用到所有欄（例如 7777、9999）" = "codes",
         "依 SPSS 數值標籤：每一欄只轉換標籤寫著「遺漏、跳答、不適用…」的值" = "labels"
       ),
       selected = "codes", width = "100%"
@@ -71,7 +70,7 @@ mod_missing_ui <- function(id) {
     ),
     shiny::tags$small(
       class = "kit-hint",
-      "已預先排除名稱像 ID 的欄位（例如 id、release_id、w3id、學號），因為 ID 可能剛好等於 7777 或 9999。"
+      "已預先排除名稱像 ID 的欄位（例如 id、w3id、學號），因為 ID 可能剛好等於 7777 或 9999。"
     ),
     shiny::checkboxInput(
       ns("use_downstream"), "後面的分頁（串接、疊加、流失樣本、kits 作答檔、長/寬格式轉換）使用處理後的資料",
@@ -91,7 +90,8 @@ mod_missing_ui <- function(id) {
       )
     ),
     shiny::uiOutput(ns("settings_line")),
-    kit_button(ns("run"), "執行轉換", "primary"),
+    shiny::uiOutput(ns("ready")),
+    kit_button(ns("run"), "執行轉換", "primary", disabled = TRUE),
     shiny::uiOutput(ns("status")),
     shiny::uiOutput(ns("result")),
     kit_details_row(
@@ -178,13 +178,16 @@ mod_missing_server <- function(id, files, goto = NULL) {
         }
       )
     })
-    # 還沒有檔案時：上方說明要先到 ①
-    output$source_note <- shiny::renderUI({
-      if (length(files$keys()) > 0) return(NULL)
-      kit_callout(
-        warn = TRUE, "還沒有檔案。",
-        shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案")
-      )
+    # 主要按鈕：還沒有檔案、沒有代碼或關鍵字時停用，上面一行寫還差什麼
+    kit_run_gate(session, output, missing = shiny::reactive({
+      if (length(files$keys()) == 0) return(kit_need_files(0L, 1L))
+      if (mode() == "labels" && length(keywords()) == 0) return("輸入至少一個遺漏值標籤的關鍵字")
+      if (mode() == "codes" && length(codes()$codes) == 0) return("輸入至少一個遺漏值代碼")
+      character(0)
+    }), link = function() {
+      if (length(files$keys()) == 0) {
+        shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →")
+      }
     })
 
     # 設定摘要：主要按鈕上面一行小字
@@ -204,8 +207,8 @@ mod_missing_server <- function(id, files, goto = NULL) {
       }
       n_ex <- length(input$exclude_cols %||% character(0))
       kit_settings_line(c(
-        how, paste0(n, " 個檔案"),
-        if (n_ex > 0) paste0("不處理 ", n_ex, " 欄"),
+        how, paste0(kit_num(n), " 個檔案"),
+        if (n_ex > 0) paste0("不處理 ", kit_num(n_ex), " 欄"),
         if (isTRUE(input$use_downstream)) "後面的分頁用處理後的資料" else "後面的分頁仍用原始資料"
       ))
     })
@@ -293,7 +296,7 @@ mod_missing_server <- function(id, files, goto = NULL) {
         settings = res$settings
       ))
       status(kit_done_status(paste0(
-        "檔案已移除或調整順序；其他 ", length(keys), " 個檔案的轉換結果保留，不用重新執行。"
+        "檔案已移除或調整順序；其他 ", kit_num(length(keys)), " 個檔案的轉換結果保留，不用重新執行。"
       )))
     }, ignoreInit = TRUE)
 
@@ -361,7 +364,7 @@ mod_missing_server <- function(id, files, goto = NULL) {
           if (is.null(x$detail)) 0L else as.integer(sum(x$detail$合計))
         }))
         kit_done_status(
-          paste0("轉換完成：", length(dfs), " 個檔案共替換 ", kit_num(n_cells), " 格為 NA。"),
+          paste0("轉換完成：", kit_num(length(dfs)), " 個檔案共替換 ", kit_num(n_cells), " 格為 NA。"),
           notes = if (isTRUE(input$use_downstream)) "後面的分頁會使用處理後的資料。"
           else "後面的分頁仍使用原始資料（上方選項沒有勾選）。"
         )
@@ -370,6 +373,7 @@ mod_missing_server <- function(id, files, goto = NULL) {
       })
       status(st)
       kit_notify(st)
+      kit_scroll_to("status")
     })
 
     output$status <- shiny::renderUI(make_status_ui(status()))

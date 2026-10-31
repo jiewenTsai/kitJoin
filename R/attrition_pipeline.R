@@ -68,7 +68,7 @@ build_attrition <- function(baseline_df, followup_df, id_vars,
   n_base_unique <- length(unique(base_ok))
   if (length(base_ok) > 0 && n_base_unique / length(base_ok) < KIT_ID_MIN_UNIQUE) {
     kit_abort(
-      "前期的 ", id_text, " 有 ", length(base_ok), " 列，卻只有 ", n_base_unique,
+      "前期的 ", id_text, " 有 ", kit_num(length(base_ok)), " 列，卻只有 ", kit_num(n_base_unique),
       " 種值，看起來不是用來辨識每個人的 ID（例如出生年、權數）。",
       "請改選每個人都不同的編號欄。"
     )
@@ -112,7 +112,7 @@ build_attrition <- function(baseline_df, followup_df, id_vars,
     warnings = c(
       if (n_base_dup > 0) {
         paste0(
-          "前期有 ", n_base_dup, " 個 ID 出現不只一次（例：",
+          "前期有 ", kit_num(n_base_dup), " 個 ID 出現不只一次（例：",
           paste(dup_key_examples(baseline_df, id_vars), collapse = "；"), "），",
           "所以「人數」其實是列數。請確認檔案是否重複匯出，或改選能唯一辨識每個人的欄位。"
         )
@@ -120,8 +120,8 @@ build_attrition <- function(baseline_df, followup_df, id_vars,
       if (length(follow_keys) > 0 &&
             length(unique(follow_keys)) / length(follow_keys) < KIT_ID_MIN_UNIQUE) {
         paste0(
-          "後期的 ", id_text, " 有 ", length(follow_keys), " 列，卻只有 ",
-          length(unique(follow_keys)), " 種值，可能選錯了欄位。"
+          "後期的 ", id_text, " 有 ", kit_num(length(follow_keys)), " 列，卻只有 ",
+          kit_num(length(unique(follow_keys))), " 種值，可能選錯了欄位。"
         )
       },
       if (length(base_ok) > 0 && sum(flag == 0L, na.rm = TRUE) == 0) {
@@ -131,7 +131,7 @@ build_attrition <- function(baseline_df, followup_df, id_vars,
         )
       },
       if (n_na > 0) {
-        paste0("前期有 ", n_na, " 列的 ID 是空白，無法判斷是否流失，", flag_col, " 欄留空。")
+        paste0("前期有 ", kit_num(n_na), " 列的 ID 是空白，無法判斷是否流失，", flag_col, " 欄留空。")
       },
       if (flag_col != "attrition") {
         paste0("前期檔案已經有 attrition 欄，為了不覆蓋原資料，結果放在新的 ", flag_col, " 欄。")
@@ -140,7 +140,7 @@ build_attrition <- function(baseline_df, followup_df, id_vars,
     notes = c(
       notes,
       if (n_follow_dup > 0) {
-        paste0("後期有 ", n_follow_dup, " 筆重複的 ID，比對時只看「有沒有出現」，不影響結果。")
+        paste0("後期有 ", kit_num(n_follow_dup), " 筆重複的 ID，比對時只看「有沒有出現」，不影響結果。")
       }
     )
   )

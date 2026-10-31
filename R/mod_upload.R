@@ -178,13 +178,18 @@ mod_upload_server <- function(id, goto) {
       if (length(recs) == 0) return(NULL)
       n <- length(recs)
       rows <- purrr::imap(recs, function(r, pos) {
+        # 每一列固定兩格（上移、下移）：用不到的那一格放看不見的佔位，按鈕才不會左右跳
         btn <- function(prefix, label, show) {
-          if (!show) return(NULL)
-          kit_button(ns(paste0(prefix, r$key)), label)
+          if (show) return(kit_button(ns(paste0(prefix, r$key)), label))
+          shiny::tags$button(
+            type = "button", class = paste("btn invisible", KIT_BTN[["secondary"]]),
+            disabled = NA, tabindex = "-1", `aria-hidden` = "true", label
+          )
         }
         shiny::tags$tr(
-          shiny::tags$td(pos),
+          shiny::tags$td(`data-label` = "順序", pos),
           shiny::tags$td(
+            `data-label` = "檔案",
             shiny::tags$strong(r$name), shiny::tags$br(),
             shiny::tags$small(
               class = "text-muted",
@@ -193,13 +198,14 @@ mod_upload_server <- function(id, goto) {
             file_read_notes(r)
           ),
           shiny::tags$td(
+            `data-label` = "波次名稱",
             shiny::textInput(
               ns(paste0("label_", r$key)), NULL,
               value = shiny::isolate(labels[[r$key]]), width = "8rem"
             )
           ),
           shiny::tags$td(
-            class = "kit-row-buttons",
+            class = "kit-row-buttons", `data-label` = "調整順序",
             btn("up_", "↑ 上移", pos > 1),
             btn("down_", "↓ 下移", pos < n)
           ),
@@ -416,7 +422,7 @@ file_read_notes <- function(record) {
     if (record$n_problems > 0) {
       shiny::tags$div(
         class = "text-danger small",
-        paste0("⚠ 有 ", record$n_problems, " 處資料格式異常（例如欄位數不對），請用 Excel 檢查原檔。")
+        paste0("⚠ 有 ", kit_num(record$n_problems), " 處資料格式異常（例如欄位數不對），請用 Excel 檢查原檔。")
       )
     }
   )
