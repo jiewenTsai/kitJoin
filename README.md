@@ -260,7 +260,7 @@
 ## 開發者說明
 
 - 三種啟動方式共用同一個 app：雲端版與 `run.bat` 經過根目錄的 `app.R`，套件版經過 `run_kitjoin()`，最後都呼叫 `kit_app()`（`R/app.R`）。
-- 頁面、共用元件與樣式來自 **kitDesign**（`jiewenTsai/kitDesign`）；設計規格在 kitDesign 的 `brand/KIT設計語言.md`。要改元件或樣式時改 kitDesign，不要在這裡另外寫 CSS。
+- 頁面、共用元件與樣式來自 **kitDesign**（`jiewenTsai/kitDesign`）；有主要按鈕的分頁用它的 `kit_run_tab_ui()`／`kit_run_tab_server()`（頁面骨架與狀態流），分頁只寫自己的設定、執行與結果；設計規格在 kitDesign 的 `brand/KIT設計語言.md`。要改元件或樣式時改 kitDesign，不要在這裡另外寫 CSS。
 - 每個分頁是一個 Shiny 模組（`R/mod_*.R`）；資料處理邏輯在 `R/*_pipeline.R`，與介面分開，可單獨測試。
 - 測試：`devtools::test()`（或 `testthat::test_local()`）。
 - 更新版本時，請同時修改 `DESCRIPTION` 的 `Version` 與 `Date`；三個版本頁首顯示的版本與日期都來自這裡。

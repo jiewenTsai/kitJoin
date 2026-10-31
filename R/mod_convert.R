@@ -2,11 +2,12 @@
 #
 # 完全獨立的小工具：有自己的上傳，不讀也不改 ①～⑦ 的檔案或任何共用狀態。
 
-#' @noRd
+# 檔案格式轉換的頁面：骨架是 kitDesign::kit_run_tab_ui()；按鈕一直能按（沒有「還差」），沒有細節列
 mod_convert_ui <- function(id) {
   ns <- shiny::NS(id)
-  shiny::tagList(
-    kit_tab_guide(
+  kit_run_tab_ui(
+    id, "開始轉換",
+    guide = kit_tab_guide(
       goal = "把一個 CSV、CSV.GZ 或 SPSS（.sav）檔轉成另一種格式。",
       steps = kit_steps(
         "按「選擇檔案…」選一個檔案",
@@ -41,19 +42,14 @@ mod_convert_ui <- function(id) {
       )
     ),
     shiny::uiOutput(ns("target_ui")),
-    shiny::uiOutput(ns("settings_line")),
-    kit_button(ns("run"), "開始轉換", "primary"),
-    shiny::uiOutput(ns("status")),
-    shiny::uiOutput(ns("result"))
+    gate = FALSE, result = TRUE, downloads = FALSE, details = FALSE, code = FALSE
   )
 }
 
-#' @noRd
+# 檔案格式轉換：狀態流在 kit_run_tab_server()；這裡是格式的選項、轉換、摘要表與下載
 mod_convert_server <- function(id) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    result <- shiny::reactiveVal(NULL)
-    status <- shiny::reactiveVal(kit_status())
     run_dir <- NULL
 
     # 每次轉換用新的暫存資料夾；舊的與離線時刪掉，避免大檔佔用伺服器空間
@@ -92,76 +88,58 @@ mod_convert_server <- function(id) {
       )
     })
 
-    # 設定摘要：「本次：w1.sav → CSV（數值標籤轉成文字）」
-    output$settings_line <- shiny::renderUI({
-      if (is.null(input$file)) return(NULL)
-      if (!isTRUE(input$target %in% convert_targets(kind()))) return(NULL)
-      kit_settings_line(paste0(
-        input$file$name, " → ", toupper(input$target),
-        if (identical(kind(), "sav") && isTRUE(input$labels_as_text)) "（數值標籤轉成文字）"
-      ))
-    })
-
-    shiny::observeEvent(list(input$file, input$target, input$labels_as_text), {
-      if (!is.null(result())) {
-        result(NULL)
-        status(kit_stale_status("開始轉換"))
-      }
-    }, ignoreInit = TRUE)
-
-    shiny::observeEvent(input$run, {
-      result(NULL)
-      if (is.null(input$file)) {
-        st <- kit_status("error", "請先按「選擇檔案…」選一個要轉換的檔案。")
-        status(st)
-        kit_notify(st)
-        return()
-      }
-      st <- tryCatch(
-        shiny::withProgress(message = "正在轉換…", value = 0.3, {
-          res <- convert_file(
-            input$file$datapath, input$file$name, input$target, new_run_dir(),
-            labels_as_text = isTRUE(input$labels_as_text)
-          )
-          result(res)
-          kit_done_status(
-            paste0("轉換完成：", res$name, " → ", res$out_name, "。"),
-            notes = res$notes
-          )
-        }),
-        error = function(e) kit_error_status(e, "轉換")
-      )
-      status(st)
-      kit_notify(st)
-      kit_scroll_to("status")
-    })
-
-    output$status <- shiny::renderUI(kit_status_ui(status()))
-
-    output$result <- shiny::renderUI({
-      res <- result()
-      if (is.null(res)) return(NULL)
-      shiny::tagList(
-        shiny::tags$div(
-          class = "kit-table-scroll",
-          shiny::tableOutput(ns("summary_table"))
-        ),
-        shiny::tags$div(
-          class = "kit-downloads",
-          kit_download_button(
-            session, "download_file", paste0("下載 ", res$out_name), res$out_name,
-            function(file) file.copy(res$out_path, file, overwrite = TRUE),
-            class = kit_btn_class("secondary")
+    tab <- kit_run_tab_server(
+      input, output, session, "開始轉換",
+      # 設定摘要：「本次：w1.sav → CSV（數值標籤轉成文字）」
+      settings = function() {
+        if (is.null(input$file)) return(NULL)
+        if (!isTRUE(input$target %in% convert_targets(kind()))) return(NULL)
+        paste0(
+          input$file$name, " → ", toupper(input$target),
+          if (identical(kind(), "sav") && isTRUE(input$labels_as_text)) "（數值標籤轉成文字）"
+        )
+      },
+      stale_on = function() list(input$file, input$target, input$labels_as_text),
+      # 還沒選檔案：按鈕一直能按，所以在這裡說
+      guard = function() {
+        if (is.null(input$file)) kit_status("error", "請先按「選擇檔案…」選一個要轉換的檔案。")
+      },
+      progress = "正在轉換…",
+      run = function() {
+        convert_file(
+          input$file$datapath, input$file$name, input$target, new_run_dir(),
+          labels_as_text = isTRUE(input$labels_as_text)
+        )
+      },
+      done = function(res) {
+        kit_done_status(paste0("轉換完成：", res$name, " → ", res$out_name, "。"), notes = res$notes)
+      },
+      error = function(e) kit_error_status(e, "轉換"),
+      result_ui = function(res) {
+        shiny::tagList(
+          shiny::tags$div(
+            class = "kit-table-scroll",
+            shiny::tableOutput(ns("summary_table"))
+          ),
+          shiny::tags$div(
+            class = "kit-downloads",
+            kit_download_button(
+              session, "download_file", paste0("下載 ", res$out_name), res$out_name,
+              function(file) file.copy(res$out_path, file, overwrite = TRUE),
+              class = kit_btn_class("secondary")
+            )
           )
         )
-      )
-    })
+      }
+    )
+    result <- tab$result
+
     output$summary_table <- shiny::renderTable(
       convert_summary_table(shiny::req(result())),
       striped = TRUE, spacing = "s"
     )
 
     # 這一頁的狀態（步驟分頁打 ✓ 用）
-    list(state = shiny::reactive(status()$state))
+    list(state = tab$state)
   })
 }

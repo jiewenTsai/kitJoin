@@ -3,18 +3,18 @@
 # 主畫面只寫白話（「哪一欄的值變成新的欄名」）；tidyr 的函式名與參數名
 # 收在「進階設定」與「用 R 怎麼做」裡（KIT 設計語言 1.7 白話先行）。
 
-#' 進階設定裡的控制項標籤：中文說明 + tidyr 參數名
-#' @noRd
+# 進階設定裡的控制項標籤：中文說明 + tidyr 參數名
 arg_label <- function(text, arg) {
   shiny::tagList(text, " ", shiny::tags$code(arg))
 }
 
-#' @noRd
+# 長/寬格式轉換的頁面：骨架是 kitDesign::kit_run_tab_ui()；狀態框下面是重複的列（output blocked）
 mod_reshape_ui <- function(id) {
   ns <- shiny::NS(id)
   is_wider <- "input.direction == 'wider'"
-  shiny::tagList(
-    kit_tab_guide(
+  kit_run_tab_ui(
+    id, "執行轉換",
+    guide = kit_tab_guide(
       goal = paste0(
         "把一個檔案在長格式與寬格式之間互轉。",
         "例如 kitsUI 分數表（每次施測 × 每個領域一列）轉成每次施測一列、各領域並排。"
@@ -65,16 +65,7 @@ mod_reshape_ui <- function(id) {
       "input.direction == 'longer'", ns = ns,
       mod_pivot_longer_ui(ns("longer"))
     ),
-    shiny::uiOutput(ns("settings_line")),
-    shiny::uiOutput(ns("ready")),
-    kit_button(ns("run"), "執行轉換", "primary", disabled = TRUE),
-    shiny::uiOutput(ns("status")),
-    shiny::uiOutput(ns("blocked")),
-    kit_download_ui(ns),
-    kit_details_row(
-      shiny::uiOutput(ns("result_details"), inline = TRUE),
-      kit_code_panel(ns("code"))
-    )
+    result = shiny::uiOutput(ns("blocked"))
   )
 }
 
@@ -85,8 +76,7 @@ WIDER_LABELS <- c(
   id_cols = "辨認同一列的欄"
 )
 
-#' 長轉寬的控制項（參數一對一對應 tidyr::pivot_wider()；參數名在進階設定裡）
-#' @noRd
+# 長轉寬的控制項（參數一對一對應 tidyr::pivot_wider()；參數名在進階設定裡）
 wider_controls_ui <- function(ns) {
   shiny::tagList(
     shiny::uiOutput(ns("preset")),
@@ -129,8 +119,7 @@ wider_controls_ui <- function(ns) {
   )
 }
 
-#' 長轉寬的進階控制項（預設收起）：最上面一行對照 tidyr 的參數名
-#' @noRd
+# 長轉寬的進階控制項（預設收起）：最上面一行對照 tidyr 的參數名
 wider_advanced_ui <- function(ns) {
   shiny::tagList(
     shiny::tags$p(
@@ -195,13 +184,11 @@ wider_advanced_ui <- function(ns) {
   )
 }
 
-#' @inheritParams mod_join_server
-#' @noRd
+# 長/寬格式轉換（參數同 mod_join_server()）。狀態流在 kit_run_tab_server()；這裡是檔案與方向、
+# 長或寬的判斷、兩個方向的設定、轉換、重複的列、預覽與下載
 mod_reshape_server <- function(id, files, working, goto) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    result <- shiny::reactiveVal(NULL)
-    status <- shiny::reactiveVal(kit_status())
     blocked <- shiny::reactiveVal(NULL)
     watch_goto_links(input, goto)
 
@@ -377,95 +364,124 @@ mod_reshape_server <- function(id, files, working, goto) {
       )
     })
 
-    # 主要按鈕：沒有檔案、還沒選欄時停用，上面一行寫還差什麼
-    kit_run_gate(session, output, missing = shiny::reactive({
-      if (length(files$keys()) == 0) return(kit_need_files(0L, 1L))
-      if (is.null(picked())) return("選要轉換的檔案")
-      if (identical(input$direction, "longer")) {
-        a <- longer()
-        if (length(a$cols) == 0 && !isTRUE(a$cols_exclude)) return("選要轉成長格式的欄")
-        return(character(0))
-      }
-      w <- wider()
-      c(
-        if (length(w$names_from) == 0) paste0("選「", WIDER_LABELS[["names_from"]], "」"),
-        if (length(w$values_from) == 0) paste0("選「", WIDER_LABELS[["values_from"]], "」")
-      )
-    }), link = function() {
-      if (length(files$keys()) == 0) shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →")
-    })
+    # 檔案或設定變動：舊結果失效（kit_run_tab_server()），重複的列也不再顯示
+    changes <- function() list(src(), input$direction, wider(), longer())
+    shiny::observeEvent(changes(), blocked(NULL), ignoreInit = TRUE)
 
-    # 設定摘要：「本次：t1（scores.csv） · 長轉寬 · names_from：domain · values_from：d_score」
-    output$settings_line <- shiny::renderUI({
-      p <- picked()
-      if (is.null(p)) return(NULL)
-      shown <- file_display_name(files$labels(), files$names())
-      pos <- match(input$file %||% "", files$keys())
-      args <- if (identical(input$direction, "longer")) {
-        a <- longer()
-        n <- length(a$cols)
-        c("寬轉長", if (n > 0) {
-          paste0(if (isTRUE(a$cols_exclude)) "不轉 " else "轉 ", kit_num(n), " 欄")
-        } else {
-          "還沒選要轉的欄"
-        })
-      } else {
+    tab <- kit_run_tab_server(
+      input, output, session, "執行轉換",
+      # 主要按鈕：沒有檔案、還沒選欄時停用
+      ready = shiny::reactive({
+        if (length(files$keys()) == 0) return(kit_need_files(0L, 1L))
+        if (is.null(picked())) return("選要轉換的檔案")
+        if (identical(input$direction, "longer")) {
+          a <- longer()
+          if (length(a$cols) == 0 && !isTRUE(a$cols_exclude)) return("選要轉成長格式的欄")
+          return(character(0))
+        }
         w <- wider()
-        c("長轉寬",
-          if (length(w$names_from) > 0) paste0("新欄名來自 ", paste(w$names_from, collapse = "、")),
-          if (length(w$values_from) > 0) {
-            paste0("填入 ", paste(w$values_from, collapse = "、"))
+        c(
+          if (length(w$names_from) == 0) paste0("選「", WIDER_LABELS[["names_from"]], "」"),
+          if (length(w$values_from) == 0) paste0("選「", WIDER_LABELS[["values_from"]], "」")
+        )
+      }),
+      ready_link = function() {
+        if (length(files$keys()) == 0) shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →")
+      },
+      # 設定摘要：「本次：t1（scores.csv） · 長轉寬 · names_from：domain · values_from：d_score」
+      settings = function() {
+        p <- picked()
+        if (is.null(p)) return(NULL)
+        shown <- file_display_name(files$labels(), files$names())
+        pos <- match(input$file %||% "", files$keys())
+        args <- if (identical(input$direction, "longer")) {
+          a <- longer()
+          n <- length(a$cols)
+          c("寬轉長", if (n > 0) {
+            paste0(if (isTRUE(a$cols_exclude)) "不轉 " else "轉 ", kit_num(n), " 欄")
+          } else {
+            "還沒選要轉的欄"
           })
-      }
-      kit_settings_line(c(shown[pos], args))
-    })
-
-    # 檔案或設定變動後，舊結果失效
-    shiny::observeEvent(
-      list(src(), input$direction, wider(), longer()),
-      {
+        } else {
+          w <- wider()
+          c("長轉寬",
+            if (length(w$names_from) > 0) paste0("新欄名來自 ", paste(w$names_from, collapse = "、")),
+            if (length(w$values_from) > 0) {
+              paste0("填入 ", paste(w$values_from, collapse = "、"))
+            })
+        }
+        c(shown[pos], args)
+      },
+      stale_on = changes,
+      progress = "正在轉換資料…",
+      run = function() {
         blocked(NULL)
-        if (!is.null(result())) {
-          result(NULL)
-          status(kit_stale_status("執行轉換"))
+        df <- src()
+        if (is.null(df)) kit_abort("請先到「檔案上傳」加入檔案。")
+        out <- if (identical(input$direction, "longer")) {
+          reshape_longer(df, longer())
+        } else {
+          run_wider(df, wider(), blocked)
+        }
+        out$direction <- input$direction
+        out$before <- c(nrow(df), ncol(df))
+        out
+      },
+      done = function(out) {
+        kit_done_status(
+          paste0("轉換完成：結果共 ", kit_dims(nrow(out$result), ncol(out$result)), "。"),
+          warnings = out$warnings, points = out$summary
+        )
+      },
+      error = function(e) kit_error_status(e, "轉換", kit_upload_todo(ns, length(files$keys()))),
+      # 重點都在狀態框裡；空白格、預覽、id 欄不一致的列收在細節列
+      details_ui = function(res) {
+        is_wider <- identical(res$direction, "wider")
+        shiny::tagList(
+          kit_detail(
+            "結果預覽",
+            shiny::tags$p(class = "kit-hint", shiny::textOutput(ns("preview_meta"), inline = TRUE)),
+            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
+          ),
+          if (is_wider) {
+            kit_detail(
+              "空白格從哪裡來？",
+              shiny::tags$p(
+                class = "kit-hint",
+                "轉成寬格式後，下面兩種情況都會是空白：",
+                "「沒有這一列」＝原檔沒有這組（辨認同一列的欄 × ", names(res$empty)[1], "）的列；",
+                "「有列但空白」＝有這一列，但值本來就是空的。"
+              ),
+              shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("empty_table")))
+            )
+          },
+          if (is_wider && !res$id_check$ok) {
+            kit_audit_detail(
+              shiny::h6(paste0(
+                "辨認同一列的欄不一致的列（", kit_rows_note(nrow(res$id_check$rows), NULL, 50), "）"
+              )),
+              shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("id_rows")))
+            )
+          }
+        )
+      },
+      code = function() {
+        p <- picked()
+        obj <- p$obj %||% "data_t1"
+        if (identical(input$direction, "longer")) {
+          args <- utils::modifyList(PIVOT_LONGER_DEFAULTS, longer())
+          labels <- if (!is.null(p$data)) {
+            pivot_longer_labels(p$data, pivot_longer_cols(p$data, args))
+          }
+          code_longer(longer(), obj, names(p$data), labels)
+        } else {
+          code_wider(wider(), p$data %||% tibble::tibble(), obj)
         }
       },
-      ignoreInit = TRUE
+      code_note = KIT_CODE_NOTE_JOIN
     )
+    result <- tab$result
 
-    shiny::observeEvent(input$run, {
-      result(NULL)
-      blocked(NULL)
-      st <- tryCatch(
-        shiny::withProgress(message = "正在轉換資料…", value = 0.3, {
-          df <- src()
-          if (is.null(df)) kit_abort("請先到「檔案上傳」加入檔案。")
-          out <- if (identical(input$direction, "longer")) {
-            reshape_longer(df, longer())
-          } else {
-            run_wider(df, wider(), blocked)
-          }
-          out$direction <- input$direction
-          out$before <- c(nrow(df), ncol(df))
-          result(out)
-          kit_done_status(
-            paste0(
-              "轉換完成：結果共 ",
-              kit_dims(nrow(out$result), ncol(out$result)), "。"
-            ),
-            warnings = out$warnings, points = out$summary
-          )
-        }),
-        error = function(e) {
-          kit_error_status(e, "轉換", kit_upload_todo(ns, length(files$keys())))
-        }
-      )
-      status(st)
-      kit_notify(st)
-      kit_scroll_to("status")
-    })
-
-    output$status <- shiny::renderUI(kit_status_ui(status()))
     output$blocked <- shiny::renderUI({
       dup <- blocked()
       if (is.null(dup)) return(NULL)
@@ -492,39 +508,6 @@ mod_reshape_server <- function(id, files, working, goto) {
       run_label = "執行轉換"
     )
 
-    # 重點都在狀態框裡；空白格、預覽、id 欄不一致的列收在下面一排細節裡
-    output$result_details <- shiny::renderUI({
-      res <- result()
-      if (is.null(res)) return(NULL)
-      is_wider <- identical(res$direction, "wider")
-      shiny::tagList(
-        kit_detail(
-          "結果預覽",
-          shiny::tags$p(class = "kit-hint", shiny::textOutput(ns("preview_meta"), inline = TRUE)),
-          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
-        ),
-        if (is_wider) {
-          kit_detail(
-            "空白格從哪裡來？",
-            shiny::tags$p(
-              class = "kit-hint",
-              "轉成寬格式後，下面兩種情況都會是空白：",
-              "「沒有這一列」＝原檔沒有這組（辨認同一列的欄 × ", names(res$empty)[1], "）的列；",
-              "「有列但空白」＝有這一列，但值本來就是空的。"
-            ),
-            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("empty_table")))
-          )
-        },
-        if (is_wider && !res$id_check$ok) {
-          kit_audit_detail(
-            shiny::h6(paste0(
-              "辨認同一列的欄不一致的列（", kit_rows_note(nrow(res$id_check$rows), NULL, 50), "）"
-            )),
-            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("id_rows")))
-          )
-        }
-      )
-    })
     output$empty_table <- shiny::renderTable(
       result()$empty, digits = 0, format.args = list(big.mark = ",")
     )
@@ -548,28 +531,12 @@ mod_reshape_server <- function(id, files, working, goto) {
       )
     }, striped = TRUE, spacing = "s")
 
-    output$code <- shiny::renderUI({
-      p <- picked()
-      obj <- p$obj %||% "data_t1"
-      snips <- if (identical(input$direction, "longer")) {
-        args <- utils::modifyList(PIVOT_LONGER_DEFAULTS, longer())
-        labels <- if (!is.null(p$data)) {
-          pivot_longer_labels(p$data, pivot_longer_cols(p$data, args))
-        }
-        code_longer(longer(), obj, names(p$data), labels)
-      } else {
-        code_wider(wider(), p$data %||% tibble::tibble(), obj)
-      }
-      kit_code_blocks(snips, note = KIT_CODE_NOTE_JOIN)
-    })
-
     # 這一頁的狀態（步驟分頁打 ✓ 用）
-    list(state = shiny::reactive(status()$state))
+    list(state = tab$state)
   })
 }
 
-#' 執行長轉寬；id × names_from 重複時把重複列存進 blocked 再停下
-#' @noRd
+# 執行長轉寬；id × names_from 重複時把重複列存進 blocked 再停下
 run_wider <- function(df, args, blocked) {
   if (length(args$names_from) == 1 && length(args$values_from) > 0) {
     keys <- c(wider_id_cols(df, args), args$names_from)
@@ -579,16 +546,14 @@ run_wider <- function(df, args, blocked) {
   reshape_wider(df, args)
 }
 
-#' 目前使用哪一份資料；只要 1 個檔案就能用
-#' @noRd
+# 目前使用哪一份資料；只要 1 個檔案就能用
 reshape_source_note_ui <- function(n_files, source, code_cells, ns) {
   # 還沒有檔案時不另開提示框：主要按鈕上面一行「還差」已經說了
   if (n_files == 0) return(NULL)
   kit_source_note_ui(max(n_files, 2L), source, code_cells, ns)
 }
 
-#' 頁首的圖解：長轉寬（預設的方向）
-#' @noRd
+# 頁首的圖解：長轉寬（預設的方向）
 reshape_diagram <- function() {
   # 教育、心理的資料多半是寬格式，所以寬格式在左；兩個方向都能轉，用雙箭頭
   kit_diagram(

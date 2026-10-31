@@ -82,12 +82,12 @@ test_that("主要按鈕還不能按時停用，上面一行 .kit-ready.todo 寫�
   })
 })
 
-test_that("結果出來以後把狀態框捲到畫面上方（kitDesign::kit_scroll_to()；設計審查 17）", {
-  # 各頁按下主要按鈕以後都會捲
+test_that("結果出來以後把狀態框捲到畫面上方（kitDesign::kit_run_tab_server()；設計審查 17）", {
+  # 各頁的主要按鈕都交給 kit_run_tab_server()：執行完通知、kit_scroll_to("status")（kitDesign 測）
   for (f in c("mod_join.R", "mod_stack.R", "mod_attrition.R", "mod_missing.R",
-              "mod_reshape.R", "mod_convert.R")) {
+              "mod_reshape.R", "mod_convert.R", "mod_kitsdata.R")) {
     src <- paste(deparse(get(sub("\\.R$", "_server", f))), collapse = "\n")
-    expect_match(src, 'kit_scroll_to("status")', fixed = TRUE, info = f)
+    expect_match(src, "kit_run_tab_server(", fixed = TRUE, info = f)
   }
 })
 

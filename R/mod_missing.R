@@ -3,11 +3,12 @@
 # 「依數值標籤」轉換前的預覽表最多列幾個欄位
 KIT_LABEL_NA_ROWS <- 200L
 
-#' @noRd
+# 遺漏值處理的頁面：骨架是 kitDesign::kit_run_tab_ui()；下載在重點（output result）裡，一次一個檔案
 mod_missing_ui <- function(id) {
   ns <- shiny::NS(id)
-  shiny::tagList(
-    kit_tab_guide(
+  kit_run_tab_ui(
+    id, "執行轉換",
+    guide = kit_tab_guide(
       goal = paste0(
         "把代表遺漏的代碼（例如 7777、9999，或 SPSS 數值標籤寫著「遺漏值」「跳答」的 98、99）",
         "改成真正的遺漏值（NA），避免它們在分析時被當成數字。這一步是選用的。"
@@ -89,28 +90,16 @@ mod_missing_ui <- function(id) {
         shiny::tags$p(class = "kit-hint", "依 SPSS 數值標籤時沒有進階設定。")
       )
     ),
-    shiny::uiOutput(ns("settings_line")),
-    shiny::uiOutput(ns("ready")),
-    kit_button(ns("run"), "執行轉換", "primary", disabled = TRUE),
-    shiny::uiOutput(ns("status")),
-    shiny::uiOutput(ns("result")),
-    kit_details_row(
-      shiny::uiOutput(ns("result_details"), inline = TRUE),
-      kit_code_panel(ns("code"))
-    ),
-    shiny::uiOutput(ns("next_step"))
+    result = TRUE, downloads = FALSE, next_step = TRUE
   )
 }
 
-#' @param files mod_upload_server() 的回傳值
-#' @param goto NULL 或 function(tab) 切換分頁（「到 檔案上傳」的連結）
-#' @return list(data, source, code_cells, state)：後續分頁要用的資料，和這一頁的狀態
-#' @noRd
+# 遺漏值處理。files：mod_upload_server()；goto：NULL 或 function(tab)。回傳 list(data, source,
+# code_cells, state)：後面的分頁用的資料與這一頁的狀態。按鈕、狀態框、通知在 kit_run_tab_server()；
+# 結果過期的規則是這一頁自己的（移除或調整檔案順序時保留結果、記下「要重新執行」給後面的分頁看）
 mod_missing_server <- function(id, files, goto = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    result <- shiny::reactiveVal(NULL)
-    status <- shiny::reactiveVal(kit_status())
     if (!is.null(goto)) watch_goto_links(input, goto)
 
     codes <- shiny::reactive(parse_na_codes(input$codes))
@@ -178,40 +167,127 @@ mod_missing_server <- function(id, files, goto = NULL) {
         }
       )
     })
-    # 主要按鈕：還沒有檔案、沒有代碼或關鍵字時停用，上面一行寫還差什麼
-    kit_run_gate(session, output, missing = shiny::reactive({
-      if (length(files$keys()) == 0) return(kit_need_files(0L, 1L))
-      if (mode() == "labels" && length(keywords()) == 0) return("輸入至少一個遺漏值標籤的關鍵字")
-      if (mode() == "codes" && length(codes()$codes) == 0) return("輸入至少一個遺漏值代碼")
-      character(0)
-    }), link = function() {
-      if (length(files$keys()) == 0) {
-        shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →")
-      }
-    })
+    # 舊結果失效時記下來：③～⑦ 才能告訴使用者「② 要重新執行」，而不是默默改用原始資料
+    stale <- shiny::reactiveVal(FALSE)
 
-    # 設定摘要：主要按鈕上面一行小字
-    output$settings_line <- shiny::renderUI({
-      n <- length(files$keys())
-      if (n == 0) return(NULL)
-      how <- if (mode() == "labels") {
-        "依 SPSS 數值標籤"
-      } else {
-        shown <- utils::head(codes()$codes, 4)
-        paste0(
-          "依代碼清單（",
-          paste(format(shown, scientific = FALSE, trim = TRUE, drop0trailing = TRUE),
-                collapse = "、"),
-          if (length(codes()$codes) > 4) "…", "）"
+    tab <- kit_run_tab_server(
+      input, output, session, "執行轉換",
+      # 主要按鈕：還沒有檔案、沒有代碼或關鍵字時停用
+      ready = shiny::reactive({
+        if (length(files$keys()) == 0) return(kit_need_files(0L, 1L))
+        if (mode() == "labels" && length(keywords()) == 0) return("輸入至少一個遺漏值標籤的關鍵字")
+        if (mode() == "codes" && length(codes()$codes) == 0) return("輸入至少一個遺漏值代碼")
+        character(0)
+      }),
+      ready_link = function() {
+        if (length(files$keys()) == 0) {
+          shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →")
+        }
+      },
+      # 設定摘要：主要按鈕上面一行小字
+      settings = function() {
+        n <- length(files$keys())
+        if (n == 0) return(NULL)
+        how <- if (mode() == "labels") {
+          "依 SPSS 數值標籤"
+        } else {
+          shown <- utils::head(codes()$codes, 4)
+          paste0(
+            "依代碼清單（",
+            paste(format(shown, scientific = FALSE, trim = TRUE, drop0trailing = TRUE),
+                  collapse = "、"),
+            if (length(codes()$codes) > 4) "…", "）"
+          )
+        }
+        n_ex <- length(input$exclude_cols %||% character(0))
+        c(
+          how, paste0(kit_num(n), " 個檔案"),
+          if (n_ex > 0) paste0("不處理 ", kit_num(n_ex), " 欄"),
+          if (isTRUE(input$use_downstream)) "後面的分頁用處理後的資料" else "後面的分頁仍用原始資料"
         )
-      }
-      n_ex <- length(input$exclude_cols %||% character(0))
-      kit_settings_line(c(
-        how, paste0(kit_num(n), " 個檔案"),
-        if (n_ex > 0) paste0("不處理 ", kit_num(n_ex), " 欄"),
-        if (isTRUE(input$use_downstream)) "後面的分頁用處理後的資料" else "後面的分頁仍用原始資料"
-      ))
-    })
+      },
+      run = function() {
+        stale(FALSE)
+        dfs <- files$data()
+        if (length(dfs) == 0) kit_abort("請先到「檔案上傳」加入檔案。")
+        exclude <- input$exclude_cols %||% character(0)
+        converted <- if (mode() == "labels") {
+          if (length(keywords()) == 0) {
+            kit_abort("請至少輸入一個遺漏值標籤的關鍵字，例如 遺漏。")
+          }
+          purrr::map(dfs, replace_na_by_labels, keywords = keywords(), exclude = exclude)
+        } else {
+          if (length(codes()$codes) == 0) kit_abort("請至少輸入一個遺漏值代碼，例如 9999。")
+          purrr::map(
+            dfs, replace_na_codes,
+            codes = codes()$codes,
+            exclude = exclude,
+            match_text = isTRUE(input$match_text)
+          )
+        }
+        list(
+          keys = files$keys(),
+          names = files$names(),
+          data = purrr::map(converted, "data"),
+          detail = purrr::map(converted, "detail"),
+          summary = na_summary_table(files$names(), dfs, converted),
+          settings = current_settings()
+        )
+      },
+      done = function(res) {
+        n_cells <- sum(purrr::map_int(res$detail, function(d) {
+          if (is.null(d)) 0L else as.integer(sum(d$合計))
+        }))
+        kit_done_status(
+          paste0("轉換完成：", kit_num(length(res$data)), " 個檔案共替換 ", kit_num(n_cells), " 格為 NA。"),
+          notes = if (isTRUE(input$use_downstream)) "後面的分頁會使用處理後的資料。"
+          else "後面的分頁仍使用原始資料（上方選項沒有勾選）。"
+        )
+      },
+      error = function(e) kit_error_status(e, "轉換", kit_upload_todo(ns, length(files$keys()))),
+      # 重點：各檔案替換摘要，下面是下載（一次一個檔案）
+      result_ui = function(res) {
+        choices <- stats::setNames(seq_along(res$names), res$names)
+        shiny::tagList(
+          shiny::h4("各檔案替換摘要"),
+          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("summary"))),
+          shiny::h5("下載處理後的檔案"),
+          shiny::tags$p(
+            class = "kit-hint",
+            "一次下載一個檔案。只想改遺漏值的話，下載後就完成了，不用到後面的分頁。"
+          ),
+          shiny::selectInput(ns("view_file"), "要下載與檢視的檔案", choices = choices),
+          shiny::uiOutput(ns("downloads"))
+        )
+      },
+      # 細節：上面選的那個檔案的每欄替換格數與預覽（收起來）
+      details_ui = function(res) {
+        shiny::tagList(
+          kit_detail(
+            "各欄位替換格數（上面選的檔案）",
+            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("detail")))
+          ),
+          kit_detail(
+            "轉換後預覽（上面選的檔案）",
+            shiny::tags$p(class = "kit-hint", shiny::textOutput(ns("preview_meta"), inline = TRUE)),
+            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
+          )
+        )
+      },
+      code = function() {
+        code_missing(
+          code_files_from(files),
+          codes()$codes,
+          input$exclude_cols,
+          isTRUE(input$match_text),
+          mode = mode(),
+          keywords = keywords()
+        )
+      },
+      code_note = KIT_CODE_NOTE_JOIN
+    )
+    result <- tab$result
+    status <- tab$status
 
     output$codes_parsed <- shiny::renderUI({
       p <- codes()
@@ -260,8 +336,6 @@ mod_missing_server <- function(id, files, goto = NULL) {
       )
     }, ignoreNULL = FALSE)
 
-    # 舊結果失效時記下來：③～⑦ 才能告訴使用者「② 要重新執行」，而不是默默改用原始資料
-    stale <- shiny::reactiveVal(FALSE)
     invalidate <- function() {
       if (is.null(result())) return()
       result(NULL)
@@ -331,87 +405,6 @@ mod_missing_server <- function(id, files, goto = NULL) {
       ignoreInit = TRUE, ignoreNULL = FALSE
     )
 
-    shiny::observeEvent(input$run, {
-      stale(FALSE)
-      result(NULL)
-      dfs <- files$data()
-      st <- tryCatch({
-        if (length(dfs) == 0) kit_abort("請先到「檔案上傳」加入檔案。")
-        exclude <- input$exclude_cols %||% character(0)
-        converted <- if (mode() == "labels") {
-          if (length(keywords()) == 0) {
-            kit_abort("請至少輸入一個遺漏值標籤的關鍵字，例如 遺漏。")
-          }
-          purrr::map(dfs, replace_na_by_labels, keywords = keywords(), exclude = exclude)
-        } else {
-          if (length(codes()$codes) == 0) kit_abort("請至少輸入一個遺漏值代碼，例如 9999。")
-          purrr::map(
-            dfs, replace_na_codes,
-            codes = codes()$codes,
-            exclude = exclude,
-            match_text = isTRUE(input$match_text)
-          )
-        }
-        result(list(
-          keys = files$keys(),
-          names = files$names(),
-          data = purrr::map(converted, "data"),
-          detail = purrr::map(converted, "detail"),
-          summary = na_summary_table(files$names(), dfs, converted),
-          settings = current_settings()
-        ))
-        n_cells <- sum(purrr::map_int(converted, function(x) {
-          if (is.null(x$detail)) 0L else as.integer(sum(x$detail$合計))
-        }))
-        kit_done_status(
-          paste0("轉換完成：", kit_num(length(dfs)), " 個檔案共替換 ", kit_num(n_cells), " 格為 NA。"),
-          notes = if (isTRUE(input$use_downstream)) "後面的分頁會使用處理後的資料。"
-          else "後面的分頁仍使用原始資料（上方選項沒有勾選）。"
-        )
-      }, error = function(e) {
-        kit_error_status(e, "轉換", kit_upload_todo(ns, length(files$keys())))
-      })
-      status(st)
-      kit_notify(st)
-      kit_scroll_to("status")
-    })
-
-    output$status <- shiny::renderUI(kit_status_ui(status()))
-
-    # 重點：各檔案替換摘要，下面是下載（一次一個檔案）
-    output$result <- shiny::renderUI({
-      res <- result()
-      if (is.null(res)) return(NULL)
-      choices <- stats::setNames(seq_along(res$names), res$names)
-      shiny::tagList(
-        shiny::h4("各檔案替換摘要"),
-        shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("summary"))),
-        shiny::h5("下載處理後的檔案"),
-        shiny::tags$p(
-          class = "kit-hint",
-          "一次下載一個檔案。只想改遺漏值的話，下載後就完成了，不用到後面的分頁。"
-        ),
-        shiny::selectInput(ns("view_file"), "要下載與檢視的檔案", choices = choices),
-        kit_download_ui(ns)
-      )
-    })
-
-    # 細節：上面選的那個檔案的每欄替換格數與預覽（收起來）
-    output$result_details <- shiny::renderUI({
-      if (is.null(result())) return(NULL)
-      shiny::tagList(
-        kit_detail(
-          "各欄位替換格數（上面選的檔案）",
-          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("detail")))
-        ),
-        kit_detail(
-          "轉換後預覽（上面選的檔案）",
-          shiny::tags$p(class = "kit-hint", shiny::textOutput(ns("preview_meta"), inline = TRUE)),
-          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
-        )
-      )
-    })
-
     # 下一步：有 2 個以上的檔案時到 ③
     output$next_step <- shiny::renderUI({
       if (is.null(result()) || length(files$keys()) < 2) return(NULL)
@@ -466,17 +459,6 @@ mod_missing_server <- function(id, files, goto = NULL) {
       run_label = "執行轉換"
     )
 
-    output$code <- shiny::renderUI({
-      kit_code_blocks(code_missing(
-        code_files_from(files),
-        codes()$codes,
-        input$exclude_cols,
-        isTRUE(input$match_text),
-        mode = mode(),
-        keywords = keywords()
-      ), note = KIT_CODE_NOTE_JOIN)
-    })
-
     use_processed <- shiny::reactive({
       res <- result()
       isTRUE(input$use_downstream) && !is.null(res) &&
@@ -499,13 +481,12 @@ mod_missing_server <- function(id, files, goto = NULL) {
       }),
       code_cells = shiny::reactive(count_code_cells(files$data(), keywords = keywords())),
       # 這一頁的狀態（步驟分頁打 ✓ 用）
-      state = shiny::reactive(status()$state)
+      state = tab$state
     )
   })
 }
 
-#' 各檔案替換摘要表
-#' @noRd
+# 各檔案替換摘要表
 na_summary_table <- function(file_names, dfs, converted) {
   tibble::tibble(
     檔案 = file_names,
@@ -520,8 +501,7 @@ na_summary_table <- function(file_names, dfs, converted) {
   )
 }
 
-#' 頁首的圖解：遺漏值代碼變成空白
-#' @noRd
+# 頁首的圖解：遺漏值代碼變成空白
 missing_diagram <- function() {
   kit_diagram(
     before = kit_dg_table(data.frame(id = c(1, 2), q1 = c(4, 9999), q2 = c(99, 3)), "處理前"),

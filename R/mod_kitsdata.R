@@ -232,8 +232,6 @@ kitsdata_bulk_tools <- function(ns) {
 mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    result <- shiny::reactiveVal(NULL)
-    status <- shiny::reactiveVal(kit_status())
     codes_2 <- shiny::reactive(if (is.null(na_codes)) NULL else na_codes())
     dfs <- shiny::reactive(working$data())
     has_files <- shiny::reactive(length(files$keys()) > 0)
@@ -965,108 +963,99 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       b
     })
 
-    # 設定或資料變動後，舊結果失效
-    shiny::observeEvent(list(spec(), dfs()), {
-      if (!is.null(result())) {
-        result(NULL)
-        status(kit_stale_status("轉換成作答檔"))
-      }
-    }, ignoreInit = TRUE)
-
-    shiny::observeEvent(input$run, {
-      result(NULL)
-      m <- missing_steps()
-      if (length(m) > 0) {
-        st <- kit_status("error", paste0("還不能轉換：", paste(m, collapse = "、"), "。"))
-        status(st)
-        return()
-      }
-      problems <- step1()$problems
-      st <- if (length(problems) > 0) {
-        kit_status("error", "第 1 步還有問題：", warnings = problems)
-      } else tryCatch(
-        shiny::withProgress(message = "正在轉換…", value = 0.3, {
-          out <- kits_build(dfs(), files$names(), spec())
-          if (length(out$problems) > 0) {
-            kit_status(
-              "error",
-              paste0("有 ", length(out$problems), " 個問題要先處理，處理後再按一次「轉換成作答檔」："),
-              warnings = out$problems, notes = out$notes
-            )
-          } else {
-            # 長格式不在這裡做出來：下載時才一段一段寫進 .csv.gz（省記憶體）
-            result(out)
-            open(0L)
-            kit_done_status(
-              paste0(
-                "作答檔 ", kit_num(out$n_rows), " 列：",
-                kit_num(out$n_visits), " 個列次、", out$n_items, " 題。"
-              ),
-              # 第 3 步已經按了「它們是真的分數」：遺漏值代碼不用再提醒一次
-              warnings = if (!is.null(ack$codes)) {
-                out$warnings[!grepl("題有疑似遺漏值代碼", out$warnings, fixed = TRUE)]
-              } else out$warnings,
-              notes = out$notes
-            )
-          }
-        }),
-        error = function(e) {
-          kit_error_status(e, "轉換", kit_upload_todo(ns, length(files$keys())))
+    # 主要按鈕、狀態框、通知、結果過期：kit_run_tab_server()（「還差」與按鈕是上面這一頁自己的）
+    tab <- kit_run_tab_server(
+      input, output, session, "轉換成作答檔",
+      stale_on = function() list(spec(), dfs()),
+      guard = function() {
+        m <- missing_steps()
+        if (length(m) > 0) kit_status("error", paste0("還不能轉換：", paste(m, collapse = "、"), "。"))
+      },
+      progress = "正在轉換…",
+      run = function() {
+        problems <- step1()$problems
+        if (length(problems) > 0) return(kit_status("error", "第 1 步還有問題：", warnings = problems))
+        out <- kits_build(dfs(), files$names(), spec())
+        if (length(out$problems) > 0) {
+          return(kit_status(
+            "error",
+            paste0("有 ", length(out$problems), " 個問題要先處理，處理後再按一次「轉換成作答檔」："),
+            warnings = out$problems, notes = out$notes
+          ))
         }
-      )
-      status(st)
-      kit_notify(st)
-      kit_scroll_to("status")
-    })
-
-    output$status <- shiny::renderUI(kit_status_ui(status()))
-
-    output$result <- shiny::renderUI({
-      res <- result()
-      if (is.null(res)) return(NULL)
-      kits_name <- timestamped_name("kits_long")
-      shiny::tagList(
-        shiny::tags$div(
-          class = "kit-downloads",
-          kit_download_button(
-            session, "download_gz", "下載作答檔（.csv.gz）", kits_name("csv.gz"),
-            function(file) kitsdata_download(res$prep, file, write_kits_long_gz),
-            class = "btn-primary"
+        # 長格式不在這裡做出來：下載時才一段一段寫進 .csv.gz（省記憶體）
+        out
+      },
+      done = function(out) {
+        open(0L)
+        kit_done_status(
+          paste0(
+            "作答檔 ", kit_num(out$n_rows), " 列：",
+            kit_num(out$n_visits), " 個列次、", out$n_items, " 題。"
           ),
-          kit_kitsui_link("開啟 kitsUI，上傳這個檔 →", class = "kit-next-link")
-        ),
-        shiny::h5("每個世代、每個領域有幾列"),
-        kit_table_scroll(shiny::tableOutput(ns("summary"))),
-        kit_details_row(
-          kit_detail(
-            "作答檔預覽",
-            shiny::tags$small(class = "kit-hint", paste0("前 ", KIT_PREVIEW_ROWS * 2, " 列。")),
-            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
-          ),
-          kit_detail(
-            "這次的題目表（下次在第 2 步上傳）",
-            shiny::tags$p(class = "kit-hint",
-              "下一波在第 2 步上傳這個檔，就會套用同樣的題目、領域與計分對照。"),
-            shiny::uiOutput(ns("settings_dl_ui"), inline = TRUE)
-          ),
-          kit_detail(
-            "其他下載",
-            kit_download_button(
-              session, "download_csv", "下載未壓縮的 CSV", kits_name("csv"),
-              function(file) kitsdata_download(res$prep, file, write_kits_long_csv),
-              class = "btn-default btn-sm"
-            ),
-            shiny::tags$small(
-              class = "kit-hint",
-              paste0(" 未壓縮約 ", kits_size_text(res$csv_mb * 1024^2), "。"),
-              "kitsUI 可以直接讀 .csv.gz（單檔上限 ", KITSUI_UPLOAD_MB, " MB）。"
-            )
-          ),
-          kit_detail("kits 作答檔的格式", kitsdata_spec_ui()),
-          kit_code_panel(ns("code"))
+          # 第 3 步已經按了「它們是真的分數」：遺漏值代碼不用再提醒一次
+          warnings = if (!is.null(ack$codes)) {
+            out$warnings[!grepl("題有疑似遺漏值代碼", out$warnings, fixed = TRUE)]
+          } else out$warnings,
+          notes = out$notes
         )
-      )
-    })
+      },
+      error = function(e) kit_error_status(e, "轉換", kit_upload_todo(ns, length(files$keys()))),
+      result_ui = function(res) {
+        kits_name <- timestamped_name("kits_long")
+        shiny::tagList(
+          shiny::tags$div(
+            class = "kit-downloads",
+            kit_download_button(
+              session, "download_gz", "下載作答檔（.csv.gz）", kits_name("csv.gz"),
+              function(file) kitsdata_download(res$prep, file, write_kits_long_gz),
+              class = "btn-primary"
+            ),
+            kit_kitsui_link("開啟 kitsUI，上傳這個檔 →", class = "kit-next-link")
+          ),
+          shiny::h5("每個世代、每個領域有幾列"),
+          kit_table_scroll(shiny::tableOutput(ns("summary"))),
+          kit_details_row(
+            kit_detail(
+              "作答檔預覽",
+              shiny::tags$small(class = "kit-hint", paste0("前 ", KIT_PREVIEW_ROWS * 2, " 列。")),
+              shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
+            ),
+            kit_detail(
+              "這次的題目表（下次在第 2 步上傳）",
+              shiny::tags$p(class = "kit-hint",
+                "下一波在第 2 步上傳這個檔，就會套用同樣的題目、領域與計分對照。"),
+              shiny::uiOutput(ns("settings_dl_ui"), inline = TRUE)
+            ),
+            kit_detail(
+              "其他下載",
+              kit_download_button(
+                session, "download_csv", "下載未壓縮的 CSV", kits_name("csv"),
+                function(file) kitsdata_download(res$prep, file, write_kits_long_csv),
+                class = "btn-default btn-sm"
+              ),
+              shiny::tags$small(
+                class = "kit-hint",
+                paste0(" 未壓縮約 ", kits_size_text(res$csv_mb * 1024^2), "。"),
+                "kitsUI 可以直接讀 .csv.gz（單檔上限 ", KITSUI_UPLOAD_MB, " MB）。"
+              )
+            ),
+            kit_detail("kits 作答檔的格式", kitsdata_spec_ui()),
+            kit_code_panel(ns("code"))
+          )
+        )
+      },
+      code = function() {
+        text_fix <- kits_text_fix(dfs(), items()$column)
+        list(tidy = code_kitsdata(
+          code_files_from(files), spec(), na_applied = identical(working$source(), "na"),
+          text_fix = text_fix
+        ), base = NULL)
+      },
+      code_note = KIT_CODE_NOTE_JOIN
+    )
+    result <- tab$result
+
     output$summary <- shiny::renderTable(result()$summary, digits = 0, format.args = list(big.mark = ","))
     output$preview <- shiny::renderTable(
       kit_preview_table(result()$preview, n = KIT_PREVIEW_ROWS * 2),
@@ -1078,16 +1067,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       class = "btn-default btn-sm"
     ))
 
-    output$code <- shiny::renderUI({
-      text_fix <- kits_text_fix(dfs(), items()$column)
-      kit_code_blocks(list(tidy = code_kitsdata(
-        code_files_from(files), spec(), na_applied = identical(working$source(), "na"),
-        text_fix = text_fix
-      ), base = NULL), note = KIT_CODE_NOTE_JOIN)
-    })
-
     # 這一頁的狀態（步驟分頁打 ✓ 用）
-    list(state = shiny::reactive(status()$state))
+    list(state = tab$state)
   })
 }
 

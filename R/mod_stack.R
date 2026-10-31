@@ -1,10 +1,11 @@
 # 直向波次疊加
 
-#' @noRd
+# 直向波次疊加的頁面：骨架是 kitDesign::kit_run_tab_ui()，這一頁沒有自己的設定
 mod_stack_ui <- function(id) {
   ns <- shiny::NS(id)
-  shiny::tagList(
-    kit_tab_guide(
+  kit_run_tab_ui(
+    id, "執行疊加",
+    guide = kit_tab_guide(
       goal = "把各波資料上下疊起來：每個人在每一波各佔一列，並用 wave 欄標示是哪一波。",
       steps = kit_steps(
         "確認「檔案上傳」中每個檔案的波次名稱（會填進 wave 欄）",
@@ -18,26 +19,14 @@ mod_stack_ui <- function(id) {
       ),
       diagram = stack_diagram()
     ),
-    shiny::uiOutput(ns("source_note")),
-    shiny::uiOutput(ns("settings_line")),
-    shiny::uiOutput(ns("ready")),
-    kit_button(ns("run"), "執行疊加", "primary", disabled = TRUE),
-    shiny::uiOutput(ns("status")),
-    kit_download_ui(ns),
-    kit_details_row(
-      shiny::uiOutput(ns("result_details"), inline = TRUE),
-      kit_code_panel(ns("code"))
-    )
+    shiny::uiOutput(ns("source_note"))
   )
 }
 
-#' @inheritParams mod_join_server
-#' @noRd
+# 直向波次疊加：狀態流在 kit_run_tab_server()，這裡只有疊加、狀態框的句子、預覽與下載
 mod_stack_server <- function(id, files, working, goto) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    result <- shiny::reactiveVal(NULL)
-    status <- shiny::reactiveVal(kit_status())
     watch_goto_links(input, goto)
 
     output$source_note <- shiny::renderUI({
@@ -49,58 +38,53 @@ mod_stack_server <- function(id, files, working, goto) {
       )
     })
 
-    # 主要按鈕：不到 2 個檔案時停用，上面一行寫還差什麼
-    kit_run_gate(
-      session, output,
-      missing = shiny::reactive(kit_need_files(length(files$keys()), 2L)),
-      link = function() shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →")
-    )
-
-    # 設定摘要：「本次：5 個檔案 · wave 欄填 t1、t2… · 原始資料」
-    output$settings_line <- shiny::renderUI({
-      n <- length(files$keys())
-      if (n < 2) return(NULL)
-      labels <- files$labels()
-      kit_settings_line(c(
-        paste0(kit_num(n), " 個檔案"),
-        paste0("wave 欄填 ", paste(utils::head(labels, 6), collapse = "、"),
-               if (length(labels) > 6) "…"),
-        kit_source_short(working$source())
-      ))
-    })
-
-    shiny::observeEvent(list(working$data(), files$labels()), {
-      if (!is.null(result())) {
-        result(NULL)
-        status(kit_stale_status("執行疊加"))
-      }
-    }, ignoreInit = TRUE)
-
-    shiny::observeEvent(input$run, {
-      result(NULL)
-      st <- tryCatch(
-        shiny::withProgress(message = "正在疊加資料…", value = 0.3, {
-          out <- stack_waves(working$data(), files$names(), files$labels())
-          result(out)
-          kit_done_status(
-            paste0(
-              "疊加完成：結果共 ",
-              kit_dims(nrow(out$result), ncol(out$result)),
-              "。"
-            ),
-            warnings = out$warnings, points = out$summary
+    tab <- kit_run_tab_server(
+      input, output, session, "執行疊加",
+      # 主要按鈕：不到 2 個檔案時停用
+      ready = shiny::reactive(kit_need_files(length(files$keys()), 2L)),
+      ready_link = function() shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →"),
+      # 設定摘要：「本次：5 個檔案 · wave 欄填 t1、t2… · 原始資料」
+      settings = function() {
+        n <- length(files$keys())
+        if (n < 2) return(NULL)
+        labels <- files$labels()
+        c(
+          paste0(kit_num(n), " 個檔案"),
+          paste0("wave 欄填 ", paste(utils::head(labels, 6), collapse = "、"),
+                 if (length(labels) > 6) "…"),
+          kit_source_short(working$source())
+        )
+      },
+      stale_on = function() list(working$data(), files$labels()),
+      progress = "正在疊加資料…",
+      run = function() stack_waves(working$data(), files$names(), files$labels()),
+      done = function(out) {
+        kit_done_status(
+          paste0("疊加完成：結果共 ", kit_dims(nrow(out$result), ncol(out$result)), "。"),
+          warnings = out$warnings, points = out$summary
+        )
+      },
+      error = function(e) kit_error_status(e, "疊加", kit_upload_todo(ns, length(files$keys()), 2L)),
+      # 重點都在狀態框裡（各檔列數、wave 欄、只在部分波次的欄）；預覽與詳細核對收在細節列
+      details_ui = function(res) {
+        shiny::tagList(
+          kit_detail(
+            "結果預覽",
+            shiny::tags$p(class = "kit-hint", shiny::textOutput(ns("preview_meta"), inline = TRUE)),
+            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
+          ),
+          kit_audit_detail(
+            shiny::h6("最終核對"),
+            shiny::tableOutput(ns("audit_checks")),
+            shiny::h6("各檔案的列數"),
+            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("audit_files")))
           )
-        }),
-        error = function(e) {
-          kit_error_status(e, "疊加", kit_upload_todo(ns, length(files$keys()), 2L))
-        }
-      )
-      status(st)
-      kit_notify(st)
-      kit_scroll_to("status")
-    })
-
-    output$status <- shiny::renderUI(kit_status_ui(status()))
+        )
+      },
+      code = function() code_stack(code_files_from(files, 2L)),
+      code_note = KIT_CODE_NOTE_JOIN
+    )
+    result <- tab$result
 
     # 匯出時 ID 與波次欄放最前面
     export_cols <- function(res) {
@@ -110,33 +94,11 @@ mod_stack_server <- function(id, files, working, goto) {
       session, output,
       data_fn = function() {
         res <- result()
-        if (is.null(res)) {
-          NULL
-        } else {
-          reorder_key_first(res$result, export_cols(res))
-        }
+        if (is.null(res)) NULL else reorder_key_first(res$result, export_cols(res))
       },
       filename_fn = timestamped_name("stacked"),
       run_label = "執行疊加"
     )
-
-    # 重點都在狀態框裡（各檔列數、wave 欄、只在部分波次的欄）；預覽與詳細核對收在下面一排細節裡
-    output$result_details <- shiny::renderUI({
-      if (is.null(result())) return(NULL)
-      shiny::tagList(
-        kit_detail(
-          "結果預覽",
-          shiny::tags$p(class = "kit-hint", shiny::textOutput(ns("preview_meta"), inline = TRUE)),
-          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
-        ),
-        kit_audit_detail(
-          shiny::h6("最終核對"),
-          shiny::tableOutput(ns("audit_checks")),
-          shiny::h6("各檔案的列數"),
-          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("audit_files")))
-        )
-      )
-    })
 
     output$preview_meta <- shiny::renderText({
       df <- result()$result
@@ -156,17 +118,12 @@ mod_stack_server <- function(id, files, working, goto) {
       result()$audit$files, digits = 0, format.args = list(big.mark = ",")
     )
 
-    output$code <- shiny::renderUI({
-      kit_code_blocks(code_stack(code_files_from(files, 2L)), note = KIT_CODE_NOTE_JOIN)
-    })
-
     # 這一頁的狀態（步驟分頁打 ✓ 用）
-    list(state = shiny::reactive(status()$state))
+    list(state = tab$state)
   })
 }
 
-#' 頁首的圖解：各波上下疊起來，加上 wave 欄
-#' @noRd
+# 頁首的圖解：各波上下疊起來，加上 wave 欄
 stack_diagram <- function() {
   kit_diagram(
     before = list(

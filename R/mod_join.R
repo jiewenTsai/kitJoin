@@ -1,10 +1,11 @@
 # 橫向資料串接
 
-#' @noRd
+# 橫向資料串接的頁面：骨架是 kitDesign::kit_run_tab_ui()，中間是 ID 與串接方法的設定
 mod_join_ui <- function(id) {
   ns <- shiny::NS(id)
-  shiny::tagList(
-    kit_tab_guide(
+  kit_run_tab_ui(
+    id, "執行串接",
+    guide = kit_tab_guide(
       goal = "把各波資料左右並排：每個人一列，各波的變項加上波次名稱（例如 score_t1、score_t2）。",
       steps = kit_steps(
         "選擇用來辨識同一個人的 ID 欄位（各檔欄名不同時，可以分別指定）",
@@ -60,28 +61,15 @@ mod_join_ui <- function(id) {
         value = TRUE, width = "100%"
       )
     ),
-    shiny::uiOutput(ns("settings_line")),
-    shiny::uiOutput(ns("ready")),
-    kit_button(ns("run"), "執行串接", "primary", disabled = TRUE),
-    shiny::uiOutput(ns("status")),
-    shiny::uiOutput(ns("result")),
-    kit_download_ui(ns),
-    kit_details_row(
-      shiny::uiOutput(ns("result_details"), inline = TRUE),
-      kit_code_panel(ns("code"))
-    )
+    result = TRUE
   )
 }
 
-#' @param files mod_upload_server() 的回傳值
-#' @param working mod_missing_server() 的回傳值
-#' @param goto function(tab) 切換分頁
-#' @noRd
+# 橫向資料串接。files：mod_upload_server()；working：mod_missing_server()；goto(tab)：換分頁。
+# 狀態流在 kit_run_tab_server()；這裡是 ID 的選擇、串接、結果太大時的確認視窗、預覽與下載
 mod_join_server <- function(id, files, working, goto) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    result <- shiny::reactiveVal(NULL)
-    status <- shiny::reactiveVal(kit_status())
     watch_goto_links(input, goto)
 
     output$source_note <- shiny::renderUI({
@@ -157,23 +145,6 @@ mod_join_server <- function(id, files, working, goto) {
       list(by_vars = if (length(cols) > 0) cols[[1]] else character(0), id_cols = cols)
     })
 
-    # 主要按鈕：檔案不夠或還沒選 ID 時停用，上面一行寫還差什麼
-    kit_run_gate(session, output, missing = shiny::reactive({
-      n <- length(files$keys())
-      need <- kit_need_files(n, 2L)
-      if (!is.null(need)) return(need)
-      spec <- id_spec()
-      if (length(spec$by_vars) == 0) {
-        return(if (isTRUE(input$id_per_file)) "選第 1 個檔案的 ID 欄" else "選 ID 欄")
-      }
-      if (!is.null(spec$id_cols) && any(lengths(spec$id_cols) != length(spec$by_vars))) {
-        return("每個檔案選一樣多個 ID 欄")
-      }
-      character(0)
-    }), link = function() {
-      if (length(files$keys()) < 2) shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →")
-    })
-
     # 選好 ID 後，先看各檔的 ID 有沒有重複、空白
     output$id_check <- shiny::renderUI({
       spec <- id_spec()
@@ -204,95 +175,113 @@ mod_join_server <- function(id, files, working, goto) {
       )
     })
 
-    # 設定摘要：「本次：5 個檔案 · ID：各檔各自 · 全勤樣本 · 原始資料」
-    output$settings_line <- shiny::renderUI({
-      n <- length(files$keys())
-      if (n < 2) return(NULL)
-      spec <- id_spec()
-      id_text <- if (isTRUE(input$id_per_file)) {
-        "ID：各檔各自指定"
-      } else if (length(spec$by_vars) > 0) {
-        paste0("ID：", paste(spec$by_vars, collapse = "＋"))
-      } else {
-        "ID：還沒選"
-      }
-      kit_settings_line(c(
-        paste0(kit_num(n), " 個檔案"), id_text, kit_join_method_short(input$method),
-        kit_source_short(working$source())
-      ))
-    })
-
-    # 檔案或設定變動後，舊結果失效
-    shiny::observeEvent(
-      list(
-        working$data(),
-        files$labels(),
-        id_spec(),
-        input$method,
-        input$keys_as_text
-      ),
-      {
-        if (!is.null(result())) {
-          result(NULL)
-          status(kit_stale_status("執行串接"))
+    tab <- kit_run_tab_server(
+      input, output, session, "執行串接",
+      # 主要按鈕：檔案不夠或還沒選 ID 時停用
+      ready = shiny::reactive({
+        n <- length(files$keys())
+        need <- kit_need_files(n, 2L)
+        if (!is.null(need)) return(need)
+        spec <- id_spec()
+        if (length(spec$by_vars) == 0) {
+          return(if (isTRUE(input$id_per_file)) "選第 1 個檔案的 ID 欄" else "選 ID 欄")
         }
+        if (!is.null(spec$id_cols) && any(lengths(spec$id_cols) != length(spec$by_vars))) {
+          return("每個檔案選一樣多個 ID 欄")
+        }
+        character(0)
+      }),
+      ready_link = function() {
+        if (length(files$keys()) < 2) shiny::actionLink(ns("goto_upload"), "到「檔案上傳」加入檔案 →")
       },
-      ignoreInit = TRUE
-    )
-
-    run_join <- function(confirm_large) {
-      result(NULL)
-      asked <- FALSE
-      st <- tryCatch(
-        shiny::withProgress(message = "正在串接資料…", value = 0.3, {
-          spec <- id_spec()
-          out <- join_waves(
-            working$data(), files$names(), files$labels(), spec$by_vars,
-            method = input$method, keys_as_text = isTRUE(input$keys_as_text),
-            confirm_large = confirm_large, id_cols = spec$id_cols
-          )
-          out$by_vars <- spec$by_vars
-          result(out)
-          kit_done_status(
-            paste0(
-              "串接完成：結果共 ",
-              kit_dims(nrow(out$result), ncol(out$result)),
-              "。"
-            ),
-            warnings = out$warnings, notes = out$notes, points = out$summary
-          )
-        }),
-        # 結果會暴增：跳出確認視窗，使用者按「仍要執行」才繼續
-        kit_join_too_large = function(e) {
-          shiny::showModal(shiny::modalDialog(
-            title = "串接結果會非常大",
-            conditionMessage(e),
-            footer = shiny::tagList(
-              shiny::modalButton("取消，回去改 ID"),
-              kit_button(ns("run_confirm"), "仍要執行", "danger")
-            ),
-            easyClose = TRUE
-          ))
-          asked <<- TRUE
-          kit_status("error", conditionMessage(e))
-        },
-        error = function(e) {
-          kit_error_status(e, "串接", kit_upload_todo(ns, length(files$keys()), 2L))
+      # 設定摘要：「本次：5 個檔案 · ID：各檔各自 · 全勤樣本 · 原始資料」
+      settings = function() {
+        n <- length(files$keys())
+        if (n < 2) return(NULL)
+        spec <- id_spec()
+        id_text <- if (isTRUE(input$id_per_file)) {
+          "ID：各檔各自指定"
+        } else if (length(spec$by_vars) > 0) {
+          paste0("ID：", paste(spec$by_vars, collapse = "＋"))
+        } else {
+          "ID：還沒選"
         }
-      )
-      status(st)
-      if (!asked) {
-        kit_notify(st)
-        kit_scroll_to("status")
-      }
-    }
-    shiny::observeEvent(input$run, run_join(confirm_large = FALSE))
+        c(
+          paste0(kit_num(n), " 個檔案"), id_text, kit_join_method_short(input$method),
+          kit_source_short(working$source())
+        )
+      },
+      stale_on = function() {
+        list(working$data(), files$labels(), id_spec(), input$method, input$keys_as_text)
+      },
+      progress = "正在串接資料…",
+      run = function(confirm_large = FALSE) {
+        spec <- id_spec()
+        out <- join_waves(
+          working$data(), files$names(), files$labels(), spec$by_vars,
+          method = input$method, keys_as_text = isTRUE(input$keys_as_text),
+          confirm_large = confirm_large, id_cols = spec$id_cols
+        )
+        out$by_vars <- spec$by_vars
+        out
+      },
+      done = function(out) {
+        kit_done_status(
+          paste0("串接完成：結果共 ", kit_dims(nrow(out$result), ncol(out$result)), "。"),
+          warnings = out$warnings, notes = out$notes, points = out$summary
+        )
+      },
+      error = function(e) kit_error_status(e, "串接", kit_upload_todo(ns, length(files$keys()), 2L)),
+      # 結果會暴增：跳出確認視窗，使用者按「仍要執行」才繼續（tab$run(confirm_large = TRUE)）
+      confirm = list(kit_join_too_large = function(e) {
+        shiny::showModal(shiny::modalDialog(
+          title = "串接結果會非常大",
+          conditionMessage(e),
+          footer = shiny::tagList(
+            shiny::modalButton("取消，回去改 ID"),
+            kit_button(ns("run_confirm"), "仍要執行", "danger")
+          ),
+          easyClose = TRUE
+        ))
+        kit_status("error", conditionMessage(e))
+      }),
+      # 重點（狀態框下面）：各檔案的人數
+      result_ui = function(res) {
+        shiny::tagList(
+          shiny::h5("各檔案的人數"),
+          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("people")))
+        )
+      },
+      # 預覽與詳細核對收在細節列
+      details_ui = function(res) {
+        shiny::tagList(
+          kit_detail(
+            "結果預覽",
+            shiny::tags$p(class = "kit-hint", shiny::textOutput(ns("preview_meta"), inline = TRUE)),
+            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
+          ),
+          kit_audit_detail(
+            shiny::tags$p(class = "kit-hint", res$audit$rule),
+            shiny::h6("最終核對"),
+            shiny::tableOutput(ns("audit_checks")),
+            shiny::h6("各檔案的列數與 ID"),
+            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("audit_files"))),
+            shiny::h6("逐步合併"),
+            shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("audit_steps")))
+          )
+        )
+      },
+      code = function() {
+        spec <- id_spec()
+        code_join(code_files_from(files, 2L), spec$by_vars, input$method, id_cols = spec$id_cols)
+      },
+      code_note = KIT_CODE_NOTE_JOIN
+    )
+    result <- tab$result
     shiny::observeEvent(input$run_confirm, {
       shiny::removeModal()
-      run_join(confirm_large = TRUE)
+      tab$run(confirm_large = TRUE)
     })
-
-    output$status <- shiny::renderUI(kit_status_ui(status()))
 
     kit_download_server(
       session, output,
@@ -304,39 +293,9 @@ mod_join_server <- function(id, files, working, goto) {
       run_label = "執行串接"
     )
 
-    # 重點（狀態框下面）：各檔案的人數；預覽與詳細核對收在下面一排細節裡
-    output$result <- shiny::renderUI({
-      res <- result()
-      if (is.null(res)) return(NULL)
-      shiny::tagList(
-        shiny::h5("各檔案的人數"),
-        shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("people")))
-      )
-    })
     output$people <- shiny::renderTable(
       result()$people, digits = 0, format.args = list(big.mark = ",")
     )
-    output$result_details <- shiny::renderUI({
-      res <- result()
-      if (is.null(res)) return(NULL)
-      shiny::tagList(
-        kit_detail(
-          "結果預覽",
-          shiny::tags$p(class = "kit-hint", shiny::textOutput(ns("preview_meta"), inline = TRUE)),
-          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
-        ),
-        kit_audit_detail(
-          shiny::tags$p(class = "kit-hint", res$audit$rule),
-          shiny::h6("最終核對"),
-          shiny::tableOutput(ns("audit_checks")),
-          shiny::h6("各檔案的列數與 ID"),
-          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("audit_files"))),
-          shiny::h6("逐步合併"),
-          shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("audit_steps")))
-        )
-      )
-    })
-
     output$preview_meta <- shiny::renderText({
       df <- result()$result
       kit_rows_note(nrow(df), ncol(df), KIT_PREVIEW_ROWS, KIT_PREVIEW_COLS)
@@ -358,51 +317,36 @@ mod_join_server <- function(id, files, working, goto) {
       result()$audit$steps, digits = 0, format.args = list(big.mark = ",")
     )
 
-    output$code <- shiny::renderUI({
-      spec <- id_spec()
-      kit_code_blocks(code_join(
-        code_files_from(files, 2L),
-        spec$by_vars,
-        input$method,
-        id_cols = spec$id_cols
-      ), note = KIT_CODE_NOTE_JOIN)
-    })
-
     # 這一頁的狀態（步驟分頁打 ✓ 用）
-    list(state = shiny::reactive(status()$state))
+    list(state = tab$state)
   })
 }
 
-#' 「詳細核對」：結果下面那一排細節的一個（預設收起）
-#' @noRd
+# 「詳細核對」：結果下面那一排細節的一個（預設收起）
 kit_audit_detail <- function(...) {
   kit_detail("詳細核對（進階）", ...)
 }
 
-#' 設定摘要用的串接方法簡稱：「全勤樣本」
-#' @noRd
+# 設定摘要用的串接方法簡稱：「全勤樣本」
 kit_join_method_short <- function(method) {
   label <- names(KIT_JOIN_METHODS)[match(method %||% "", KIT_JOIN_METHODS)]
   if (is.na(label)) return(NULL)
   sub("：.*$", "", label)
 }
 
-#' 設定摘要用的資料來源：「原始資料」或「② 處理後的資料」
-#' @noRd
+# 設定摘要用的資料來源：「原始資料」或「② 處理後的資料」
 kit_source_short <- function(source) {
   if (identical(source, "na")) "遺漏值處理後的資料" else "原始資料"
 }
 
-#' 各分頁的「到 檔案上傳」「到 遺漏值處理」連結
-#' @noRd
+# 各分頁的「到 檔案上傳」「到 遺漏值處理」連結
 watch_goto_links <- function(input, goto) {
   shiny::observeEvent(input$goto_upload, goto("upload"))
   shiny::observeEvent(input$goto_upload_status, goto("upload"))
   shiny::observeEvent(input$goto_missing, goto("missing"))
 }
 
-#' 頁首的圖解：預設（向後追蹤樣本）怎麼左右接起來
-#' @noRd
+# 頁首的圖解：預設（向後追蹤樣本）怎麼左右接起來
 join_diagram <- function() {
   kit_diagram(
     before = list(

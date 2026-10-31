@@ -108,7 +108,7 @@ kit_source_note_ui <- function(n_files, source, code_cells, ns) {
 
 # ── 下載 ─────────────────────────────────────────────────────────────────────
 
-#' 下載區（CSV + CSV.GZ + SAV）
+#' 下載區（CSV + CSV.GZ + SAV），畫在 kit_run_tab_ui(downloads = TRUE) 的 output downloads
 #'
 #' 沒有結果時顯示停用的按鈕與「先執行」提示；有結果時顯示下載按鈕、
 #' 檔名與 SAV 自動改名提醒。
@@ -182,12 +182,6 @@ kit_download_server <- function(session, output, data_fn, filename_fn, run_label
       )
     )
   })
-}
-
-#' 下載區的位置（搭配 kit_download_server()）
-#' @noRd
-kit_download_ui <- function(ns) {
-  shiny::uiOutput(ns("downloads"))
 }
 
 #' 結果檔名：joined_20261022_153000.csv

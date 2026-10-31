@@ -19,6 +19,12 @@
 * The download button (`R/download.R`) and the cloud-version check and footer moved into
   kitDesign 0.4.0 (`kit_download_button()`, `kit_is_cloud()`, `kit_cloud_footer()`);
   `R/cloud.R` keeps only kitJoin's text. Same file names, headers and bytes as before.
+* The six run tabs (join, stack, attrition, missing values, reshape, file conversion) use
+  kitDesign's `kit_run_tab_ui()` / `kit_run_tab_server()` for the page skeleton and the
+  status flow (ready line, run with progress, status box, notification, scroll, stale after a
+  change, result details, 「用 R 怎麼做」); each tab keeps only its own settings, run and
+  result. The ⑥ kits tab uses the server part for its run and status. Same page HTML, ids,
+  statuses and output files as before.
 * `run.bat` installs or upgrades the packages that are missing or older than DESCRIPTION
   asks for (an old bslib used to break the app on the first screen), including the GitHub
   ones (kitDesign).
