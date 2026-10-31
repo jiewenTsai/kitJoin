@@ -477,8 +477,8 @@ kit_header <- function(
     shiny::tags$head(shiny::tags$link(rel = "icon", type = "image/png", href = kit_logo_uri(64))),
     shiny::div(
       style = "display: flex; align-items: center; gap: 1.1rem;",
-      shiny::tags$img(src = kit_logo_uri(96), alt = "KIT 標誌",
-                      style = "width: 4.2rem; height: auto; flex: none;"),
+      shiny::tags$img(src = kit_logo_uri(192, "logo"), alt = "KIT 標誌",
+                      style = "height: 5.6rem; width: auto; flex: none;"),
       shiny::div(
         shiny::h1(title),
         shiny::p(
@@ -491,11 +491,13 @@ kit_header <- function(
   )
 }
 
-#' KIT 標誌（豆子）：data URI，直接放進頁面（不用另外設定靜態檔案的路徑）
-#' @param size 64、96 或 256（像素，正方形透明底 PNG，在 inst/logo/）
+#' KIT 標誌：data URI，直接放進頁面（不用另外設定靜態檔案的路徑）
+#' @param size 像素（透明底 PNG，在 inst/logo/）：豆子 64、96、256；完整標誌 128、192（高度）
+#' @param kind "mark" 只有豆子（分頁圖示）；"logo" 豆子＋下面的 KIT 字樣（頁首）
 #' @noRd
-kit_logo_uri <- function(size = 96) {
-  file <- paste0("kit-mark-", size, ".png")
+kit_logo_uri <- function(size = 96, kind = c("mark", "logo")) {
+  kind <- match.arg(kind)
+  file <- paste0("kit-", kind, "-", size, ".png")
   pkg <- utils::packageName()
   # 安裝成套件時在 system.file()；用 runApp(資料夾) 跑時（本機、雲端版）在 inst/logo/
   candidates <- c(if (length(pkg) == 1) system.file("logo", file, package = pkg),
