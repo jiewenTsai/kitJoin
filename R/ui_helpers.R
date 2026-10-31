@@ -185,9 +185,11 @@ kit_download_server <- function(session, output, data_fn, filename_fn, run_label
 }
 
 #' 結果檔名：joined_20261022_153000.csv
+#'
+#' 一律用臺灣時間（雲端主機是 UTC）。
 #' @noRd
 timestamped_name <- function(prefix) {
   function(ext) {
-    paste0(prefix, "_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".", ext)
+    paste0(prefix, "_", format(Sys.time(), "%Y%m%d_%H%M%S", tz = "Asia/Taipei"), ".", ext)
   }
 }

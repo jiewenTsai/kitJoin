@@ -1,3 +1,16 @@
+# kitJoin 0.7.1
+
+## Fixes
+
+* ⑧ 格式轉換: CSV.GZ → CSV now starts the CSV with a BOM when the text is UTF-8, so Windows Excel shows
+  Chinese correctly (kitJoin's own .csv.gz files have no BOM, so converting them back never had one).
+* File names with a time stamp (for example `long_20261031_194357`) use Taiwan time; on the cloud they
+  were in UTC.
+* Re-running ② after ③ or ④ had a result no longer prints `Error in if: missing value` in the R
+  console (the preview line read an emptied result).
+* The cloud version and run.bat sourced `R/` twice at start-up and warned that the folder looks like an
+  R package. `R/_disable_autoload.R` now turns shiny's autoload off.
+
 # kitJoin 0.7.0
 
 ## Changes you can see

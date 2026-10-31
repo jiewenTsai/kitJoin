@@ -14,6 +14,9 @@ KIT_CONVERT_FORMATS <- c(
 KIT_CONVERT_CHUNK_BYTES <- 1024^2
 KIT_CONVERT_CHUNK_LINES <- 20000L
 
+# UTF-8 的 BOM：輸出 .csv 時寫在開頭，Excel 才會用 UTF-8 開
+KIT_UTF8_BOM <- as.raw(c(0xef, 0xbb, 0xbf))
+
 #' 檔案格式：依檔名判斷 "csv"、"csv.gz"、"sav"；不支援的格式為 NA
 #'
 #' .gz 一律當成 CSV.GZ。
@@ -91,18 +94,26 @@ detect_csv_encoding <- function(path, kind) {
 }
 
 #' 逐段複製位元組：CSV ↔ CSV.GZ 只差在壓縮與否，內容一個位元組都不變
+#'
+#' @param bom 原檔開頭沒有 BOM 時是否補上（UTF-8 檔輸出 .csv 時補，Excel 開中文才不會亂碼）
 #' @return 檔案的列數（換行字元數；最後一列沒有換行也算一列）
 #' @noRd
-stream_copy <- function(path, kind, out, target) {
+stream_copy <- function(path, kind, out, target, bom = FALSE) {
   in_con <- convert_open_in(path, kind)
   on.exit(close(in_con))
   out_con <- convert_open_out(out, target)
   on.exit(close(out_con), add = TRUE)
   n_lines <- 0
   last <- NULL
+  first <- TRUE
   repeat {
     chunk <- readBin(in_con, "raw", KIT_CONVERT_CHUNK_BYTES)
     if (length(chunk) == 0) break
+    if (first) {
+      first <- FALSE
+      has_bom <- length(chunk) >= 3 && identical(chunk[1:3], KIT_UTF8_BOM)
+      if (bom && !has_bom) writeBin(KIT_UTF8_BOM, out_con)
+    }
     n_lines <- n_lines + sum(chunk == as.raw(10L))
     last <- chunk[length(chunk)]
     writeBin(chunk, out_con)
@@ -120,7 +131,7 @@ stream_big5_to_utf8 <- function(path, kind, out, target, bom = FALSE) {
   on.exit(close(in_con))
   out_con <- convert_open_out(out, target)
   on.exit(close(out_con), add = TRUE)
-  if (bom) writeBin(as.raw(c(0xef, 0xbb, 0xbf)), out_con)
+  if (bom) writeBin(KIT_UTF8_BOM, out_con)
   n_lines <- 0
   repeat {
     lines <- readLines(in_con, n = KIT_CONVERT_CHUNK_LINES, warn = FALSE)
@@ -146,8 +157,8 @@ csv_header_ncol <- function(path, kind, encoding) {
 
 #' CSV ↔ CSV.GZ
 #'
-#' UTF-8 檔逐段複製位元組；BIG5 檔逐段轉成 UTF-8（輸出 .csv 時加 BOM）；
-#' 編碼無法判斷時照原樣複製並提醒。
+#' UTF-8 檔逐段複製位元組；BIG5 檔逐段轉成 UTF-8。輸出 .csv 時開頭補 BOM
+#' （原檔已有就不重複加）；編碼無法判斷時照原樣複製（不加 BOM）並提醒。
 #' @return list(nrow, ncol, notes)
 #' @noRd
 convert_csv_stream <- function(path, kind, out, target) {
@@ -157,7 +168,7 @@ convert_csv_stream <- function(path, kind, out, target) {
     n_lines <- stream_big5_to_utf8(path, kind, out, target, bom = target == "csv")
     notes <- "原檔是 BIG5 編碼，已轉成 UTF-8。"
   } else {
-    n_lines <- stream_copy(path, kind, out, target)
+    n_lines <- stream_copy(path, kind, out, target, bom = target == "csv" && identical(enc, "UTF-8"))
     if (is.na(enc)) {
       notes <- "無法判斷編碼（不是 UTF-8 也不是 BIG5），內容照原樣保留，中文可能是亂碼。"
     }

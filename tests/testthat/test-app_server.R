@@ -360,3 +360,27 @@ test_that("① 同一個檔案加兩次會提醒，但仍然加入（低）", {
     }
   )
 })
+
+test_that("③④ 有結果後重新執行 ②：結果清掉，預覽列數說明不報錯", {
+  dir <- withr::local_tempdir()
+  w1 <- write_wave(dir, "w1.csv", data.frame(release_id = 1:3, score = c(1, 9999, 3)))
+  w2 <- write_wave(dir, "w2.csv", data.frame(release_id = 2:4, score = c(4, 9999, 6)))
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = upload_df(c(w1, w2)))
+    session$setInputs(`missing-codes` = "9999", `missing-use_downstream` = TRUE,
+                      `missing-match_text` = TRUE, `missing-run` = 1)
+    session$setInputs(
+      `join-by_vars` = "release_id", `join-method` = "left_join", `join-keys_as_text` = TRUE
+    )
+    session$setInputs(`join-run` = 1, `stack-run` = 1)
+    expect_match(output[["join-preview_meta"]], "共 3 列")
+    expect_match(output[["stack-preview_meta"]], "共 6 列")
+
+    session$setInputs(`missing-codes` = "9999,3", `missing-run` = 2)
+    expect_match(output[["join-status"]]$html, "要重新執行")
+    for (id in c("join-preview_meta", "stack-preview_meta")) {
+      err <- tryCatch({ output[[id]]; NULL }, error = identity)
+      expect_s3_class(err, "shiny.silent.error")
+    }
+  })
+})

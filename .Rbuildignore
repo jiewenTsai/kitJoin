@@ -17,3 +17,4 @@
 ^data60\.sav$
 ^irt36\.csv$
 ^LICENSE\.md$
+^R/_disable_autoload\.R$

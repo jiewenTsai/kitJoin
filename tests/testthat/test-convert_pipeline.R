@@ -67,7 +67,7 @@ test_that("六種轉換：列數、欄數、欄名、0 開頭的 ID 都不變", 
   }
 })
 
-test_that("CSV → CSV.GZ → CSV 逐段處理，幾 MB 的檔案位元組完全相同", {
+test_that("CSV → CSV.GZ → CSV 逐段處理，幾 MB 的檔案位元組完全相同（只多 BOM）", {
   dir <- withr::local_tempdir()
   n <- 150000
   lines <- c(
@@ -85,8 +85,38 @@ test_that("CSV → CSV.GZ → CSV 逐段處理，幾 MB 的檔案位元組完全
   expect_equal(c(gz$nrow, gz$ncol), c(n, 3))
   out2 <- withr::local_tempdir()
   back <- convert_file(gz$out_path, gz$out_name, "csv", out2)
-  expect_equal(unname(tools::md5sum(back$out_path)), unname(tools::md5sum(csv)))
+  expect_equal(read_gz_raw(gz$out_path, 3), charToRaw("id,"))
+  expect_equal(readBin(back$out_path, "raw", file.size(back$out_path)),
+               c(KIT_UTF8_BOM, readBin(csv, "raw", file.size(csv))))
+  expect_equal(c(back$nrow, back$ncol), c(n, 3))
   expect_length(back$notes, 0)
+})
+
+test_that("UTF-8 的 CSV.GZ 轉 CSV：開頭補 BOM；原本有 BOM 不重複加", {
+  dir <- withr::local_tempdir()
+  gz <- file.path(dir, "w1.csv.gz")
+  write_kit_csv_gz(data.frame(id = "0012", name = "王小明"), gz)
+  expect_false(identical(read_gz_raw(gz, 3), KIT_UTF8_BOM))
+  res <- convert_file(gz, "w1.csv.gz", "csv", withr::local_tempdir())
+  expect_equal(readBin(res$out_path, "raw", 6), c(KIT_UTF8_BOM, charToRaw("id,")))
+  expect_equal(c(res$nrow, res$ncol), c(1, 2))
+  expect_equal(readr::read_csv(res$out_path, col_types = "cc")$name, "王小明")
+
+  bom <- file.path(dir, "bom.csv.gz")
+  con <- gzfile(bom, "wb")
+  writeBin(c(KIT_UTF8_BOM, charToRaw("id,name\n0012,王小明\n")), con)
+  close(con)
+  res2 <- convert_file(bom, "bom.csv.gz", "csv", withr::local_tempdir())
+  expect_equal(readBin(res2$out_path, "raw", 6), c(KIT_UTF8_BOM, charToRaw("id,")))
+  expect_equal(c(res2$nrow, res2$ncol), c(1, 2))
+
+  # 編碼無法判斷：照原樣複製，不加 BOM
+  bad <- file.path(dir, "bad.csv.gz")
+  con <- gzfile(bad, "wb")
+  writeBin(as.raw(c(0x61, 0x0a, 0xe9, 0x0a)), con)
+  close(con)
+  res3 <- convert_file(bad, "bad.csv.gz", "csv", withr::local_tempdir())
+  expect_equal(readBin(res3$out_path, "raw", 10), as.raw(c(0x61, 0x0a, 0xe9, 0x0a)))
 })
 
 test_that("逐段複製：最後一列沒有換行也算一列", {

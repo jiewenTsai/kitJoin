@@ -91,3 +91,12 @@ test_that("結果出來以後把狀態框捲到畫面上方（kitDesign::kit_run
   }
 })
 
+
+test_that("結果檔名用臺灣時間：主機是 UTC 也一樣", {
+  withr::local_timezone("UTC")
+  name <- timestamped_name("long")("csv")
+  expect_match(name, "^long_\\d{8}_\\d{6}\\.csv$")
+  stamp <- as.POSIXct(sub("^long_(.*)\\.csv$", "\\1", name), format = "%Y%m%d_%H%M%S",
+                      tz = "Asia/Taipei")
+  expect_lt(abs(as.numeric(difftime(Sys.time(), stamp, units = "secs"))), 5)
+})

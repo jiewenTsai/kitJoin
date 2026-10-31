@@ -1855,13 +1855,13 @@
       "checksum": "ab29909152db0bbb48563f3595e1487e"
     },
     ".Rbuildignore": {
-      "checksum": "bb342508559278376ac4aea59055229e"
+      "checksum": "415e9ec807e6e4b3dbb401ff0b33963a"
     },
     "app.R": {
-      "checksum": "372aeb831f0de01abc06ecde1ee38160"
+      "checksum": "d2a299d0cff64f653d470e7a44ef8d9b"
     },
     "DESCRIPTION": {
-      "checksum": "c2f7cebf78322582bc0077eb3a32bc2a"
+      "checksum": "54e70c10340eb1e04b1e0edabaa4e651"
     },
     "inst/extdata/example_t1.csv": {
       "checksum": "86b287c755537d1155c134d0572929a5"
@@ -1879,7 +1879,10 @@
       "checksum": "12210821c1ef62c9965932db4c65c5da"
     },
     "NEWS.md": {
-      "checksum": "b206c2b76ab318c4770db1e0097bc44b"
+      "checksum": "96e4fad636221a1d1b46702e4c495b46"
+    },
+    "R/_disable_autoload.R": {
+      "checksum": "9dad897ff481b6a729440efca3d65e6e"
     },
     "R/app.R": {
       "checksum": "a121f7d100ac75310d5333425746a02a"
@@ -1903,7 +1906,7 @@
       "checksum": "eb241b0695631180c93a25f08d64aba3"
     },
     "R/convert_pipeline.R": {
-      "checksum": "1a0b122980b4ee656a4db93ae0677c32"
+      "checksum": "558c3bb57a651e022a8090cf0246150d"
     },
     "R/io_data.R": {
       "checksum": "af8f135f9110f1f8ae8e9943684c5525"
@@ -1924,10 +1927,10 @@
       "checksum": "8b1a8e92c09d388d88f95826d449e026"
     },
     "R/mod_convert.R": {
-      "checksum": "0bfac914691f49ef4afdbf67f4f1b626"
+      "checksum": "fe975b11f56adbcdeeacea96409407c7"
     },
     "R/mod_join.R": {
-      "checksum": "e7c1f66e9a472c075bf4569252f6795f"
+      "checksum": "22fe702233c6248cb6cfbef0e2c5a7f3"
     },
     "R/mod_kitsdata.R": {
       "checksum": "39211ba411e3bff1ddbd7293965bf173"
@@ -1942,7 +1945,7 @@
       "checksum": "5e1a8a3d87cd43ea6c1e9a277f75d94f"
     },
     "R/mod_stack.R": {
-      "checksum": "12c20f4f9dc9b975ab04f81adc8f0a3a"
+      "checksum": "e883536590ed138ffdef536b9ed2f4cc"
     },
     "R/mod_upload.R": {
       "checksum": "5d454c0e9b0e892e660cd85f19c993dd"
@@ -1960,13 +1963,13 @@
       "checksum": "69b11346677d0fa2713ac1273d3d1849"
     },
     "R/ui_helpers.R": {
-      "checksum": "238babbe5c6b2cdc4dcb43df523ab56f"
+      "checksum": "766873362a0983993359ad32b8ebdcb0"
     },
     "R/utils.R": {
       "checksum": "90835e65c1a77ce1483a3a0b9c141160"
     },
     "README.md": {
-      "checksum": "a32309ab4fee50d18855314626a56c72"
+      "checksum": "042a1ad83e01f3d1514ae70f1a6470fd"
     }
   },
   "users": null

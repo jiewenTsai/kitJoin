@@ -4,7 +4,8 @@
 # 本機：run.bat → scripts/run_app.R → shiny::runApp(本資料夾)。
 # 套件：kitJoin::run_kitjoin() 不經過本檔，但同樣呼叫 kit_app()，畫面一致。
 
-# 必須在載入 R/ 之前設定，避免 Shiny 自動 source R/ 到錯誤的環境
+# 不讓 Shiny 自動 source R/：runApp() 在執行本檔之前就會載入 R/，所以真正擋住的是
+# R/_disable_autoload.R；這裡再設一次，本檔改過重新載入時也一樣
 options(shiny.autoload.r = FALSE)
 
 # Connect Cloud 以非互動模式執行本檔：未設定 KIT_DEPLOY 時視為雲端版
@@ -21,7 +22,7 @@ for (n in getNamespaceExports("kitDesign")) {
   assign(n, getExportedValue("kitDesign", n), envir = kit_design)
 }
 kit_env <- new.env(parent = kit_design)
-for (f in sort(list.files("R", pattern = "[.]R$", full.names = TRUE))) {
+for (f in sort(list.files("R", pattern = "^[A-Za-z0-9].*[.]R$", full.names = TRUE))) {
   source(f, local = kit_env, encoding = "UTF-8")
 }
 

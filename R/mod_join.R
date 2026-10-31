@@ -297,7 +297,7 @@ mod_join_server <- function(id, files, working, goto) {
       result()$people, digits = 0, format.args = list(big.mark = ",")
     )
     output$preview_meta <- shiny::renderText({
-      df <- result()$result
+      df <- shiny::req(result())$result   # 結果被清掉（例如 ② 重新執行）時不顯示
       kit_rows_note(nrow(df), ncol(df), KIT_PREVIEW_ROWS, KIT_PREVIEW_COLS)
     })
     output$preview <- shiny::renderTable(

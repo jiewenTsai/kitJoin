@@ -20,7 +20,7 @@ mod_convert_ui <- function(id) {
       ),
       technical = paste0(
         "CSV 與 CSV.GZ 互轉時逐段處理、不讀成表格，大檔也不會佔用太多記憶體；",
-        "UTF-8 檔內容一個位元組都不變，BIG5 檔轉成 UTF-8。",
+        "UTF-8 檔內容一個位元組都不變（轉成 CSV 時開頭補 BOM，Excel 開中文才不會亂碼），BIG5 檔轉成 UTF-8。",
         "有 SPSS 檔的轉換要把整個檔案讀進來（haven），大檔建議用本機版。",
         "以 0 開頭的 ID（例如 0012）保留為文字。"
       )
