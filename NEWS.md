@@ -1,3 +1,25 @@
+# kitJoin 0.6.0
+
+## Changes you can see
+
+* ⑥ kits 作答檔: step 2 only picks the item columns. Domain and scoring are set in step 3's
+  item table, which is shown open and can be downloaded at any time
+  (`kits_item_settings.csv`). The default domain is the item group's name without a
+  trailing `_`, `.` or `-`.
+* ⑦ The reshape diagram shows wide → long first, with a double arrow: both directions work.
+* 「用 R 怎麼做」: code boxes stay inside the page, and every code line fits in 70 columns.
+* Danger buttons are salmon, as the KIT design language says.
+
+## Under the hood
+
+* kitJoin now uses **kitDesign** (`Imports: kitDesign (>= 0.2.0)`, installed from GitHub
+  `jiewenTsai/kitDesign`) for the page, the shared components and the styles. Its own
+  copies (`kit_brite.R`, `code_wrap.R`, `kit_theme.R`, the logo) are gone, about 2,000 lines.
+  Every output file is byte-identical to 0.5.0's.
+* `run.bat` installs or upgrades the packages that are missing or older than DESCRIPTION
+  asks for (an old bslib used to break the app on the first screen), including the GitHub
+  ones (kitDesign).
+
 # kitJoin 0.5.0
 
 Generality fixes found by running every tab on another panel survey (TDCYP, five waves of
