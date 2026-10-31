@@ -2,7 +2,7 @@ Package: kitJoin
 Title: KIT Multi-Wave Data Join Tool
 Version: 0.6.0
 Date: 2026-10-31
-Authors@R: person("KIT", "Join Tool", email = "joinkit@example.com", role = c("aut", "cre"))
+Authors@R: person("Jie-Wen", "Tsai", email = "tsai.jiewen@gmail.com", role = c("aut", "cre"))
 Description: Shiny application for joining multi-wave survey data (CSV and
     SPSS SAV). Launch with \code{run_kitjoin()}. Supports wide joins by ID,
     long-format stacking, attrition flags, missing-value code conversion,
@@ -28,7 +28,7 @@ Imports:
     utils,
     vctrs
 Remotes:
-    jiewenTsai/kitDesign
+    jiewenTsai/kitDesign@v0.4.0
 Suggests:
     testthat (>= 3.0.0),
     withr
