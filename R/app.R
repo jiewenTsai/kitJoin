@@ -26,19 +26,6 @@ kit_set_options <- function() {
   )
 }
 
-#' 在預設瀏覽器開啟網址
-#'
-#' Windows 上 browser = NULL 會用系統預設瀏覽器開啟（不受 RStudio 檢視器影響）。
-#' @noRd
-kit_open_browser <- function(url) {
-  if (.Platform$OS.type == "windows") {
-    utils::browseURL(url, browser = NULL)
-  } else {
-    utils::browseURL(url)
-  }
-  invisible(NULL)
-}
-
 #' 頁面（每次連線時產生，雲端判斷才會反映目前環境）
 #'
 #' 主題、樣式、頁首、瀏覽器端的小程式都由 kitDesign::kit_page() 放好；

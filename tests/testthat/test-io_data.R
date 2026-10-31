@@ -42,7 +42,7 @@ test_that("CSV 匯出的遺漏值是空白，不是 NA", {
 
 test_that("SAV 欄名自動改成 SPSS 合法名稱並可寫出", {
   cols <- c("1st", "a b", "a.", "_a", "by", "ID", "id", strrep("得", 22))
-  safe <- sav_safe_names(cols)
+  safe <- kit_sav_safe_names(cols)
   expect_false(anyDuplicated(toupper(safe)) > 0)
   df <- stats::setNames(as.data.frame(as.list(seq_along(cols))), cols)
   path <- withr::local_tempfile(fileext = ".sav")

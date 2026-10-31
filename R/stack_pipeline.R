@@ -129,7 +129,7 @@ to_text_keep_label <- function(x) {
   } else {
     num_to_text(x)
   }
-  out <- fix_utf8_chr(out)
+  out <- kit_fix_utf8_chr(out)
   attr(out, "label") <- label
   out
 }

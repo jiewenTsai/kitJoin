@@ -46,7 +46,7 @@ read_data_file <- function(path, name, sav_encoding = "auto") {
       }
     }
     return(list(
-      data = fix_utf8_df(data),
+      data = kit_fix_utf8_df(data),
       encoding = encoding,
       n_problems = 0L
     ))
@@ -140,19 +140,6 @@ df_for_display <- function(df, n = NULL) {
   tibble::as_tibble(out)
 }
 
-#' 預覽用：欄位過多時只取前 max_cols 欄（優先保留指定欄）
-#' @noRd
-preview_df_cols <- function(
-    df,
-    max_cols = KIT_PREVIEW_COLS,
-    priority_cols = NULL) {
-  cols <- names(df)
-  if (length(cols) <= max_cols) return(df)
-  priority_cols <- intersect(priority_cols, cols)
-  keep <- unique(c(priority_cols, setdiff(cols, priority_cols)))
-  df[, keep[seq_len(max_cols)], drop = FALSE]
-}
-
 #' 匯出用：將 key 欄位移到最前
 #' @noRd
 reorder_key_first <- function(df, key_cols) {
@@ -164,7 +151,7 @@ reorder_key_first <- function(df, key_cols) {
 #' 匯出 CSV：遺漏值一律寫成空白儲存格（SPSS／Excel 才不會把數值欄當成文字）
 #' @noRd
 write_kit_csv <- function(df, file) {
-  readr::write_excel_csv(fix_utf8_df(df), file, na = "")
+  readr::write_excel_csv(kit_fix_utf8_df(df), file, na = "")
 }
 
 #' 匯出壓縮過的 CSV（.csv.gz）：遺漏值寫成空白；kitsUI 等工具可直接讀
@@ -174,7 +161,7 @@ write_kit_csv <- function(df, file) {
 write_kit_csv_gz <- function(df, file) {
   tmp <- tempfile(fileext = ".csv.gz")
   on.exit(unlink(tmp), add = TRUE)
-  readr::write_csv(fix_utf8_df(df), tmp, na = "")
+  readr::write_csv(kit_fix_utf8_df(df), tmp, na = "")
   file.copy(tmp, file, overwrite = TRUE)
   invisible(file)
 }
@@ -191,9 +178,9 @@ write_kit_csv_gz <- function(df, file) {
 #' @return invisible(list(fixed = 被修改數值標籤的欄（原欄名）, step = 0–3))
 #' @noRd
 write_kit_sav <- function(df, file) {
-  df <- fix_utf8_df(df)
+  df <- kit_fix_utf8_df(df)
   original <- names(df)
-  names(df) <- sav_safe_names(names(df))
+  names(df) <- kit_sav_safe_names(names(df))
   haven::write_sav(df, file)
   if (sav_readable(file)) return(invisible(list(fixed = character(0), step = 0L)))
 
@@ -281,62 +268,9 @@ sav_fix_message <- function(written) {
 #' @return 具名字元向量：名稱為原欄名、值為新欄名；沒有要改的時候長度 0
 #' @noRd
 sav_renamed_cols <- function(cols) {
-  new <- sav_safe_names(cols)
+  new <- kit_sav_safe_names(cols)
   changed <- new != cols
   stats::setNames(new[changed], cols[changed])
-}
-
-# SPSS 保留字，不能當變項名稱（不分大小寫）
-SPSS_RESERVED <- c(
-  "ALL", "AND", "BY", "EQ", "GE", "GT", "LE", "LT", "NE", "NOT", "OR", "TO",
-  "WITH"
-)
-
-#' 轉成合法的 SPSS 變項名稱
-#'
-#' 規則（以 haven::write_sav() 實測）：只能有字母、數字與 _ . @ # $；
-#' 開頭須為字母或 @；不能以 . 結尾；不能是保留字；最長 64 bytes；
-#' 不分大小寫不可重複。
-#' @noRd
-sav_safe_names <- function(cols) {
-  out <- gsub("[^[:alnum:]_.@#$]", "_", cols)
-  out <- sub("\\.+$", "", out)
-  needs_prefix <- !grepl("^[[:alpha:]@]", out)
-  out[needs_prefix] <- paste0("v_", out[needs_prefix])
-  reserved <- toupper(out) %in% SPSS_RESERVED
-  out[reserved] <- paste0(out[reserved], "_")
-  out <- vapply(
-    out,
-    truncate_bytes,
-    character(1),
-    max_bytes = 64L,
-    USE.NAMES = FALSE
-  )
-
-  # 不分大小寫的重複：第二個起加上 _2、_3…
-  for (i in seq_along(out)) {
-    taken <- toupper(out[seq_len(i - 1)])
-    if (!toupper(out[i]) %in% taken) next
-    k <- 2L
-    repeat {
-      tail <- paste0("_", k)
-      candidate <- paste0(
-        truncate_bytes(out[i], 64L - nchar(tail, "bytes")),
-        tail
-      )
-      if (!toupper(candidate) %in% c(taken, toupper(out[-seq_len(i)]))) break
-      k <- k + 1L
-    }
-    out[i] <- candidate
-  }
-  out
-}
-
-#' 依 UTF-8 位元組數截斷（不切斷中文字）
-#' @noRd
-truncate_bytes <- function(x, max_bytes) {
-  while (nchar(x, "bytes") > max_bytes) x <- substr(x, 1, nchar(x) - 1)
-  x
 }
 
 
@@ -363,7 +297,7 @@ read_csv_auto <- function(path) {
   encodings <- c("UTF-8" = "UTF-8", BIG5 = "CP950")
   for (label in names(encodings)) {
     df <- tryCatch(try_enc(encodings[[label]]), error = function(e) NULL)
-    if (!is.null(df) && is_valid_utf8_df(df)) {
+    if (!is.null(df) && kit_is_valid_utf8_df(df)) {
       return(csv_result(df, label, delim))
     }
   }
@@ -382,7 +316,7 @@ read_csv_auto <- function(path) {
 csv_result <- function(df, encoding, delim = ",") {
   n_problems <- nrow(readr::problems(df))
   list(
-    data = fix_utf8_df(df),
+    data = kit_fix_utf8_df(df),
     encoding = encoding,
     n_problems = as.integer(n_problems),
     delim = delim
@@ -407,33 +341,3 @@ guess_csv_delim <- function(path) {
   names(others)[which.max(others)]
 }
 
-is_valid_utf8_df <- function(df) {
-  chr_ok <- vapply(df, function(x) {
-    !is.character(x) || all(validUTF8(x[!is.na(x)]))
-  }, logical(1))
-  all(validUTF8(names(df))) && all(chr_ok)
-}
-
-fix_utf8_chr <- function(x) {
-  if (!is.character(x)) return(x)
-  iconv(x, from = "", to = "UTF-8", sub = "?")
-}
-
-#' 文字欄轉成 UTF-8；保留 SAV 的變項標籤與數值標籤
-#' @noRd
-fix_utf8_df <- function(df) {
-  dplyr::mutate(df, dplyr::across(dplyr::everything(), function(x) {
-    if (is.factor(x)) {
-      label <- attr(x, "label", exact = TRUE)
-      x <- fix_utf8_chr(as.character(x))
-      attr(x, "label") <- label
-      return(x)
-    }
-    if (!is.character(x)) return(x)
-    # iconv() 會清掉屬性（含 haven 的 class 與標籤），轉完再放回去
-    attrs <- attributes(x)
-    x <- fix_utf8_chr(as.vector(unclass(x)))
-    attributes(x) <- attrs
-    x
-  }))
-}

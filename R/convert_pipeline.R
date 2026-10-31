@@ -172,15 +172,6 @@ convert_csv_stream <- function(path, kind, out, target) {
 
 # ── 與 SAV 有關的轉換：要讀成資料框 ─────────────────────────────────────────
 
-#' readr 看副檔名決定要不要解壓縮：路徑不是 .gz 結尾時，複製成 .gz 結尾的暫存檔
-#' @noRd
-gz_path <- function(path) {
-  if (grepl("[.]gz$", path)) return(path)
-  out <- tempfile(fileext = ".csv.gz")
-  file.copy(path, out)
-  out
-}
-
 #' 讀成資料框再寫出（輸入或輸出是 SAV 時）
 #'
 #' CSV 與 CSV.GZ 用 ① 的讀法（UTF-8／BIG5 自動判斷，以 0 開頭的 ID 保留為文字）；
@@ -188,7 +179,7 @@ gz_path <- function(path) {
 #' @return list(nrow, ncol, notes)
 #' @noRd
 convert_df <- function(path, name, kind, out, target, labels_as_text = FALSE) {
-  read <- if (kind == "csv.gz") read_csv_auto(gz_path(path)) else read_data_file(path, name)
+  read <- if (kind == "csv.gz") read_csv_auto(kit_gz_path(path)) else read_data_file(path, name)
   data <- read$data
   notes <- character(0)
   if (identical(read$encoding, "BIG5")) notes <- "原檔是 BIG5 編碼，已轉成 UTF-8。"
