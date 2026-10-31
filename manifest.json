@@ -1868,7 +1868,7 @@
       "checksum": "81809e4a2bdf4afda1c5f56c23672f2b"
     },
     "R/code_kitsdata.R": {
-      "checksum": "4a7e2b0ea03b3c58fe8b822b3210b29a"
+      "checksum": "483eb2a375b4f919b27f69f006e774ca"
     },
     "R/code_reshape.R": {
       "checksum": "d0e30a83235c55f14762caa74f4104b0"
@@ -1895,16 +1895,16 @@
       "checksum": "9a5110346c31b5300943a896ada4eafe"
     },
     "R/kit_brite.R": {
-      "checksum": "266a9714825efd6e8c35d234b3d71aa4"
+      "checksum": "254d6e88875cf34cff690c596fd74dfa"
     },
     "R/kit_theme.R": {
-      "checksum": "d689bf5727fb49c26130879ea0200437"
+      "checksum": "5728a1322839f2fd96afb93aaf55a463"
     },
     "R/kitsdata_pipeline.R": {
       "checksum": "506016d76740ffb9e6e2d68cd43918a5"
     },
     "R/kitsdata_steps.R": {
-      "checksum": "6d4f6b4a8d9c4f3a98132e133c984ec2"
+      "checksum": "6ce11a76624f76d822bd69924d52f73a"
     },
     "R/missing_pipeline.R": {
       "checksum": "3b4a69c6ab0dbf950870fcc225a44d24"
@@ -1919,7 +1919,7 @@
       "checksum": "d1503c08c95902fd4f8ec08fc1cc0047"
     },
     "R/mod_kitsdata.R": {
-      "checksum": "c5d5cb50fd08815accbceca25881d9b4"
+      "checksum": "fdb20d9279db2f6cc1f8c34810ca3cc5"
     },
     "R/mod_missing.R": {
       "checksum": "9db00b456c39c70a31ede8ab3e04e2a6"
@@ -1928,7 +1928,7 @@
       "checksum": "709813d1425ae361b707904abc983cc9"
     },
     "R/mod_reshape.R": {
-      "checksum": "ea16acc38987240bf72d618104788c68"
+      "checksum": "feed6120fee4a8b718792554765eb373"
     },
     "R/mod_stack.R": {
       "checksum": "fa8e47b55536355fe4eae4a95db7933c"
@@ -1955,7 +1955,7 @@
       "checksum": "4dc126d5e03608df8ee21ed3efcc2dc0"
     },
     "README.md": {
-      "checksum": "b0737b1608bac52e96d758b5e71385e8"
+      "checksum": "eb84e9b9891cbe2c6789b6e740b9d64a"
     }
   },
   "users": null

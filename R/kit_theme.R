@@ -7,6 +7,15 @@
 #' @return A [bslib::bs_theme()] object.
 #' @export
 kit_theme <- function() {
+  # Brite 主題要 bslib 0.11.0 以上；太舊時 bs_theme() 的錯誤看不懂，先說清楚怎麼辦
+  # （run.bat 會自動更新；用 shiny::runApp() 或舊的安裝方式開時才會遇到）
+  if (utils::packageVersion("bslib") < "0.11.0") {
+    stop(
+      "bslib 版本太舊（", utils::packageVersion("bslib"), "），這個 app 需要 0.11.0 以上。",
+      "請在 R 執行 install.packages(\"bslib\")，再重新開啟。",
+      call. = FALSE
+    )
+  }
   # CJK 字型切成上百個 unicode-range 片段，local = FALSE 改由瀏覽器向
   # Google CDN 按需下載，避免伺服器啟動時抓下全部字檔；
   # 未指定 wght 時只提供 400，需列出 CSS 用到的字重

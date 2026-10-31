@@ -50,12 +50,16 @@
    pak::pkg_install("jiewenTsai/kitJoin")
    ```
 
-   如果 `pak` 安裝失敗，可以改用：
+   `pak` 會順便把版本太舊的套件更新到 kitJoin 需要的版本（例如 bslib 要 0.11.0 以上）。
+
+   如果 `pak` 安裝失敗，可以改用（`upgrade = "always"` 才會更新太舊的套件）：
 
    ```r
    install.packages("remotes")
-   remotes::install_github("jiewenTsai/kitJoin")
+   remotes::install_github("jiewenTsai/kitJoin", upgrade = "always")
    ```
+
+   打開時說「bslib 版本太舊」：在 R 執行 `install.packages("bslib")`，再重新開啟。
 
 2. 啟動（每次使用時執行）：
 
