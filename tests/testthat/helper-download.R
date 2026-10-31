@@ -5,9 +5,11 @@
 # 下載回來的檔案路徑
 kit_test_download_file <- function(session, id) kit_test_download(session, id)$content$file
 
-# HTML 裡某個 id 的 <a> 的屬性值
+# HTML 裡某個 id 的下載按鈕的屬性值。kitDesign 0.5.2 起按鈕是 <button>，網址與檔名在
+# data-kit-href、data-kit-download；這裡照舊用 "href"、"download" 來問
 kit_link_attr <- function(html, id, attr) {
-  tag <- regmatches(html, regexpr(paste0('<a [^>]*id="', id, '"[^>]*>'), html))
+  attr <- switch(attr, href = "data-kit-href", download = "data-kit-download", attr)
+  tag <- regmatches(html, regexpr(paste0('<(a|button) [^>]*id="', id, '"[^>]*>'), html))
   value <- sub(paste0('.*\\s', attr, '="([^"]*)".*'), "\\1", tag)
   gsub("&amp;", "&", value, fixed = TRUE)
 }

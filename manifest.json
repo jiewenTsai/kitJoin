@@ -847,7 +847,7 @@
       "description": {
         "Package": "kitDesign",
         "Title": "Shared 'Shiny' User Interface Components for KIT Research Tools",
-        "Version": "0.5.0",
+        "Version": "0.5.2",
         "Date": "2026-11-01",
         "Authors@R": "person(\"Jie-Wen\", \"Tsai\", email = \"tsai.jiewen@gmail.com\", role = c(\"aut\", \"cre\"))",
         "Description": "The shared user interface layer of the KIT research tools built\n    with 'shiny': a 'bslib' theme based on Bootswatch Brite, the KIT style\n    sheets and logos, a page wrapper with the KIT header, and documented\n    components (page guide, buttons, download buttons, callouts, cloud-version\n    banner and footer, status boxes, details rows, code panels, step cards,\n    checklists, step tabs, diagrams, tables and a 'plotly' chart style),\n    a skeleton for tabs with one run button (page order and status flow),\n    plus a few server-side helpers (run gate, scroll to result, tab states,\n    notifications, number formatting, user-facing errors), value objects\n    for status boxes, checklists and code, 'shiny' modules for the stateful\n    pieces (step cards, step tabs, run gate, code panel) and a scaffold for\n    new apps. Load it with one call to kit_page() and build the page from\n    kit_*() components. The logo and the colour palette come from a brand\n    object (kit_brand()), so projects other than KIT can use their own.",
@@ -866,12 +866,12 @@
         "RemoteHost": "api.github.com",
         "RemoteRepo": "kitDesign",
         "RemoteUsername": "jiewenTsai",
-        "RemoteRef": "v0.5.0",
-        "RemoteSha": "aad26aef95033ac617a1c331b7394ccbdbc30eca",
+        "RemoteRef": "v0.5.2",
+        "RemoteSha": "255834ff1aaca82708700aa24f7ee68a0fd6ed65",
         "GithubRepo": "kitDesign",
         "GithubUsername": "jiewenTsai",
-        "GithubRef": "v0.5.0",
-        "GithubSHA1": "aad26aef95033ac617a1c331b7394ccbdbc30eca",
+        "GithubRef": "v0.5.2",
+        "GithubSHA1": "255834ff1aaca82708700aa24f7ee68a0fd6ed65",
         "NeedsCompilation": "no",
         "Packaged": "2026-10-31 18:36:58 UTC; jw",
         "Author": "Jie-Wen Tsai [aut, cre]",
@@ -1861,7 +1861,7 @@
       "checksum": "d2a299d0cff64f653d470e7a44ef8d9b"
     },
     "DESCRIPTION": {
-      "checksum": "54e70c10340eb1e04b1e0edabaa4e651"
+      "checksum": "d9e90186df604a46e8bb564d6223d480"
     },
     "inst/extdata/example_t1.csv": {
       "checksum": "86b287c755537d1155c134d0572929a5"
@@ -1879,7 +1879,7 @@
       "checksum": "12210821c1ef62c9965932db4c65c5da"
     },
     "NEWS.md": {
-      "checksum": "96e4fad636221a1d1b46702e4c495b46"
+      "checksum": "202b9cc01d11d2c120f0bce7e378af75"
     },
     "R/_disable_autoload.R": {
       "checksum": "9dad897ff481b6a729440efca3d65e6e"

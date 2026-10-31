@@ -1,3 +1,12 @@
+# kitJoin 0.7.2
+
+## Fixes
+
+* Firefox with some add-ons (for example Google PDF Viewer and other "document viewer" add-ons): clicking
+  a download button left the page and the download was "Not Found". The add-on takes over download
+  links on the page. Download buttons now come from kitDesign 0.5.2, where they are buttons, not links,
+  so there is nothing for an add-on to take over. The buttons look the same.
+
 # kitJoin 0.7.1
 
 ## Fixes
