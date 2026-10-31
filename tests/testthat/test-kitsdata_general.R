@@ -206,6 +206,7 @@ test_that("A1：app 裡「遺漏值處理」的代碼清單只用來提醒；要
     expect_match(kd_out(output, "checks"), "1 欄有遺漏值代碼 99（共 1 格）")
     expect_match(output[["kitsdata-checks"]]$html, "kitsdata-goto_missing")
     session$setInputs(`missing-codes` = "9, 99")   # 「遺漏值處理」還沒執行：只拿來找代碼
+    session$elapse(1000)   # 代碼清單停 0.8 秒才更新（debounce）
     expect_match(kd_out(output, "items_table"), "q1 a 0 1 2 代碼 9")
     expect_match(kd_out(output, "checks"), "2 欄有遺漏值代碼 9、99（共 2 格）")
     kd_click(session, "run")

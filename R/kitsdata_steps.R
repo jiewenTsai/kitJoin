@@ -179,10 +179,11 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   row <- function(id, state, title, text = "") list(id = id, state = state, title = title, text = text)
   out <- list()
 
-  # 遺漏值代碼
-  codes <- inc[["codes"]] %||% rep(list(kits_no_codes()), nrow(inc))
-  n_cells <- sum(inc$n_codes %||% 0) + side_cells
-  n_cols <- sum((inc$n_codes %||% 0) > 0) + length(side_codes)
+  # 遺漏值代碼：看所有納入的欄（只有代碼、沒有分數的欄也算），和「它們是真的分數」用同一個算法
+  on <- settings[settings$include, ]
+  codes <- on[["codes"]] %||% rep(list(kits_no_codes()), nrow(on))
+  n_cells <- kits_codes_total(settings, side_cells)
+  n_cols <- sum((on$n_codes %||% 0) > 0) + length(side_codes)
   vals <- sort(unique(c(unlist(purrr::map(codes, function(x) x$value)),
                         unlist(purrr::map(side_codes, function(x) x$value)))))
   val_txt <- paste(kits_id_text(utils::head(vals, 6)), collapse = "、")
@@ -259,6 +260,12 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
       "沒有反向題")
   }
   out
+}
+
+#' 納入的欄裡疑似遺漏值代碼的格數（加上性別、wave_m、age_m 的）：計分檢查與「它們是真的分數」共用
+#' @noRd
+kits_codes_total <- function(settings, side_cells = 0) {
+  sum(settings$n_codes[settings$include] %||% 0) + side_cells
 }
 
 #' 第 3 步收起來時的一行

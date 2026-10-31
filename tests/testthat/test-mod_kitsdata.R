@@ -451,7 +451,7 @@ test_that("第 2 步的組：勾選就納入、選領域就設領域並納入、
     html <- output[["kitsdata-groups_table"]]$html
     expect_match(html, 'name="kitsdata-grp_sel" value="a"', fixed = TRUE)
     expect_match(html, 'name="kitsdata-grp_sel" value="b"', fixed = TRUE)
-    expect_match(html, "kitsdata-gdom_1")
+    expect_match(html, paste0("kitsdata-", kd_gdom("a")))
     expect_no_match(html, "checked")
     expect_match(output[["kitsdata-grp_page"]], "2 組")
     expect_equal(kd_out(output, "items_status"), "")
@@ -463,10 +463,11 @@ test_that("第 2 步的組：勾選就納入、選領域就設領域並納入、
     expect_match(kd_out(output, "checks"), "2 欄還沒有領域")
 
     # 第 2 組選領域：設好並納入
-    kd_set(session, gdom_2 = "lan")
+    do.call(kd_set, c(list(session), stats::setNames(list("lan"), kd_gdom("b"))))
     expect_match(kd_out(output, "items_status"), "挑出 4 欄（lan 2 題）")
     expect_match(kd_out(output, "items_list"), "b1 lan b1")
-    kd_set(session, grp_sel = c("a", "b"), gdom_1 = "a")
+    kd_set(session, grp_sel = c("a", "b"))
+    do.call(kd_set, c(list(session), stats::setNames(list("a"), kd_gdom("a"))))
     expect_match(kd_out(output, "items_status"), "（a 2 題、lan 2 題）|（lan 2 題、a 2 題）")
     expect_match(kd_out(output, "checks"), "每一題都有領域")
 
@@ -486,12 +487,36 @@ test_that("第 2 步的組：找組之後，取消勾選的組不會因為還留
                                   b1 = c(0, 1, 1), b2 = c(1, 1, 0)), path)
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kd_upload(path))
-    kd_set(session, gdom_1 = "a")
+    do.call(kd_set, c(list(session), stats::setNames(list("a"), kd_gdom("a"))))
     expect_match(kd_out(output, "items_status"), "挑出 2 欄（a 2 題）")
     kd_set(session, grp_sel = character(0))
     expect_match(kd_out(output, "items_list"), "還沒有挑題目")
     # 找組（換頁也一樣）：組的領域選單還是 a
     kd_set(session, grp_search = "a")
     expect_match(kd_out(output, "items_list"), "還沒有挑題目")
+  })
+})
+
+test_that("第 2 步的組：別的地方改了領域，選單重畫時不會改回舊值；組的順序變了也不會對錯組", {
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "w1.csv")
+  readr::write_csv(tibble::tibble(id = 1:3, wave_m = 0, x1 = c(1, 2, 1), a_1 = c(0, 1, 2),
+                                  a_2 = c(1, 0, 2), b_1 = c(0, 1, 1), b_2 = c(1, 1, 0)), path)
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kd_upload(path))
+    kd_cells(session, "cohort", "B1")
+    kd_cells(session, "subj_id", "id")
+    do.call(kd_set, c(list(session), stats::setNames(list("dA"), kd_gdom("a_"))))
+    expect_match(kd_out(output, "items_list"), "a_1 dA")
+    # 逐題表把 a_ 改成 dB；選單還留著 dA
+    kd_set(session, tbl_sel_all = 1, bulk_action = "domain", bulk_domain = "dB")
+    kd_click(session, "bulk_apply")
+    expect_match(kd_out(output, "items_list"), "a_1 dB")
+    kd_set(session, grp_search = "_")    # 選單重畫成 dB；收到 dB 不算改
+    do.call(kd_set, c(list(session), stats::setNames(list("dB"), kd_gdom("a_"))))
+    expect_match(kd_out(output, "items_list"), "a_1 dB")
+    # 第 1 步把 x1 對應成性別：組的清單變了，b_ 不會拿到 a_ 的領域
+    kd_cells(session, "sex", "x1")
+    expect_no_match(kd_out(output, "items_list"), "b_1")
   })
 })

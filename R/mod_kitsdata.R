@@ -386,16 +386,33 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     cohort_cols <- shiny::reactive({
       purrr::map_chr(purrr::keep(step1()$cohort, function(x) x$type == "column"), "value")
     })
-    candidates <- shiny::reactive({
+    # 候選欄與每一欄的題目設定，只在資料或代碼清單變了時算一次（2,000 欄約 1 秒）；
+    # 第 1 步改對應欄位時只是從裡面拿掉對應到的欄（不用每打一格就重算）
+    all_cand <- shiny::reactive(kits_candidate_cols(dfs(), character(0)))
+    all_settings <- shiny::reactive({
+      kits_item_settings(dfs(), all_cand()$numeric, codes_2(), include = FALSE)
+    })
+    mapped_cols <- shiny::reactive({
       s <- step1()
-      kits_candidate_cols(dfs(), c(kits_mapped_cols(s$map, s$per_file), cohort_cols()))
+      sort(unique(c(kits_mapped_cols(s$map, s$per_file), cohort_cols())))
+    })
+    candidates <- shiny::reactive({
+      a <- all_cand()
+      m <- mapped_cols()
+      list(numeric = setdiff(a$numeric, m), text = setdiff(a$text, m),
+           mixed = a$mixed[!a$mixed$column %in% m, ])
     })
     reverse_rule <- shiny::reactive(input$reverse_rule %||% "suffix")
     shiny::observe({
-      new <- kits_item_settings(dfs(), candidates()$numeric, codes_2(), include = FALSE)
+      a <- all_settings()
+      new <- a[a$column %in% candidates()$numeric, ]
+      old <- shiny::isolate(settings())
+      # 欄沒變（例如第 1 步只改了世代的值）：不用重新同步
+      if (identical(new$column, old$column) && identical(new$raw, old$raw) &&
+          identical(new$codes, old$codes)) return()
       up <- shiny::isolate(upload())
       if (inherits(up, "error")) up <- NULL
-      settings(kits_settings_sync(shiny::isolate(settings()), new, up, reverse_rule()))
+      settings(kits_settings_sync(old, new, up, shiny::isolate(reverse_rule())))
     })
     # 換規則：拿掉用舊規則從原題來的領域，再用新規則套一次題目表
     shiny::observeEvent(input$reverse_rule, {
@@ -458,7 +475,14 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       paste0(kit_num(nrow(grp_shown())), " 組 · 第 ", min(grp_page(), grp_pages()), " / ",
              grp_pages(), " 頁")
     })
-    grp_dom_id <- function(k) paste0("gdom_", k)
+    # 領域選單的 id 用組名做（不用列號：組的清單變了也不會對錯組）
+    grp_dom_id <- function(stem) paste0("gdom_", paste(sprintf("%x", utf8ToInt(stem)), collapse = ""))
+    # 伺服器最後畫上去（或推上去）的值：收到一樣的值就不是使用者改的（換頁、找組時選單重畫）
+    grp_seen <- new.env(parent = emptyenv())
+    grp_sel_prev <- shiny::reactiveVal(character(0))
+    group_on <- function(s, g) {
+      g$stem[vapply(g$cols, function(c) all(s$include[match(c, s$column)]), logical(1))]
+    }
     output$groups_table <- shiny::renderUI({
       g <- grp_rows()
       if (nrow(g) == 0) {
@@ -467,9 +491,13 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       }
       s <- shiny::isolate(settings())
       doms <- sort(unique(stats::na.omit(s$domain)))
+      shiny::isolate(grp_sel_prev(group_on(s, g)))
       rows <- purrr::pmap(g, function(stem, cols, n, range, label, n_in, domain, k) {
         on <- all(s$include[match(cols, s$column)])
         dom <- unique(stats::na.omit(s$domain[match(cols, s$column)]))
+        selected <- if (length(dom) == 1) dom else ""
+        id <- grp_dom_id(stem)
+        grp_seen[[id]] <- selected
         shiny::tags$tr(
           shiny::tags$td(shiny::tags$input(
             type = "checkbox", name = ns("grp_sel"), value = stem,
@@ -480,8 +508,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           shiny::tags$td(class = "kit-group-label", if (nzchar(label)) label else
             shiny::tags$span(class = "kit-muted", "（沒有題目內容）")),
           shiny::tags$td(shiny::selectizeInput(
-            ns(grp_dom_id(k)), NULL, choices = c("", union(doms, dom)),
-            selected = if (length(dom) == 1) dom else "", width = "11rem",
+            ns(id), NULL, choices = c("", union(doms, dom)),
+            selected = selected, width = "11rem",
             options = list(create = TRUE, placeholder = "選或打領域", dropdownParent = "body")
           ))
         )
@@ -502,43 +530,47 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         )
       )
     })
-    # 勾選：這一頁勾的組納入、沒勾的不納入（只改這一頁的組）
+    # 勾選：只改使用者這次勾或取消的組（和上一次的值比），其他組不動
     shiny::observeEvent(input$grp_sel, {
       g <- grp_rows()
+      new <- input$grp_sel %||% character(0)
+      prev <- grp_sel_prev()
+      changed <- intersect(union(setdiff(new, prev), setdiff(prev, new)), g$stem)
+      grp_sel_prev(new)
+      if (length(changed) == 0) return()
       s <- settings()
-      want <- g$stem %in% (input$grp_sel %||% character(0))
-      for (i in seq_len(nrow(g))) {
-        cols <- g$cols[[i]]
-        now <- all(s$include[match(cols, s$column)])
-        if (!identical(now, want[i])) s <- kits_bulk_include(s, cols, want[i])
+      for (stem in changed) {
+        cols <- g$cols[[match(stem, g$stem)]]
+        s <- kits_bulk_include(s, cols, stem %in% new)
       }
       if (!identical(s, settings())) settings(s)
     }, ignoreNULL = FALSE, ignoreInit = TRUE)
-    # 領域：選了就設給這一組的每一欄，並且勾起來
+    # 設定在別的地方改了（題目表、用欄名挑、逐題表、領域）：把這一頁的勾選跟上
+    shiny::observe({
+      on <- group_on(settings(), grp_rows())
+      if (!setequal(on, shiny::isolate(grp_sel_prev()))) {
+        grp_sel_prev(on)
+        shiny::updateCheckboxGroupInput(session, "grp_sel", selected = if (length(on)) on else character(0))
+      }
+    })
+    # 領域：使用者選了新的值才設給這一組的每一欄，並且納入
     shiny::observe({
       g <- grp_rows()
-      vals <- lapply(g$k, function(k) input[[grp_dom_id(k)]])
+      ids <- vapply(g$stem, grp_dom_id, character(1))
+      vals <- lapply(ids, function(id) input[[id]])
       shiny::isolate({
         s <- settings()
-        turned_on <- character(0)
-        for (i in seq_len(nrow(g))) {
-          v <- trimws(vals[[i]] %||% "")
+        for (i in seq_along(ids)) {
+          v <- vals[[i]]
+          if (is.null(v)) next
+          v <- trimws(paste(v, collapse = ""))
+          if (identical(v, grp_seen[[ids[i]]])) next
+          grp_seen[[ids[i]]] <- v
           if (!nzchar(v)) next
           cols <- g$cols[[i]]
-          hit <- match(cols, s$column)
-          # 只有領域真的改了才算「要這一組」：換頁、找組時選單重畫、值沒變，不會把取消勾選的組又納入
-          if (all(s$domain[hit] %in% v)) next
-          s <- kits_bulk_domain(s, cols, v)
-          if (!all(s$include[hit])) {
-            s <- kits_bulk_include(s, cols, TRUE)
-            turned_on <- c(turned_on, g$stem[i])
-          }
+          s <- kits_bulk_include(kits_bulk_domain(s, cols, v), cols, TRUE)
         }
         if (!identical(s, settings())) settings(s)
-        if (length(turned_on) > 0) {
-          on <- g$stem[vapply(g$cols, function(c) all(s$include[match(c, s$column)]), logical(1))]
-          shiny::updateCheckboxGroupInput(session, "grp_sel", selected = on)
-        }
       })
     })
 
@@ -686,7 +718,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     })
     shiny::observeEvent(input$ack_codes, {
       ch <- checks()$codes
-      n <- sum(settings()$n_codes[settings()$include] %||% 0) + side_cells()
+      n <- kits_codes_total(settings(), side_cells())
       if (!is.null(ch)) ack$codes <- n
     })
     shiny::observeEvent(input$unack_codes, ack$codes <- NULL)

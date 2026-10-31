@@ -53,3 +53,6 @@ kd_head_state <- function(output, k) {
   html <- as.vector(unclass(output[[paste0("kitsdata-head", k)]]$html))
   sub(".*class=\"kit-stephead is-([a-z]+)\".*", "\\1", gsub("\n", " ", html))
 }
+
+# 第 2 步一組的領域選單 id（和 mod_kitsdata.R 的 grp_dom_id() 一樣：組名的 16 進位）
+kd_gdom <- function(stem) paste0("gdom_", paste(sprintf("%x", utf8ToInt(stem)), collapse = ""))

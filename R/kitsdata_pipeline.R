@@ -231,12 +231,13 @@ kits_item_domains <- function(cols, table = NULL, reverse = "suffix") {
   domain <- rep(NA_character_, length(cols))
   source <- rep(NA_character_, length(cols))
   if (!is.null(table) && nrow(table) > 0) {
-    hit <- match(cols, table$item_id)
+    # 欄名不分大小寫（W1D5_1 和 w1d5_1 是同一欄）
+    hit <- match(tolower(cols), tolower(table$item_id))
     domain <- table$domain[hit]
     source[!is.na(domain)] <- "題目表"
     base <- kits_reverse_base(cols, reverse)
-    use_base <- is.na(domain) & !is.na(base) & base %in% table$item_id
-    domain[use_base] <- table$domain[match(base[use_base], table$item_id)]
+    use_base <- is.na(domain) & !is.na(base) & tolower(base) %in% tolower(table$item_id)
+    domain[use_base] <- table$domain[match(tolower(base[use_base]), tolower(table$item_id))]
     source[use_base] <- paste0("題目表（原題 ", base[use_base], "）")
   }
   tibble::tibble(column = cols, domain = domain, source = source)
@@ -485,24 +486,27 @@ kits_no_codes <- function() tibble::tibble(value = numeric(0), why = character(0
 #' @noRd
 kits_item_settings <- function(dfs, cols, na_codes = NULL, include = TRUE) {
   if (length(cols) == 0) return(kits_settings_empty())
-  rows <- purrr::map(cols, function(col) {
-    all_vals <- unlist(purrr::map(dfs, function(df) {
+  # 一欄一個 list，最後一次組成 tibble（逐欄做 tibble 再 list_rbind 很慢：2,000 欄約 2 秒）
+  rows <- lapply(cols, function(col) {
+    all_vals <- unlist(lapply(dfs, function(df) {
       x <- df[[col]]
       if (is.null(x) || !(is.numeric(x) || is.character(x))) NULL else kits_as_num(x)
-    }))
+    }), use.names = FALSE)
     all_vals <- all_vals[!is.na(all_vals)]
     vals <- unique(all_vals)
     found <- kits_value_codes(vals, kits_value_labels(dfs, col), na_codes)
-    observed <- sort(vals[!vals %in% found$value])
-    # 注意：tibble() 依序建立欄位，不能用和欄名相同的變數名（raw、codes）
-    tibble::tibble(
-      column = col, include = include, domain = NA_character_, source = NA_character_,
-      raw = list(observed), score = list(observed), has_codes = nrow(found) > 0,
-      codes = list(found), n_codes = sum(all_vals %in% found$value),
-      item_id_out = NA_character_
-    )
+    list(observed = sort(vals[!vals %in% found$value]), found = found,
+         n = sum(all_vals %in% found$value))
   })
-  purrr::list_rbind(rows)
+  observed <- lapply(rows, `[[`, "observed")
+  tibble::tibble(
+    column = cols, include = include, domain = NA_character_, source = NA_character_,
+    raw = observed, score = observed,
+    has_codes = vapply(rows, function(r) nrow(r$found) > 0, logical(1)),
+    codes = lapply(rows, `[[`, "found"),
+    n_codes = vapply(rows, `[[`, integer(1), "n"),
+    item_id_out = NA_character_
+  )
 }
 
 # 舊的計分對照套到新的原分數：對得到的照舊；對不到的，舊的對照沒改過（原分數 = 計分）
@@ -562,12 +566,12 @@ kits_settings_apply <- function(settings, upload, cols = NULL, reverse = "suffix
   # 輸出題號：只對欄名完全相同的列（不用反向題的規則）
   if (!is.null(upload$data[["item_id_out"]]) && any(!is.na(upload$data[["item_id_out"]]))) {
     if (is.null(settings[["item_id_out"]])) settings$item_id_out <- NA_character_
-    out <- upload$data[["item_id_out"]][match(settings$column, upload$data$item_id)]
+    out <- upload$data[["item_id_out"]][match(tolower(settings$column), tolower(upload$data$item_id))]
     set <- todo & !is.na(out)
     settings$item_id_out[set] <- ifelse(out[set] == settings$column[set], NA, out[set])
   }
   if (upload$type == "settings") {
-    hit <- match(settings$column, upload$data$item_id)
+    hit <- match(tolower(settings$column), tolower(upload$data$item_id))
     for (i in which(todo & !is.na(hit))) {
       j <- hit[i]
       if (!is.na(upload$data$include[j])) settings$include[i] <- upload$data$include[j]
