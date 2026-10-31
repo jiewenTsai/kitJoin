@@ -18,6 +18,12 @@ KIT_JOIN_METHODS <- c(
   "全樣本：任何一波次有出席就會保留（full join）" = "full_join"
 )
 
-# 通知訊息顯示秒數
+# 「用 R 怎麼做」程式碼上面的說明（kitDesign::kit_code_blocks(note = )）
+KIT_CODE_NOTE_JOIN <- paste(
+  "以下程式碼依你目前在這一頁的設定產生，是簡化的示範；",
+  "app 實際處理另外還有編碼修正、型別檢查與核對等步驟。"
+)
+
+# 通知訊息顯示秒數（kitJoin 自己的通知；狀態框的通知是 kitDesign::kit_notify()）
 KIT_NOTIFY_SECONDS <- 6
 KIT_NOTIFY_ERROR_SECONDS <- 10

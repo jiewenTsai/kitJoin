@@ -44,11 +44,10 @@ mod_kitsdata_ui <- function(id) {
       "output.has_files == 'yes'", ns = ns,
 
       # 第 1 步 ----
-      shiny::tags$section(
-        class = "kit-stepcard", `aria-labelledby` = ns("steptitle1"),
+      kit_step_card(
         shiny::uiOutput(ns("head1")),
         shiny::conditionalPanel(
-          open_is(1), ns = ns, shiny::tags$div(class = "kit-stepbody",
+          open_is(1), ns = ns, kit_step_body(
           shiny::tags$p("已經照欄名猜好了（淡黃色），請看一遍，不對就改。",
                         "每一格可以選檔案裡的一欄，也可以直接打字填一個值（例如 2009）。"),
           shiny::uiOutput(ns("files_table")),
@@ -71,15 +70,15 @@ mod_kitsdata_ui <- function(id) {
           ),
           shiny::uiOutput(ns("step1_problems")),
           shiny::actionButton(ns("ok1"), "對，下一步", class = "btn-default")
-        ))
+        )),
+        title_id = ns("steptitle1")
       ),
 
       # 第 2 步 ----
-      shiny::tags$section(
-        class = "kit-stepcard", `aria-labelledby` = ns("steptitle2"),
+      kit_step_card(
         shiny::uiOutput(ns("head2")),
         shiny::conditionalPanel(
-          open_is(2), ns = ns, shiny::tags$div(class = "kit-stepbody",
+          open_is(2), ns = ns, kit_step_body(
           shiny::uiOutput(ns("intro2")),
           shiny::tags$div(
             class = "kit-inline",
@@ -127,15 +126,15 @@ mod_kitsdata_ui <- function(id) {
             kit_detail("沒有列在上面的欄", shiny::uiOutput(ns("text_cols")))
           ),
           shiny::actionButton(ns("ok2"), "對，下一步", class = "btn-default")
-        ))
+        )),
+        title_id = ns("steptitle2")
       ),
 
       # 第 3 步 ----
-      shiny::tags$section(
-        class = "kit-stepcard", `aria-labelledby` = ns("steptitle3"),
+      kit_step_card(
         shiny::uiOutput(ns("head3")),
         shiny::conditionalPanel(
-          open_is(3), ns = ns, shiny::tags$div(class = "kit-stepbody",
+          open_is(3), ns = ns, kit_step_body(
           shiny::tags$p("kits 要的分數是 0、1、2…。轉換前，看下面每一件事："),
           shiny::uiOutput(ns("checks")),
           shiny::tags$div(
@@ -150,7 +149,8 @@ mod_kitsdata_ui <- function(id) {
             shiny::tags$div(class = "kit-downloads kit-itemtable-dl",
                             shiny::uiOutput(ns("table_dl_ui"), inline = TRUE))
           )
-        ))
+        )),
+        title_id = ns("steptitle3")
       ),
 
       shiny::uiOutput(ns("ready")),
@@ -330,7 +330,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       purrr::pmap(list(keys, files$names(), dfs(), seq_along(keys)), function(key, name, df, k) {
         shiny::tags$tr(
           shiny::tags$td(shiny::tags$strong(name), shiny::tags$br(),
-                         shiny::tags$small(class = "kit-hint", format_dims(nrow(df), ncol(df)))),
+                         shiny::tags$small(class = "kit-hint", kit_dims(nrow(df), ncol(df)))),
           purrr::map(fields, function(field) cell_input(field, key, df, k, fname = name))
         )
       })
@@ -399,8 +399,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     output$step1_problems <- shiny::renderUI({
       msg <- step1_msg()
       if (length(msg) == 0) return(NULL)
-      shiny::tags$div(class = "kit-problems", shiny::tags$strong("還差："),
-                      shiny::tags$ul(lapply(msg, shiny::tags$li)))
+      kit_problems(msg, head = "還差：")
     })
     shiny::observeEvent(cells(), step1_msg(NULL), ignoreInit = TRUE)
     shiny::observeEvent(input$ok1, {
@@ -673,10 +672,10 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       rename <- kits_item_rename(items())
       clash <- kits_rename_problems(dfs(), files$names(), items(), rename)
       up_line <- if (inherits(up, "error")) {
-        kitsdata_check("todo", "題目表讀不進來", conditionMessage(up))
+        kit_check("todo", "題目表讀不進來", conditionMessage(up))
       } else if (!is.null(up)) {
         miss <- setdiff(tolower(up$data$item_id), tolower(s$column))
-        kitsdata_check(
+        kit_check(
           if (cnt$n_cols > 0) "ok" else "todo",
           paste0(up$name %||% "題目表", "：", cnt$pick_text),
           paste0(
@@ -688,10 +687,10 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           )
         )
       } else if (cnt$n_cols > 0) {
-        kitsdata_check("ok", cnt$pick_text, "")
+        kit_check("ok", cnt$pick_text, "")
       }
       shiny::tagList(
-        if (!is.null(up_line)) shiny::tags$ul(class = "kit-checklist", up_line),
+        if (!is.null(up_line)) kit_checklist(up_line),
         if (length(clash) > 0) shiny::tags$div(class = "kit-problems", lapply(clash, shiny::tags$div)),
         kitsdata_mixed_note(candidates()$mixed, files$names())
       )
@@ -781,8 +780,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           btn("ack_common", "它們不是同一份量表")
         ) else if (isTRUE(ack$common)) list(shiny::actionLink(ns("unack_common"), "改回來"))
       )
-      shiny::tags$ul(class = "kit-checklist", lapply(ch, function(x) {
-        kitsdata_check(x$state, x$title, x$text, if (!is.null(actions[[x$id]])) actions[[x$id]](x))
+      kit_checklist(lapply(ch, function(x) {
+        kit_check(x$state, x$title, x$text, if (!is.null(actions[[x$id]])) actions[[x$id]](x))
       }))
     })
     shiny::observeEvent(input$ack_codes, {
@@ -923,23 +922,15 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     })
 
     # 步驟標頭 ----
+    # 畫法是 kitDesign 的 kit_step_head()；哪一步打開的規則留在這裡（第 3 步沒有「對，下一步」、
+    # 轉換完全部收起、第 1 步要先過檢查），所以不用 kit_stepcards_server()
     head_ui <- function(k, title, summary) {
       state <- if (open() == k) "current" else if (k == 1 && ok$s1 || k == 2 && ok$s2 ||
                                                   k == 3 && open() == 0L) "done" else "locked"
       can_edit <- state == "done" && (k == 1 || ok$s1 && (k == 2 || ok$s2))
-      shiny::tags$div(
-        class = paste0("kit-stephead is-", state),
-        `aria-current` = if (state == "current") "step",
-        shiny::tags$span(class = "kit-stepnum", `aria-hidden` = "true", if (state == "done") "✓" else k),
-        shiny::tags$span(class = "visually-hidden",
-                         paste0("第 ", k, " 步，", c(current = "現在這一步", done = "做完了",
-                                                    locked = "還不能做")[[state]], "：")),
-        shiny::tags$span(class = "kit-steptitle", id = ns(paste0("steptitle", k)), title),
-        if (state == "done") shiny::tags$span(class = "kit-stepsum", summary),
-        if (state == "locked") shiny::tags$span(class = "kit-stepsum", paste0("先完成第 ", k - 1, " 步")),
-        if (can_edit) shiny::actionLink(ns(paste0("edit", k)), "改", class = "kit-stepedit",
-                                        `aria-label` = paste0("改第 ", k, " 步：", title))
-      )
+      kit_step_head(k, title, state, summary = summary,
+                    edit_id = if (can_edit) ns(paste0("edit", k)),
+                    title_id = ns(paste0("steptitle", k)))
     }
     output$head1 <- shiny::renderUI(head_ui(
       1, "每個檔案是哪個世代、哪個波次",
@@ -1028,7 +1019,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       kit_scroll_to("status")
     })
 
-    output$status <- shiny::renderUI(make_status_ui(status()))
+    output$status <- shiny::renderUI(kit_status_ui(status()))
 
     output$result <- shiny::renderUI({
       res <- result()
@@ -1092,30 +1083,12 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       kit_code_blocks(list(tidy = code_kitsdata(
         code_files_from(files), spec(), na_applied = identical(working$source(), "na"),
         text_fix = text_fix
-      ), base = NULL))
+      ), base = NULL), note = KIT_CODE_NOTE_JOIN)
     })
 
     # 這一頁的狀態（步驟分頁打 ✓ 用）
     list(state = shiny::reactive(status()$state))
   })
-}
-
-#' 檢查清單的一列：✓（沒問題）、!（要決定）、i（提醒）；記號旁邊有給螢幕閱讀器的文字；按鈕放在說明下面
-#' @noRd
-kitsdata_check <- function(state, title, text = "", actions = NULL) {
-  mark <- c(ok = "✓", todo = "!", note = "i")[[state]]
-  said <- c(ok = "沒問題：", todo = "要決定：", note = "提醒：")[[state]]
-  shiny::tags$li(
-    class = paste("kit-check", state),
-    shiny::tags$span(class = "kit-check-mark", `aria-hidden` = "true", mark),
-    shiny::tags$span(class = "visually-hidden", said),
-    shiny::tags$div(
-      class = "kit-check-text",
-      shiny::tags$strong(title),
-      if (length(text) > 0 && any(nzchar(text))) shiny::tags$span(paste(text, collapse = "")),
-      if (length(actions) > 0) shiny::tags$div(class = "kit-check-actions", actions)
-    )
-  )
 }
 
 #' 在某些檔案是文字的題目欄：哪個檔案、哪一欄（那個檔案的這一題不轉）

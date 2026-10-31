@@ -376,7 +376,7 @@ mod_missing_server <- function(id, files, goto = NULL) {
       kit_scroll_to("status")
     })
 
-    output$status <- shiny::renderUI(make_status_ui(status()))
+    output$status <- shiny::renderUI(kit_status_ui(status()))
 
     # 重點：各檔案替換摘要，下面是下載（一次一個檔案）
     output$result <- shiny::renderUI({
@@ -474,7 +474,7 @@ mod_missing_server <- function(id, files, goto = NULL) {
         isTRUE(input$match_text),
         mode = mode(),
         keywords = keywords()
-      ))
+      ), note = KIT_CODE_NOTE_JOIN)
     })
 
     use_processed <- shiny::reactive({

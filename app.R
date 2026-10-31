@@ -13,8 +13,14 @@ if (!nzchar(Sys.getenv("KIT_DEPLOY")) && !interactive()) {
   Sys.setenv(KIT_DEPLOY = "cloud")
 }
 
-# 載入 R/ 的所有函式到獨立環境（不污染使用者的 global environment）
-kit_env <- new.env(parent = globalenv())
+# 載入 R/ 的所有函式到獨立環境（不污染使用者的 global environment）。
+# 共用的介面元件在 kitDesign：把它匯出的函式放在上一層（和套件的 import(kitDesign) 一樣），
+# R/ 裡直接寫 kit_page()、kit_status() 就找得到
+kit_design <- new.env(parent = globalenv())
+for (n in getNamespaceExports("kitDesign")) {
+  assign(n, getExportedValue("kitDesign", n), envir = kit_design)
+}
+kit_env <- new.env(parent = kit_design)
 for (f in sort(list.files("R", pattern = "[.]R$", full.names = TRUE))) {
   source(f, local = kit_env, encoding = "UTF-8")
 }

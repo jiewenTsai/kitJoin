@@ -256,7 +256,7 @@ mod_join_server <- function(id, files, working, goto) {
           kit_done_status(
             paste0(
               "串接完成：結果共 ",
-              format_dims(nrow(out$result), ncol(out$result)),
+              kit_dims(nrow(out$result), ncol(out$result)),
               "。"
             ),
             warnings = out$warnings, notes = out$notes, points = out$summary
@@ -292,7 +292,7 @@ mod_join_server <- function(id, files, working, goto) {
       run_join(confirm_large = TRUE)
     })
 
-    output$status <- shiny::renderUI(make_status_ui(status()))
+    output$status <- shiny::renderUI(kit_status_ui(status()))
 
     kit_download_server(
       session, output,
@@ -365,7 +365,7 @@ mod_join_server <- function(id, files, working, goto) {
         spec$by_vars,
         input$method,
         id_cols = spec$id_cols
-      ))
+      ), note = KIT_CODE_NOTE_JOIN)
     })
 
     # 這一頁的狀態（步驟分頁打 ✓ 用）

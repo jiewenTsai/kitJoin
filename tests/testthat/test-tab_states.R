@@ -6,7 +6,7 @@ tab_tip_of <- function(states) {
 }
 
 test_that("步驟分頁：還不能用的變灰並說明要先做什麼", {
-  s <- kit_tab_states(0)
+  s <- kitjoin_tab_states(0)
   expect_equal(purrr::map_chr(s, "value"), names(KIT_TAB_NEED))
   st <- tab_state_of(s)
   expect_equal(
@@ -20,7 +20,7 @@ test_that("步驟分頁：還不能用的變灰並說明要先做什麼", {
   expect_equal(tips$join, "還不能用：先在「檔案上傳」加入至少 2 個檔案")
   expect_null(tips$convert)
 
-  one <- kit_tab_states(1, list(upload = "success"))
+  one <- kitjoin_tab_states(1, list(upload = "success"))
   st <- tab_state_of(one)
   expect_equal(st[["upload"]], "done")
   expect_equal(unname(st[c("missing", "kitsdata", "reshape")]), rep("ready", 3))
@@ -29,7 +29,7 @@ test_that("步驟分頁：還不能用的變灰並說明要先做什麼", {
 })
 
 test_that("步驟分頁：完成（含要注意）打 ✓；要重新執行時 ✓ 拿掉；停下來不打 ✓", {
-  s <- kit_tab_states(2, list(
+  s <- kitjoin_tab_states(2, list(
     upload = "success", missing = "stale", join = "success", stack = "warning",
     attrition = "error", convert = "success"
   ))
@@ -44,7 +44,7 @@ test_that("步驟分頁：完成（含要注意）打 ✓；要重新執行時 �
   expect_match(tips$stack, "要注意")
   expect_match(tips$missing, "要重新執行")
   # 檔案少於需要的數量時，舊的狀態不算：變灰
-  expect_equal(tab_state_of(kit_tab_states(1, list(join = "success")))[["join"]], "locked")
+  expect_equal(tab_state_of(kitjoin_tab_states(1, list(join = "success")))[["join"]], "locked")
 })
 
 test_that("步驟分頁的狀態跟著 app 走：上傳、執行、改設定、移除檔案", {
@@ -92,9 +92,11 @@ test_that("步驟分頁的狀態跟著 app 走：上傳、執行、改設定、�
 })
 
 test_that("頁面帶著分頁狀態的 JavaScript；每一頁只有一個主要按鈕", {
-  ui <- as.character(kit_ui(NULL))
-  expect_match(ui, "kit-tab-states", fixed = TRUE)
-  expect_match(ui, "kit-open-details", fixed = TRUE)
+  # 分頁狀態、打開收合區塊、捲動的小程式在 kitDesign 的 kit.js（kit_page() 放進頁面）
+  deps <- htmltools::findDependencies(kit_ui(NULL))
+  kd <- Filter(function(d) identical(d$name, "kitDesign"), deps)
+  expect_length(kd, 1)
+  expect_true("kit.js" %in% unlist(kd[[1]]$script))
   pages <- list(
     upload = mod_upload_ui("upload"), missing = mod_missing_ui("missing"),
     join = mod_join_ui("join"), stack = mod_stack_ui("stack"),
@@ -112,7 +114,7 @@ test_that("頁面帶著分頁狀態的 JavaScript；每一頁只有一個主要�
 })
 
 test_that("分頁列：三組、不編號，分頁的 value 不變；Shiny 自己的分頁列藏起來", {
-  bar <- as.character(kit_navgroups("tabs", selected = "upload"))
+  bar <- as.character(kit_navgroups(KIT_TAB_GROUPS, "tabs", selected = "upload"))
   expect_match(bar, 'data-tabset="tabs"', fixed = TRUE)
   for (label in c("準備", "做出資料（選一個）", "其他工具")) expect_match(bar, label, fixed = TRUE)
   values <- regmatches(bar, gregexpr('data-kit-tab="[a-z]+"', bar))[[1]]

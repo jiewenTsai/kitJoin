@@ -85,7 +85,7 @@ mod_stack_server <- function(id, files, working, goto) {
           kit_done_status(
             paste0(
               "疊加完成：結果共 ",
-              format_dims(nrow(out$result), ncol(out$result)),
+              kit_dims(nrow(out$result), ncol(out$result)),
               "。"
             ),
             warnings = out$warnings, points = out$summary
@@ -100,7 +100,7 @@ mod_stack_server <- function(id, files, working, goto) {
       kit_scroll_to("status")
     })
 
-    output$status <- shiny::renderUI(make_status_ui(status()))
+    output$status <- shiny::renderUI(kit_status_ui(status()))
 
     # 匯出時 ID 與波次欄放最前面
     export_cols <- function(res) {
@@ -157,7 +157,7 @@ mod_stack_server <- function(id, files, working, goto) {
     )
 
     output$code <- shiny::renderUI({
-      kit_code_blocks(code_stack(code_files_from(files, 2L)))
+      kit_code_blocks(code_stack(code_files_from(files, 2L)), note = KIT_CODE_NOTE_JOIN)
     })
 
     # 這一頁的狀態（步驟分頁打 ✓ 用）

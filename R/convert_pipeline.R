@@ -275,7 +275,7 @@ convert_summary_table <- function(res) {
   tibble::tibble(
     檔案 = res$name,
     轉成 = res$out_name,
-    `列 × 欄` = format_dims(res$nrow, res$ncol),
+    `列 × 欄` = kit_dims(res$nrow, res$ncol),
     原始大小 = format_bytes(res$size_before),
     轉換後大小 = format_bytes(res$size_after)
   )

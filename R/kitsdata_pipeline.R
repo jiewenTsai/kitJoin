@@ -60,6 +60,7 @@ KITS_SETTINGS_FILE <- "kits_item_settings.csv"
 KITS_TYPED_PREFIX <- ".kits_typed_"
 
 #' @importFrom dplyr .data
+#' @import kitDesign
 NULL
 
 # 外部連結的錨題只認這三個領域名稱

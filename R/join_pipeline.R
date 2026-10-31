@@ -208,10 +208,9 @@ check_join_size <- function(dfs, by_vars, method, names_shown, confirm_large) {
     kit_abort(why, "結果太大，無法產生。請改選每個人都不同的 ID 欄。")
   }
   if (!confirm_large) {
-    kit_abort_class(
-      "kit_join_too_large",
+    kit_abort(
       why, "請先確認 ID 欄；確定沒問題再按「仍要執行」。",
-      data = list(estimate = estimate)
+      class = "kit_join_too_large", data = list(estimate = estimate)
     )
   }
   invisible(estimate)

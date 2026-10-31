@@ -285,8 +285,8 @@ wider_summary <- function(data, result, args, new_names) {
   levels <- unique(data[[args$names_from]])
   c(
     paste0(
-      "轉換前 ", format_dims(nrow(data), ncol(data)), "；",
-      "轉換後 ", format_dims(nrow(result), ncol(result)), "。"
+      "轉換前 ", kit_dims(nrow(data), ncol(data)), "；",
+      "轉換後 ", kit_dims(nrow(result), ncol(result)), "。"
     ),
     paste0(
       args$names_from, " 有 ", kit_num(length(levels)), " 個值（",
@@ -358,8 +358,8 @@ reshape_longer <- function(data, args) {
     result = result,
     summary = c(
       paste0(
-        "轉換前 ", format_dims(nrow(data), ncol(data)), "；",
-        "轉換後 ", format_dims(nrow(result), ncol(result)), "。"
+        "轉換前 ", kit_dims(nrow(data), ncol(data)), "；",
+        "轉換後 ", kit_dims(nrow(result), ncol(result)), "。"
       ),
       paste0(
         "轉換 ", kit_num(length(cols)), " 欄",

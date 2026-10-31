@@ -215,7 +215,7 @@ pivot_cols_ui <- function(ns, choices = NULL, selected = NULL) {
 pivot_quick_ui <- function(input_id, groups) {
   btn <- function(key, label) {
     shiny::tags$button(
-      type = "button", class = paste("btn", KIT_BTN[["secondary"]]), style = "text-transform: none;",
+      type = "button", class = paste("btn", kit_btn_class("secondary")), style = "text-transform: none;",
       onclick = sprintf(
         "Shiny.setInputValue('%s', '%s', {priority: 'event'})", input_id, key
       ),

@@ -1,26 +1,7 @@
 # 共用小工具
 
-#' 給使用者看的錯誤
-#'
-#' 訊息需是白話中文、說明原因與怎麼修；UI 會原文顯示，不加技術細節。
-#' 其他未預期的錯誤則由 UI 包成「發生未預期的錯誤」並把原始訊息收在技術細節裡。
-#' @noRd
-kit_abort <- function(...) {
-  stop(structure(
-    class = c("kit_user_error", "error", "condition"),
-    list(message = paste0(...), call = NULL)
-  ))
-}
-
-#' 給使用者看的錯誤，另加一個 class（呼叫端可以另外處理，例如跳出確認視窗）
-#' @param data 附在 condition 上的其他欄位（list）
-#' @noRd
-kit_abort_class <- function(class, ..., data = list()) {
-  stop(structure(
-    class = c(class, "kit_user_error", "error", "condition"),
-    c(list(message = paste0(...), call = NULL), data)
-  ))
-}
+# 給使用者看的錯誤是 kitDesign::kit_abort(..., class = , data = )：白話中文、說明原因與怎麼修，
+# 狀態框原文顯示（kit_error_status()）；其他未預期的錯誤包成「沒有預期到的問題」。
 
 #' x 為 NULL 時改用 y（R 4.4 起 base 也有，這裡為了支援較舊的 R）
 #' @noRd

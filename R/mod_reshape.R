@@ -451,7 +451,7 @@ mod_reshape_server <- function(id, files, working, goto) {
           kit_done_status(
             paste0(
               "轉換完成：結果共 ",
-              format_dims(nrow(out$result), ncol(out$result)), "。"
+              kit_dims(nrow(out$result), ncol(out$result)), "。"
             ),
             warnings = out$warnings, points = out$summary
           )
@@ -465,7 +465,7 @@ mod_reshape_server <- function(id, files, working, goto) {
       kit_scroll_to("status")
     })
 
-    output$status <- shiny::renderUI(make_status_ui(status()))
+    output$status <- shiny::renderUI(kit_status_ui(status()))
     output$blocked <- shiny::renderUI({
       dup <- blocked()
       if (is.null(dup)) return(NULL)
@@ -535,7 +535,7 @@ mod_reshape_server <- function(id, files, working, goto) {
     output$preview_meta <- shiny::renderText({
       res <- shiny::req(result())
       paste0(
-        "轉換前 ", format_dims(res$before[1], res$before[2]), "；轉換後",
+        "轉換前 ", kit_dims(res$before[1], res$before[2]), "；轉換後",
         kit_rows_note(
           nrow(res$result), ncol(res$result), KIT_RESHAPE_PREVIEW_ROWS, KIT_PREVIEW_COLS
         )
@@ -560,7 +560,7 @@ mod_reshape_server <- function(id, files, working, goto) {
       } else {
         code_wider(wider(), p$data %||% tibble::tibble(), obj)
       }
-      kit_code_blocks(snips)
+      kit_code_blocks(snips, note = KIT_CODE_NOTE_JOIN)
     })
 
     # 這一頁的狀態（步驟分頁打 ✓ 用）

@@ -303,7 +303,11 @@ code_missing_labels <- function(f, keywords, exclude) {
       "    is_na <- is_na & (labs < 0 | labs > max(c(-Inf, labs[!is_na])))",
       "  }",
       paste0("  x <- ", obj, "[[col]]"),
-      "  hit <- if (is.numeric(x)) x %in% labs[is_na] else trimws(x) %in% trimws(labs[is_na])",
+      "  hit <- if (is.numeric(x)) {",
+      "    x %in% labs[is_na]",
+      "  } else {",
+      "    trimws(x) %in% trimws(labs[is_na])",
+      "  }",
       paste0("  ", obj, "[[col]][hit] <- NA"),
       "}"
     )
@@ -311,8 +315,8 @@ code_missing_labels <- function(f, keywords, exclude) {
   # 關鍵字裡的特殊字元（括號、點）要先跳脫才能放進正規表示式
   words <- gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", keywords)
   header <- c(
-    "# 數值標籤含這些字的值，視為遺漏值代碼（| 是「或」）",
-    paste0("na_words <- ", r_str(paste(words, collapse = "|"))),
+    "# 數值標籤含這些字的值，視為遺漏值代碼（用 | 接起來，表示「或」）",
+    paste0("na_words <- paste(", r_str(words), ", collapse = \"|\")"),
     if (length(exclude) > 0) {
       paste0("# 不處理：", paste(exclude, collapse = "、"), "（如 ID 欄）")
     }
@@ -587,12 +591,13 @@ code_attrition <- function(f, base_i, follow_i, id_vars, follow_id_vars = id_var
         id, " %in% followup_ids, 0, 1)))"
       )
     )
+    # 分成幾行寫，每行不超過 70 欄（「用 R 怎麼做」的寬度）
     base_body <- c(
       paste0("attrition_df <- ", base_obj),
-      paste0(
-        "attrition_df[[", r_str(flag), "]] <- ifelse(is.na(", r_dollar("attrition_df", id_vars),
-        "), NA, ifelse(", r_dollar("attrition_df", id_vars), " %in% followup_ids, 0, 1))"
-      )
+      paste0("ids <- ", r_dollar("attrition_df", id_vars)),
+      "flag <- ifelse(ids %in% followup_ids, 0, 1)",
+      "flag[is.na(ids)] <- NA",
+      paste0("attrition_df[[", r_str(flag), "]] <- flag")
     )
   } else {
     key_of <- function(obj, cols) {
@@ -604,7 +609,8 @@ code_attrition <- function(f, base_i, follow_i, id_vars, follow_id_vars = id_var
     lead <- c(
       "# 多個 ID 欄位：先用 paste() 黏成一個比對用的鍵；ID 有空白的列不算",
       paste0("followup_key <- ", key_of(follow_obj, follow_id_vars)),
-      paste0("followup_key <- followup_key[!(", any_na(follow_obj, follow_id_vars), ")]"),
+      paste0("followup_na <- ", any_na(follow_obj, follow_id_vars)),
+      "followup_key <- followup_key[!followup_na]",
       ""
     )
     tidy_body <- c(
@@ -618,10 +624,10 @@ code_attrition <- function(f, base_i, follow_i, id_vars, follow_id_vars = id_var
     )
     base_body <- c(
       paste0("attrition_df <- ", base_obj),
-      paste0(
-        "attrition_df[[", r_str(flag), "]] <- ifelse(", any_na("attrition_df", id_vars),
-        ", NA, ifelse(", key_of("attrition_df", id_vars), " %in% followup_key, 0, 1))"
-      )
+      paste0("key <- ", key_of("attrition_df", id_vars)),
+      "flag <- ifelse(key %in% followup_key, 0, 1)",
+      paste0("flag[", any_na("attrition_df", id_vars), "] <- NA"),
+      paste0("attrition_df[[", r_str(flag), "]] <- flag")
     )
   }
 

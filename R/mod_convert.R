@@ -136,7 +136,7 @@ mod_convert_server <- function(id) {
       kit_scroll_to("status")
     })
 
-    output$status <- shiny::renderUI(make_status_ui(status()))
+    output$status <- shiny::renderUI(kit_status_ui(status()))
 
     output$result <- shiny::renderUI({
       res <- result()
@@ -151,7 +151,7 @@ mod_convert_server <- function(id) {
           kit_download_button(
             session, "download_file", paste0("下載 ", res$out_name), res$out_name,
             function(file) file.copy(res$out_path, file, overwrite = TRUE),
-            class = KIT_BTN[["secondary"]]
+            class = kit_btn_class("secondary")
           )
         )
       )

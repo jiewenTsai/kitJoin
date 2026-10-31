@@ -257,7 +257,7 @@ mod_attrition_server <- function(id, files, working, goto) {
       kit_scroll_to("status")
     })
 
-    output$status <- shiny::renderUI(make_status_ui(status()))
+    output$status <- shiny::renderUI(kit_status_ui(status()))
 
     kit_download_server(
       session, output,
@@ -311,7 +311,7 @@ mod_attrition_server <- function(id, files, working, goto) {
         if (uploaded) pos[2] else 2L,
         input$id_vars,
         follow_ids() %||% input$id_vars
-      ))
+      ), note = KIT_CODE_NOTE_JOIN)
     })
 
     # 這一頁的狀態（步驟分頁打 ✓ 用）

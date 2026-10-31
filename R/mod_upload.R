@@ -182,7 +182,7 @@ mod_upload_server <- function(id, goto) {
         btn <- function(prefix, label, show) {
           if (show) return(kit_button(ns(paste0(prefix, r$key)), label))
           shiny::tags$button(
-            type = "button", class = paste("btn invisible", KIT_BTN[["secondary"]]),
+            type = "button", class = paste("btn invisible", kit_btn_class("secondary")),
             disabled = NA, tabindex = "-1", `aria-hidden` = "true", label
           )
         }
@@ -193,7 +193,7 @@ mod_upload_server <- function(id, goto) {
             shiny::tags$strong(r$name), shiny::tags$br(),
             shiny::tags$small(
               class = "text-muted",
-              format_dims(nrow(r$data), ncol(r$data))
+              kit_dims(nrow(r$data), ncol(r$data))
             ),
             file_read_notes(r)
           ),
@@ -262,7 +262,7 @@ mod_upload_server <- function(id, goto) {
         warnings = warns
       )
     })
-    output$status <- shiny::renderUI(make_status_ui(status()))
+    output$status <- shiny::renderUI(kit_status_ui(status()))
 
     # 最下面的「下一步」：資料裡有遺漏值代碼時建議先到 ②；2 個以上的檔案時到 ③；
     # 下面列出每一頁適合做什麼
@@ -381,7 +381,7 @@ mod_upload_server <- function(id, goto) {
     )
 
     output$code <- shiny::renderUI(
-      kit_code_blocks(code_read(code_files_from(files)))
+      kit_code_blocks(code_read(code_files_from(files)), note = KIT_CODE_NOTE_JOIN)
     )
 
     # 這一頁的狀態（步驟分頁打 ✓ 用）
