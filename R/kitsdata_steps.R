@@ -2,8 +2,9 @@
 #
 # 第 1 步：一列一個檔案，每一格是「檔案裡的一欄」或「自己填的值」→ kits_spec() 要的
 #          cohort、map、per_file、typed。
-# 第 2 步：哪些欄是題目（題目表、用欄名挑）。
-# 第 3 步：計分檢查：只列出要決定的事。
+# 第 2 步：哪些欄是題目（勾組、上傳題目表、用欄名挑）。只挑題目，不設領域。
+# 第 3 步：題目表：領域與計分。先列檢查清單（只列出要決定的事），下面就是題目表。
+#          領域一開始是組名（kits_domain_defaults()），不改也能轉換。
 
 # 第 1 步的欄：主表三欄，其餘收在「還有…（不一定要）」
 KITS_STEP1_MAIN <- c("cohort", "wave_m", "subj_id")
@@ -146,24 +147,31 @@ kits_step1_summary <- function(cells, n_files, unit, spec = NULL) {
   )
 }
 
-#' 第 2 步：挑出幾欄、合成幾題、各領域幾題
-#' @return list(n_cols, n_items, by_domain（具名整數）, text)
+#' 第 2 步：挑出幾欄、幾組、合成幾題、各領域幾題
+#' @return list(n_cols, n_groups, n_items, by_domain（具名整數）, text（含領域）,
+#'   pick_text（第 2 步用：只有欄數、組數、合成幾題，不提領域）)
 #' @noRd
 kits_step2_counts <- function(settings) {
-  inc <- settings[settings$include, ]
+  on <- settings$include
+  inc <- settings[on, ]
   out_id <- ifelse(is.na(inc[["item_id_out"]] %||% NA), inc$column, inc[["item_id_out"]])
   per_item <- inc[!duplicated(out_id), ]
   dom <- per_item$domain[!is.na(per_item$domain)]
   by_domain <- if (length(dom) > 0) table(factor(dom, levels = unique(dom))) else integer(0)
   n_items <- length(unique(out_id))
+  n_groups <- if (nrow(inc) == 0) 0L else length(unique(kits_settings_stems(settings)[on]))
+  merged <- if (n_items != nrow(inc)) paste0(" → 合成 ", kit_num(n_items), " 題")
   text <- if (nrow(inc) == 0) "還沒有挑題目" else paste0(
-    "挑出 ", kit_num(nrow(inc)), " 欄",
-    if (n_items != nrow(inc)) paste0(" → 合成 ", kit_num(n_items), " 題"),
+    "挑出 ", kit_num(nrow(inc)), " 欄", merged,
     if (length(by_domain) > 0) paste0(
       "（", paste0(names(by_domain), " ", as.integer(by_domain), " 題", collapse = "、"), "）"
     )
   )
-  list(n_cols = nrow(inc), n_items = n_items, by_domain = by_domain, text = text)
+  pick_text <- if (nrow(inc) == 0) "還沒有挑題目" else paste0(
+    "挑出 ", kit_num(nrow(inc)), " 欄、", kit_num(n_groups), " 組", merged
+  )
+  list(n_cols = nrow(inc), n_groups = n_groups, n_items = n_items, by_domain = by_domain,
+       text = text, pick_text = pick_text)
 }
 
 #' 用欄名挑：開頭是這些字的欄（可以寫好幾個，用頓號、逗號或空白隔開）
@@ -235,25 +243,37 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   } else if (any(mins > 0, na.rm = TRUE)) {
     k <- sum(mins > 0, na.rm = TRUE)
     out$shift <- row("shift", "note", paste0(k, " 欄沒有 0 分"),
-                     "最低分不一樣，不能一次全部減；需要的話在下面的逐題表裡一題一題改。")
+                     "最低分不一樣，不能一次全部減；需要的話在下面的題目表裡一題一題改。")
   } else {
     out$shift <- row("shift", "ok", "分數都從 0 開始")
   }
 
-  # 領域
+  # 領域：還沒有領域的要設；還是預設組名的，要按一下才算決定（ack$dom_default 是當時的樣子）
   und <- kits_settings_undecided(settings)
-  out$domain <- if (length(und) > 0) {
-    row("domain", "todo", paste0(length(und), " 欄還沒有領域"),
-        "每一題都要有領域（例如 distress）。可以一次設好，或在逐題表裡一題一題設。")
-  } else {
-    row("domain", "ok", "每一題都有領域")
+  if (length(und) > 0) {
+    out$domain <- row("domain", "todo", paste0(length(und), " 欄還沒有領域"),
+                      "每一題都要有領域（例如 distress）。可以一次設好，或在題目表裡一題一題設。")
   }
+  dd <- kits_domain_default_rows(inc)
+  if (length(dd) > 0) {
+    if (identical(ack$dom_default, kits_domain_default_key(inc))) {
+      out$dom_default <- row("dom_default", "ok", "領域用組名（你選的）")
+    } else {
+      out$dom_default <- row(
+        "dom_default", "todo",
+        paste0("有 ", kit_num(length(dd)), " 欄的領域還是預設的組名（例如 ",
+               inc$domain[match(dd[1], inc$column)], "）"),
+        "kitsUI 會照領域分量尺。不改也能轉換。"
+      )
+    }
+  }
+  if (length(und) == 0 && length(dd) == 0) out$domain <- row("domain", "ok", "每一題都有領域")
 
   # 計分有缺、小數、負分
   no_score <- purrr::map_lgl(inc$score, anyNA)
   if (any(no_score)) {
     out$unscored <- row("unscored", "todo", paste0(sum(no_score), " 欄有原分數沒有計分"),
-                        "在下面的逐題表裡補上計分（合併或還原）。")
+                        "在下面的題目表裡補上計分（合併或還原）。")
   }
   frac <- purrr::map_lgl(inc$raw, function(r) any(r != round(r)))
   out$frac <- if (any(frac)) {
@@ -353,7 +373,7 @@ kits_merge_groups <- function(settings, groups, stems, name) {
 #' @noRd
 kits_step3_summary <- function(checks) {
   ok <- purrr::keep(checks, function(x) x$state != "todo")
-  pick <- intersect(c("codes", "shift", "domain"), names(ok))
+  pick <- intersect(c("codes", "shift", "domain", "dom_default"), names(ok))
   if (length(pick) == 0) return("都沒問題")
   paste(vapply(ok[pick], function(x) x$title, character(1)), collapse = " · ")
 }
@@ -414,7 +434,10 @@ kits_items_page_html <- function(id, rows, selected = character(0)) {
     "<code>", esc(rows$column), "</code>",
     ifelse(is.na(out), "", paste0(" <span class=\"kit-hint\">→ 題號 ", esc(out), "</span>"))
   )
-  dom <- ifelse(is.na(rows$domain), "<span class=\"kit-muted\">（沒有）</span>", esc(rows$domain))
+  is_default <- kits_domain_is_default(rows)
+  dom <- ifelse(is.na(rows$domain), "<span class=\"kit-muted\">（沒有）</span>", paste0(
+    esc(rows$domain), ifelse(is_default, " <span class=\"kit-muted\">（組名）</span>", "")
+  ))
   tr <- paste0(
     "<tr", ifelse(rows$include, "", " class=\"kit-row-off\""), ">",
     "<td><input type=\"checkbox\" name=\"", att(id), "\" value=\"", att(rows$column), "\"",
@@ -493,10 +516,7 @@ kits_item_groups <- function(settings, dfs) {
                           label = character(0), labels = list(), n_in = integer(0),
                           domain = character(0))
   if (nrow(settings) == 0) return(empty)
-  like <- purrr::map_lgl(settings$raw, function(r) {
-    length(r) >= 2 && length(r) <= KITS_GROUP_MAX_VALUES && all(r == round(r)) &&
-      min(r) >= 0 && max(r) <= KITS_GROUP_MAX_SCORE
-  })
+  like <- kits_group_like(settings$raw)
   s <- settings[like, ]
   if (nrow(s) == 0) return(empty)
   stem <- kits_col_stems(s$column)
@@ -539,4 +559,76 @@ kits_group_cols_text <- function(cols) {
   if (length(cols) == 1) return(cols)
   if (length(cols) == 2) return(paste0(cols[1], "、", cols[2], "（2 欄）"))
   paste0(cols[1], " … ", cols[length(cols)], "（", length(cols), " 欄）")
+}
+
+#' 像題目的欄：原分數是 0–20 的整數，至少 2 種、最多 11 種
+#' @noRd
+kits_group_like <- function(raw) {
+  purrr::map_lgl(raw, function(r) {
+    length(r) >= 2 && length(r) <= KITS_GROUP_MAX_VALUES && all(r == round(r)) &&
+      min(r) >= 0 && max(r) <= KITS_GROUP_MAX_SCORE
+  })
+}
+
+#' 每一欄的組名，和第 2 步的組一樣（像題目的欄、其他的欄分開用 kits_col_stems()）
+#' @param ids 用來算組名的名稱（預設是欄名；預設領域用輸出題號，合成的組就是合成的名字）
+#' @noRd
+kits_settings_stems <- function(settings, ids = settings$column) {
+  if (nrow(settings) == 0) return(character(0))
+  like <- kits_group_like(settings$raw)
+  stem <- ids
+  if (any(like)) stem[like] <- kits_col_stems(ids[like])
+  if (any(!like)) stem[!like] <- kits_col_stems(ids[!like])
+  stem
+}
+
+# ── 第 3 步：預設領域＝組名 ────────────────────────────────────────────────
+
+# 預設領域的 source（「領域從哪裡來」）
+KITS_DOMAIN_DEFAULT <- "組名"
+
+#' 組名當領域名稱：去掉結尾的 _ . -（w1d5_ → w1d5）
+#' @noRd
+kits_domain_name <- function(stem) {
+  out <- sub("[_.-]+$", "", stem)
+  ifelse(nzchar(out), out, stem)
+}
+
+#' 沒有領域的欄（和還是預設組名的欄）領域設成組名，不設也能轉換
+#'
+#' 組名用輸出題號算（合成同一組題號 bsrs1、bsrs2… 的組名是 bsrs）。
+#' 自己設的、題目表或設定檔給的領域不動。每次設定改了都重算，組名變了預設也跟著變。
+#' @noRd
+kits_domain_defaults <- function(settings) {
+  if (nrow(settings) == 0) return(settings)
+  redo <- is.na(settings$domain) | !nzchar(settings$domain) | kits_domain_is_default(settings)
+  if (!any(redo)) return(settings)
+  out <- settings[["item_id_out"]] %||% rep(NA_character_, nrow(settings))
+  ids <- ifelse(is.na(out), settings$column, out)
+  name <- kits_domain_name(kits_settings_stems(settings, ids))
+  settings$domain[redo] <- name[redo]
+  settings$source[redo] <- KITS_DOMAIN_DEFAULT
+  settings
+}
+
+#' 領域還是預設組名的欄
+#' @param settings 題目設定（通常只放納入的列）
+#' @noRd
+kits_domain_default_rows <- function(settings) {
+  settings$column[kits_domain_is_default(settings)]
+}
+
+#' 每一列的領域是不是預設的組名
+#' @noRd
+kits_domain_is_default <- function(settings) {
+  src <- settings[["source"]] %||% rep(NA_character_, nrow(settings))
+  !is.na(src) & src == KITS_DOMAIN_DEFAULT
+}
+
+#' 「這樣就好」當時的樣子：哪些欄、領域是什麼。之後領域或欄變了，就要再決定一次
+#' @noRd
+kits_domain_default_key <- function(settings) {
+  hit <- kits_domain_is_default(settings)
+  key <- paste0(settings$column[hit], "=", settings$domain[hit])
+  paste(sort(key), collapse = ";")
 }

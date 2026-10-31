@@ -24,11 +24,7 @@ kd_step1 <- function(session, cohorts = c("M03", "M36")) {
   kd_click(session, "ok1")
 }
 
-# 用欄名挑題目（可以給領域）
-kd_pick <- function(session, prefix, domain = "") {
-  kd_set(session, pick_prefix = prefix, pick_domain = domain)
-  kd_click(session, "pick_add")
-}
+# 用欄名挑題目（kd_pick()，給了領域就在第 3 步的題目表設）在 helper-kitsdata-module.R
 
 # 逐題表：勾選幾列、做一件事
 kd_bulk <- function(session, rows, action, ...) {
@@ -61,15 +57,18 @@ test_that("領域、排除、到「遺漏值處理」改掉代碼、減 1，轉�
     expect_match(kd_out(output, "text_cols"), "city")         # 文字欄不能當題目
     kd_click(session, "ok2")
     expect_equal(kd_head_state(output, 3), "current")
-    expect_equal(kd_check_state(output, "還沒有領域"), "todo")
-    expect_match(kd_out(output, "checks"), "1 欄還沒有領域")
+    # extra 沒有設領域：預設是組名，要決定（不改也能轉換）
+    expect_equal(kd_check_state(output, "預設的組名"), "todo")
+    expect_match(kd_out(output, "checks"), "有 1 欄的領域還是預設的組名（例如 extra）")
     kd_click(session, "run")
     expect_match(kd_out(output, "status"), "還不能轉換：第 3 步有 2 件事要決定")   # 代碼、領域
 
     # 逐題表：extra 不要
     kd_bulk(session, "extra", "exclude")
-    expect_match(kd_out(output, "items_status"), "挑出 2 欄（lan 1 題、motor 1 題）")
+    expect_match(kd_out(output, "items_status"), "挑出 2 欄、2 組")
+    expect_equal(output[["kitsdata-items_title"]], "題目表（2 欄 · lan 1 題、motor 1 題）")
     expect_equal(kd_check_state(output, "每一題都有領域"), "ok")
+    expect_true(is.na(kd_check_state(output, "預設的組名")))
 
     # 9999 還在、也沒用「遺漏值處理」：要決定（不會自己改）
     expect_equal(kd_check_state(output, "遺漏值代碼 9999"), "todo")
@@ -231,7 +230,7 @@ test_that("一開始一題都不納入：要上傳題目表或用欄名挑；「
 
     # 題目表：列到的題才納入
     session$setInputs(`kitsdata-item_file` = kd_upload(tab))
-    expect_match(kd_out(output, "items_status"), "items.csv：挑出 2 欄（lan 1 題、motor 1 題）")
+    expect_match(kd_out(output, "items_status"), "items.csv：挑出 2 欄、2 組")
     expect_no_match(kd_out(output, "items_list"), "extra")
     kd_click(session, "pick_clear")
     expect_match(kd_out(output, "items_list"), "還沒有挑題目")
@@ -337,7 +336,7 @@ test_that("「全部減 1」減的是所有挑出來的題，沒挑的不動", {
     table <- kd_out(output, "items_table")
     expect_match(table, "lana01 lan 1→0 2→1")
     expect_match(table, "bodyaf01 lan 1→0 2→1 3→2")
-    expect_match(table, "extra （沒挑） （沒有） 5 ")         # 沒挑：不動
+    expect_match(table, "extra （沒挑） extra （組名） 5 ")   # 沒挑：不動
     expect_equal(kd_check_state(output, "分數全部減了 1"), "ok")
     expect_match(output[["kitsdata-code"]]$html, "x - 1")
   })
@@ -378,8 +377,8 @@ test_that("逐題表換頁：勾選留著；「勾選全部符合的列」「全
     # 對三列設領域（兩頁的都改到）
     kd_set(session, bulk_action = "domain", bulk_domain = "a")
     kd_click(session, "bulk_apply")
-    expect_match(kd_out(output, "items_status"), "（a 3 題）")
-    expect_match(kd_out(output, "checks"), "27 欄還沒有領域")
+    expect_match(output[["kitsdata-items_title"]], "（30 欄 · a 3 題、q 27 題）", fixed = TRUE)
+    expect_match(kd_out(output, "checks"), "有 27 欄的領域還是預設的組名（例如 q）")
 
     # 找欄名後全選：只勾符合的
     kd_set(session, tbl_search = "q1")
@@ -406,7 +405,7 @@ test_that("轉換完成後三步都打 ✓；按第 2 步的「改」重新打�
       expect_match(output[[paste0("kitsdata-head", k)]]$html, paste0("kitsdata-edit", k))
     }
     expect_match(kd_out(output, "head1"), "2 個檔案 · 世代 M03、M36")
-    expect_match(kd_out(output, "head2"), "挑出 2 欄（lan 2 題）")
+    expect_match(kd_out(output, "head2"), "挑出 2 欄、2 組")
     expect_match(kd_out(output, "head3"), "分數全部減了 1")
     expect_null(output[["kitsdata-ready"]])
     expect_null(output[["kitsdata-run_ui"]])
@@ -439,11 +438,38 @@ test_that("標頭重畫時「改」連結送出 0：不會跳回前一步", {
   })
 })
 
-test_that("第 2 步的組：勾選就納入、選領域就設領域並納入、取消勾選就不納入", {
-  dir <- withr::local_tempdir()
+kd_groups_file <- function(dir, ...) {
   path <- file.path(dir, "w1.csv")
-  readr::write_csv(tibble::tibble(id = 1:3, wave_m = 0, a1 = c(0, 1, 2), a2 = c(1, 0, 2),
-                                  b1 = c(0, 1, 1), b2 = c(1, 1, 0)), path)
+  readr::write_csv(tibble::tibble(id = 1:3, wave_m = 0, ...), path)
+  path
+}
+
+test_that("第 2 步只挑題目：沒有領域選單、用欄名挑沒有領域；第一行說領域在下一步", {
+  ui <- as.character(mod_kitsdata_ui("kitsdata"))
+  expect_no_match(ui, "pick_domain", fixed = TRUE)
+  expect_match(ui, "上傳題目表（之前下載的題目表，或 item_id、domain 兩欄的 CSV/SAV）", fixed = TRUE)
+  expect_match(ui, 'id="kitsdata-item_table"', fixed = TRUE)
+  expect_match(ui, 'id="kitsdata-table_dl_ui"', fixed = TRUE)
+  # 題目表直接顯示（不在收合的細節裡）
+  expect_no_match(ui, "<summary>[^<]*<span id=\"kitsdata-items_title\"")
+  dir <- withr::local_tempdir()
+  path <- kd_groups_file(dir, a1 = c(0, 1, 2), a2 = c(1, 0, 2), b1 = c(0, 1, 1), b2 = c(1, 1, 0))
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kd_upload(path))
+    expect_equal(
+      kd_out(output, "intro2"),
+      paste("先挑出哪些欄是題目；領域和計分在下一步的題目表設定，之後都還可以改。",
+            "下面是看起來像題目的欄（分數是 0–20 的整數），欄名開頭一樣的放在一組。勾選要轉的組。")
+    )
+    html <- output[["kitsdata-groups_table"]]$html
+    expect_no_match(html, "gdom_|selectize|<th>領域</th>|<select")
+    expect_match(kd_out(output, "head3"), "題目表：領域與計分")
+  })
+})
+
+test_that("第 2 步的組：勾選就納入、取消勾選就不納入；只改這次勾或取消的組（H1）", {
+  dir <- withr::local_tempdir()
+  path <- kd_groups_file(dir, a1 = c(0, 1, 2), a2 = c(1, 0, 2), b1 = c(0, 1, 1), b2 = c(1, 1, 0))
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kd_upload(path))
     kd_cells(session, "cohort", "B1")
@@ -452,73 +478,194 @@ test_that("第 2 步的組：勾選就納入、選領域就設領域並納入、
     html <- output[["kitsdata-groups_table"]]$html
     expect_match(html, 'name="kitsdata-grp_sel" value="a"', fixed = TRUE)
     expect_match(html, 'name="kitsdata-grp_sel" value="b"', fixed = TRUE)
-    expect_match(html, paste0("kitsdata-", kd_gdom("a")))
     expect_no_match(html, "checked")
     expect_match(output[["kitsdata-grp_page"]], "2 組")
     expect_equal(kd_out(output, "items_status"), "")
 
     kd_set(session, grp_sel = "a")
-    expect_match(kd_out(output, "items_status"), "挑出 2 欄")
+    expect_match(kd_out(output, "items_status"), "挑出 2 欄、1 組")
     expect_match(kd_out(output, "items_list"), "a1")
     expect_no_match(kd_out(output, "items_list"), "b1")
-    expect_match(kd_out(output, "checks"), "2 欄還沒有領域")
+    # 領域預設是組名
+    expect_match(kd_out(output, "items_table"), "a1 a （組名）")
 
-    # 第 2 組選領域：設好並納入
-    do.call(kd_set, c(list(session), stats::setNames(list("lan"), kd_gdom("b"))))
-    expect_match(kd_out(output, "items_status"), "挑出 4 欄（lan 2 題）")
-    expect_match(kd_out(output, "items_list"), "b1 lan b1")
     kd_set(session, grp_sel = c("a", "b"))
-    do.call(kd_set, c(list(session), stats::setNames(list("a"), kd_gdom("a"))))
-    expect_match(kd_out(output, "items_status"), "（a 2 題、lan 2 題）|（lan 2 題、a 2 題）")
-    expect_match(kd_out(output, "checks"), "每一題都有領域")
-
-    # 取消勾選第 1 組
-    kd_set(session, grp_sel = "b")
-    expect_match(kd_out(output, "items_status"), "挑出 2 欄（lan 2 題）")
-    expect_no_match(kd_out(output, "items_list"), "a1")
+    expect_match(kd_out(output, "items_status"), "挑出 4 欄、2 組")
+    # 第 3 步的題目表：b2 不要（b 這一組不再整組勾著）
+    kd_set(session, sel = "b2", bulk_action = "exclude")
+    kd_click(session, "bulk_apply")
+    expect_match(kd_out(output, "items_status"), "挑出 3 欄、2 組")
+    # 瀏覽器裡 b 的勾已經拿掉；再取消 a：只動 a，b1 還在、b2 還是不要
+    kd_set(session, grp_sel = "a")
+    expect_match(kd_out(output, "items_status"), "挑出 3 欄、2 組")   # 沒有變
     kd_set(session, grp_sel = character(0))
-    expect_match(kd_out(output, "items_list"), "還沒有挑題目")
+    expect_match(kd_out(output, "items_status"), "挑出 1 欄、1 組")
+    expect_match(kd_out(output, "items_list"), "b1")
+    expect_no_match(kd_out(output, "items_list"), "a1|b2")
   })
 })
 
-test_that("第 2 步的組：找組之後，取消勾選的組不會因為還留著領域又被納入", {
+test_that("第 2 步的組：找組之後，取消勾選的組不會又被納入（H2）", {
   dir <- withr::local_tempdir()
-  path <- file.path(dir, "w1.csv")
-  readr::write_csv(tibble::tibble(id = 1:3, wave_m = 0, a1 = c(0, 1, 2), a2 = c(1, 0, 2),
-                                  b1 = c(0, 1, 1), b2 = c(1, 1, 0)), path)
+  path <- kd_groups_file(dir, a1 = c(0, 1, 2), a2 = c(1, 0, 2), b1 = c(0, 1, 1), b2 = c(1, 1, 0))
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kd_upload(path))
-    do.call(kd_set, c(list(session), stats::setNames(list("a"), kd_gdom("a"))))
-    expect_match(kd_out(output, "items_status"), "挑出 2 欄（a 2 題）")
+    kd_set(session, grp_sel = "a")
+    expect_match(kd_out(output, "items_status"), "挑出 2 欄、1 組")
     kd_set(session, grp_sel = character(0))
     expect_match(kd_out(output, "items_list"), "還沒有挑題目")
-    # 找組（換頁也一樣）：組的領域選單還是 a
+    # 找組（換頁也一樣）：表重畫，不會又納入
     kd_set(session, grp_search = "a")
     expect_match(kd_out(output, "items_list"), "還沒有挑題目")
+    expect_no_match(output[["kitsdata-groups_table"]]$html, "checked")
   })
 })
 
-test_that("第 2 步的組：別的地方改了領域，選單重畫時不會改回舊值；組的順序變了也不會對錯組", {
+test_that("第 3 步改的領域：第 2 步的組重畫時不會改回去；組的順序變了也不會對錯組（H3）", {
   dir <- withr::local_tempdir()
-  path <- file.path(dir, "w1.csv")
-  readr::write_csv(tibble::tibble(id = 1:3, wave_m = 0, x1 = c(1, 2, 1), a_1 = c(0, 1, 2),
-                                  a_2 = c(1, 0, 2), b_1 = c(0, 1, 1), b_2 = c(1, 1, 0)), path)
+  path <- kd_groups_file(dir, x1 = c(1, 2, 1), a_1 = c(0, 1, 2), a_2 = c(1, 0, 2),
+                         b_1 = c(0, 1, 1), b_2 = c(1, 1, 0))
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kd_upload(path))
     kd_cells(session, "cohort", "B1")
     kd_cells(session, "subj_id", "id")
-    do.call(kd_set, c(list(session), stats::setNames(list("dA"), kd_gdom("a_"))))
-    expect_match(kd_out(output, "items_list"), "a_1 dA")
-    # 逐題表把 a_ 改成 dB；選單還留著 dA
-    kd_set(session, tbl_sel_all = 1, bulk_action = "domain", bulk_domain = "dB")
-    kd_click(session, "bulk_apply")
-    expect_match(kd_out(output, "items_list"), "a_1 dB")
-    kd_set(session, grp_search = "_")    # 選單重畫成 dB；收到 dB 不算改
-    do.call(kd_set, c(list(session), stats::setNames(list("dB"), kd_gdom("a_"))))
-    expect_match(kd_out(output, "items_list"), "a_1 dB")
-    # 第 1 步把 x1 對應成性別：組的清單變了，b_ 不會拿到 a_ 的領域
+    kd_set(session, grp_sel = "a_")
+    expect_match(kd_out(output, "items_table"), "a_1 a （組名）")
+    kd_bulk(session, c("a_1", "a_2"), "domain", bulk_domain = "dA")
+    expect_match(kd_out(output, "items_table"), "a_1 dA")
+    kd_bulk(session, c("a_1", "a_2"), "domain", bulk_domain = "dB")
+    kd_set(session, grp_search = "_")    # 組的表重畫：領域不動
+    expect_match(kd_out(output, "items_table"), "a_1 dB")
+    expect_match(kd_out(output, "items_table"), "a_2 dB")
+    # 第 1 步把 x1 對應成性別：組的清單變了，b_ 不會被納入，a_ 還是 dB
     kd_cells(session, "sex", "x1")
     expect_no_match(kd_out(output, "items_list"), "b_1")
+    expect_match(kd_out(output, "items_table"), "a_1 dB")
+  })
+})
+
+test_that("預設領域是組名：去掉結尾的 _；合成的題號用合成的名字；自己設的、題目表的不動", {
+  dfs <- list(tibble::tibble(
+    w1d5_1 = c(1, 2), w1d5_2 = c(2, 1), w2d5_1 = c(1, 2), w2d5_2 = c(2, 1), socb01 = c(0, 1),
+    socb02 = c(1, 0), extra = c(5, 5)
+  ))
+  s <- kits_item_settings(dfs, names(dfs[[1]]), include = FALSE)
+  d <- kits_domain_defaults(s)
+  expect_equal(d$domain, c("w1d5", "w1d5", "w2d5", "w2d5", "socb", "socb", "extra"))
+  expect_true(all(d$source == KITS_DOMAIN_DEFAULT))
+  expect_equal(kits_domain_name(c("w1d5_", "a.", "q", "_")), c("w1d5", "a", "q", "_"))
+  # 自己設的不動；預設的跟著組名變（合成同一組題號 bsrs → bsrs）
+  d <- kits_bulk_domain(d, "extra", "other")
+  g <- kits_item_groups(d, dfs)
+  d <- kits_domain_defaults(kits_merge_groups(d, g, c("w1d5_", "w2d5_"), "bsrs"))
+  expect_equal(d$domain, c("bsrs", "bsrs", "bsrs", "bsrs", "socb", "socb", "other"))
+  expect_equal(d$source[7], "自己設")
+  # 題目表給的領域蓋過預設；之後補預設不會改掉它
+  up <- list(type = "table", data = tibble::tibble(item_id = "socb01", domain = "social"))
+  d <- kits_domain_defaults(kits_settings_apply(d, up))
+  expect_equal(d$domain[5:6], c("social", "socb"))
+  expect_equal(kits_domain_default_rows(d[d$include, ]), character(0))   # 只有 socb01 納入
+})
+
+test_that("第 3 步檢查：領域還是預設組名 → 要決定；「這樣就好」記下當時的樣子，領域變了就再要決定", {
+  dfs <- list(tibble::tibble(socb01 = c(0, 1), socb02 = c(1, 0), lan1 = c(0, 2)))
+  s <- kits_domain_defaults(kits_item_settings(dfs, names(dfs[[1]])))
+  ch <- kits_step3_checks(s)
+  expect_equal(ch$dom_default$state, "todo")
+  expect_equal(ch$dom_default$title, "有 3 欄的領域還是預設的組名（例如 socb）")
+  expect_equal(ch$dom_default$text, "kitsUI 會照領域分量尺。不改也能轉換。")
+  expect_null(ch$domain)                                        # 不再另外說「每一題都有領域」
+  key <- kits_domain_default_key(s)
+  ch <- kits_step3_checks(s, ack = list(dom_default = key))
+  expect_equal(ch$dom_default$state, "ok")
+  expect_equal(ch$dom_default$title, "領域用組名（你選的）")
+  expect_match(kits_step3_summary(ch), "領域用組名（你選的）")
+  s2 <- kits_bulk_domain(s, "lan1", "lan")
+  expect_equal(kits_step3_checks(s2, ack = list(dom_default = key))$dom_default$state, "todo")
+  s3 <- kits_bulk_domain(s, s$column, "x")
+  expect_null(kits_step3_checks(s3)$dom_default)
+  expect_equal(kits_step3_checks(s3)$domain$title, "每一題都有領域")
+})
+
+test_that("模組：領域用組名要決定；「這樣就好」→ ✓、「改回來」；改了領域又要決定；轉換用組名", {
+  dir <- withr::local_tempdir()
+  path <- kd_groups_file(dir, socb01 = c(0, 1, 2), socb02 = c(1, 0, 2), lan1 = c(0, 1, 1),
+                         lan2 = c(1, 1, 0))
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kd_upload(path))
+    kd_cells(session, "cohort", "B1")
+    kd_cells(session, "subj_id", "id")
+    kd_click(session, "ok1")
+    kd_set(session, grp_sel = c("socb", "lan"))
+    kd_click(session, "ok2")
+    expect_equal(kd_check_state(output, "預設的組名"), "todo")
+    expect_match(kd_out(output, "checks"), "有 4 欄的領域還是預設的組名（例如 socb）")
+    html <- output[["kitsdata-checks"]]$html
+    expect_match(html, "kitsdata-go_dom_table")
+    expect_match(html, "kitsdata-ack_dom")
+    expect_match(kd_out(output, "checks"), "在下面的題目表改領域 這樣就好")
+    expect_match(kd_out(output, "ready"), "第 3 步有 1 件事要決定")
+    expect_no_error(kd_click(session, "go_dom_table"))
+
+    kd_click(session, "ack_dom")
+    expect_equal(kd_check_state(output, "領域用組名（你選的）"), "ok")
+    expect_match(output[["kitsdata-checks"]]$html, "kitsdata-unack_dom")
+    expect_match(kd_out(output, "ready"), "三步都好了")
+    kd_click(session, "unack_dom")
+    expect_equal(kd_check_state(output, "預設的組名"), "todo")
+
+    # 決定之後改了一欄的領域：要再決定一次（剩下 3 欄）
+    kd_click(session, "ack_dom")
+    kd_bulk(session, "lan1", "domain", bulk_domain = "lan")
+    expect_equal(kd_check_state(output, "預設的組名"), "todo")
+    expect_match(kd_out(output, "checks"), "有 3 欄的領域還是預設的組名")
+    kd_click(session, "ack_dom")
+    kd_click(session, "run")
+    expect_match(kd_out(output, "status"), "完成")
+    long <- readr::read_csv(kit_test_download_file(session, "kitsdata-download_csv"),
+                            col_types = "ccccddcic")
+    expect_setequal(unique(long$domain), c("socb", "lan"))
+    expect_equal(unique(long$domain[long$item_id == "lan2"]), "lan")
+  })
+})
+
+test_that("題目表在第 3 步就能下載（轉換前）；下次在第 2 步上傳，題目、領域、計分都回來", {
+  dir <- withr::local_tempdir()
+  paths <- kd_files(dir)
+  saved <- file.path(dir, "saved.csv")
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kd_upload(paths))
+    kd_step1(session)
+    kd_pick(session, "lana", "lan")
+    kd_pick(session, "bodyaf")
+    kd_click(session, "ok2")
+    kd_click(session, "do_shift")
+    expect_null(output[["kitsdata-result"]])
+    html <- output[["kitsdata-table_dl_ui"]]$html
+    expect_match(html, "下載題目表（CSV）")
+    expect_equal(kit_link_attr(html, "kitsdata-table_dl", "download"), KITS_SETTINGS_FILE)
+    file.copy(kit_test_download_file(session, "kitsdata-table_dl"), saved)
+  })
+  tab <- readr::read_csv(saved, show_col_types = FALSE)
+  expect_equal(names(tab), c("item_id", "include", "domain", "map_raw_to_score", "item_id_out"))
+  expect_equal(tab$domain[tab$item_id == "lana01"], "lan")
+  expect_equal(tab$domain[tab$item_id == "bodyaf01"], "bodyaf01")   # 預設的組名也寫出來
+  expect_equal(tab$map_raw_to_score[tab$item_id == "bodyaf01"], "1=0;2=1;3=2")
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kd_upload(paths))
+    kd_step1(session)
+    session$setInputs(`kitsdata-item_file` = kd_upload(saved))
+    expect_match(kd_out(output, "items_status"), "saved.csv：挑出 2 欄、2 組")
+    expect_match(kd_out(output, "items_status"), "已套用題目表（納入、領域、計分對照）")
+    kd_click(session, "ok2")
+    table <- kd_out(output, "items_table")
+    expect_match(table, "lana01 lan 1→0 2→1")
+    expect_match(table, "bodyaf01 bodyaf01 1→0")
+    expect_no_match(table, "（組名）")                                  # 上傳的領域：已經看過
+    expect_true(is.na(kd_check_state(output, "預設的組名")))
+    again <- readr::read_csv(kit_test_download_file(session, "kitsdata-table_dl"),
+                             show_col_types = FALSE)
+    expect_equal(again, tab)
   })
 })
 

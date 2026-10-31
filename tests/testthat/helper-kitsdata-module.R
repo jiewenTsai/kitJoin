@@ -1,6 +1,7 @@
 # 「kits 作答檔」分頁（模組 kitsdata）的 testServer 共用工具
 #
-# 三個步驟卡：第 1 步每個檔案一列（cell_<欄>_<檔案 key>），第 2 步挑題目，第 3 步計分檢查。
+# 三個步驟卡：第 1 步每個檔案一列（cell_<欄>_<檔案 key>），第 2 步挑題目（不設領域），
+# 第 3 步題目表：領域與計分（檢查清單 + 題目表）。
 # 這些工具都在 shiny::testServer(kit_server, ...) 裡用（input id 要加 "kitsdata-"）。
 
 kd_upload <- function(paths) {
@@ -54,5 +55,23 @@ kd_head_state <- function(output, k) {
   sub(".*class=\"kit-stephead is-([a-z]+)\".*", "\\1", gsub("\n", " ", html))
 }
 
-# 第 2 步一組的領域選單 id（和 mod_kitsdata.R 的 grp_dom_id() 一樣：組名的 16 進位）
-kd_gdom <- function(stem) paste0("gdom_", paste(sprintf("%x", utf8ToInt(stem)), collapse = ""))
+# 第 2 步用欄名挑題目；給了 domain 時，再到第 3 步的題目表把這些欄設成這個領域
+# （第 2 步不設領域）。題目表用「找欄名」（包含就算）找到每一段開頭，勾選全部、設領域。
+kd_pick <- function(session, prefix, domain = "") {
+  kd_set(session, pick_prefix = prefix)
+  kd_click(session, "pick_add")
+  if (nzchar(domain)) kd_domain(session, prefix, domain)
+}
+
+# 第 3 步的題目表：已經挑的、欄名包含這幾段的欄設成 domain（之後清掉找欄名與勾選）
+kd_domain <- function(session, prefix, domain) {
+  parts <- trimws(strsplit(prefix, "[、,，;；[:space:]]+")[[1]])
+  for (p in parts[nzchar(parts)]) {
+    kd_set(session, tbl_search = p)
+    kd_click(session, "tbl_sel_all")
+    kd_set(session, bulk_action = "domain", bulk_domain = domain)
+    kd_click(session, "bulk_apply")
+  }
+  kd_set(session, tbl_search = "")
+  kd_click(session, "tbl_sel_none")
+}

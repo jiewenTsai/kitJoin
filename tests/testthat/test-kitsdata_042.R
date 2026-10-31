@@ -244,8 +244,7 @@ test_that("模組：每個檔案自己填波次標籤、時間點；填錯時第
     expect_equal(kd_head_state(output, 1), "done")
     expect_match(kd_out(output, "head1"), "18、24")
     expect_match(kd_out(output, "visit_note"), "M03_K1_m018")
-    kd_set(session, pick_prefix = "lana, bodyaf", pick_domain = "lan")
-    kd_click(session, "pick_add")
+    kd_pick(session, "lana, bodyaf", "lan")
     kd_click(session, "ok2")
     kd_click(session, "run")
     expect_match(kd_out(output, "status"), "完成")
@@ -274,7 +273,8 @@ test_that("模組：找欄名、勾選全部、批次動作；計分欄顯示原
     kd_click(session, "bulk_apply")
     kd_set(session, bulk_action = "domain", bulk_domain = "lan")
     kd_click(session, "bulk_apply")
-    expect_match(kd_out(output, "items_status"), "挑出 2 欄（lan 2 題）")
+    expect_match(kd_out(output, "items_status"), "挑出 2 欄、1 組")
+    expect_equal(output[["kitsdata-items_title"]], "題目表（2 欄 · lan 2 題）")
 
     # 全部勾選後減 1：lana01 有 0 分 → 有負分
     kd_set(session, tbl_search = "")
@@ -304,8 +304,7 @@ test_that("模組：沒有勾選時批次動作不會改設定；參數不對時
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kd42_upload(dir))
     kd42_step1(session)
-    kd_set(session, pick_prefix = "lana", pick_domain = "lan")
-    kd_click(session, "pick_add")
+    kd_pick(session, "lana", "lan")
     before <- output[["kitsdata-items_table"]]$html
     kd_set(session, bulk_action = "shift", bulk_shift = -1)
     kd_click(session, "bulk_apply")
@@ -318,6 +317,8 @@ test_that("模組：沒有勾選時批次動作不會改設定；參數不對時
     kd_set(session, bulk_action = "domain", bulk_domain = "")
     kd_click(session, "bulk_apply")
     after <- output[["kitsdata-items_table"]]$html
-    expect_identical(gsub(" checked=\"checked\"", "", after), before)
+    # 勾選框打勾與否不算（kd_pick() 在題目表勾過、再全部不勾）
+    unchecked <- function(x) gsub(" checked=\"checked\"", "", x)
+    expect_identical(unchecked(after), unchecked(before))
   })
 })

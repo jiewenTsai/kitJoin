@@ -38,7 +38,7 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, text_fix = NULL) {
         "# 請先執行「遺漏值處理」的「用 R 怎麼做」裡的程式碼，再接著跑下面的程式")
     },
     "",
-    "# 題目設定：「kits 作答檔」下載的 kits_item_settings.csv（item_id、include、domain、",
+    "# 題目表：「kits 作答檔」第 3 步下載的 kits_item_settings.csv（item_id、include、domain、",
     "# map_raw_to_score = 計分對照，寫成「原分數=計分」；item_id_out = 輸出的題號）。",
     "# include 是 TRUE/FALSE，其他欄都當文字讀",
     paste0("item_settings <- read_csv(", r_str(KITS_SETTINGS_FILE),

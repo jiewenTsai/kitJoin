@@ -672,6 +672,11 @@ body > .container-fluid { padding-top: 1rem; }
 .kit-group-more > summary { font-size: 0.82rem; color: #4d4d4d; }
 .kit-group-more ol { padding-left: 1.4rem; margin: 0.3rem 0 0; font-size: 0.85rem; }
 .kit-merge { margin: 1.2rem 0 0.6rem; padding-top: 0.8rem; border-top: 1px solid #e3ded2; }
+/* 第 3 步：檢查清單下面直接是題目表（不收起來）；細線隔開，下面一個小的下載按鈕 */
+.kit-itemtable { margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid #e3ded2; min-width: 0; }
+.kit-itemtable-title { margin: 0 0 0.2rem; }
+.kit-itemtable-title + .kit-hint { margin: 0 0 0.3rem; }
+.kit-itemtable-dl { margin: 0.8rem 0 0.2rem; }
 /* 32 程式碼框不能超出版面：細節列是 flex，打開的細節預設 min-width: auto，
    長的程式碼行會把它撐寬、整頁左右捲。程式碼只在自己的框裡左右捲 */
 .kit-details .kit-detail, .kit-detail-body { min-width: 0; max-width: 100%; }
