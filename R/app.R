@@ -34,9 +34,9 @@ kit_set_options <- function() {
 kit_ui <- function(request) {
   meta <- kit_app_description("kitJoin")
   kit_page(
-    "KIT 資料串接工具", "臺灣幼兒發展調查資料庫",
+    "KIT 資料處理工具", "臺灣幼兒發展調查資料庫",
     tagline = "跨波次資料處理",
-    version = meta$version, date = meta$date,
+    version = meta$version, date = meta$date, package = "kitJoin",
     if (kit_is_cloud()) kit_cloud_banner(kit_cloud_banner_text()),
     # 分頁列：三組、不編號（kit_navgroups()）；下面是真的 Shiny 分頁，只是把它自己的分頁列藏起來，
     # 所以 input$tabs 與 updateTabsetPanel() 照常可以用

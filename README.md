@@ -1,4 +1,4 @@
-# kitJoin：KIT 資料串接工具
+# kitJoin：KIT 資料處理工具
 
 把多個波次的調查資料（CSV 或 SPSS 的 .sav 檔）接在一起，不用寫程式：
 

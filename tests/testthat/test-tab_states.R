@@ -134,7 +134,7 @@ test_that("分頁列：三組、不編號，分頁的 value 不變；Shiny 自�
 test_that("改了分頁列以後，頁首仍有版本與日期，雲端版頁尾仍有使用須知", {
   withr::local_envvar(KIT_DEPLOY = "cloud")
   ui <- as.character(kit_ui(NULL))
-  expect_match(ui, "kit-app-meta\">v[0-9.]+ · [0-9]{4}-[0-9]{2}-[0-9]{2}<")
+  expect_match(ui, "kit-app-meta\">kitJoin v[0-9.]+ · [0-9]{4}-[0-9]{2}-[0-9]{2}<")
   expect_match(ui, "雲端版使用須知", fixed = TRUE)
   # 頁首在分頁列前面、頁尾在分頁內容後面
   expect_lt(regexpr("kit-header", ui), regexpr("kit-navgroups", ui))

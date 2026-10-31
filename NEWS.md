@@ -1,3 +1,18 @@
+# kitJoin 0.7.0
+
+## Changes you can see
+
+* The app is now called 「KIT 資料處理工具」 (KIT data processing tool) instead of
+  「KIT 資料串接工具」 (KIT data join tool): it does more than joining (stacking, attrition,
+  missing values, validation, kits response files). The package name stays `kitJoin`.
+* The version line in the header starts with the package name: "kitJoin v0.7.0 · 2026-11-01"
+  (kitDesign 0.5.0).
+
+## Under the hood
+
+* Uses kitDesign 0.5.0 (`Imports: kitDesign (>= 0.5.0)`, `Remotes: jiewenTsai/kitDesign@v0.5.0`);
+  `manifest.json` regenerated.
+
 # kitJoin 0.6.0
 
 ## Changes you can see

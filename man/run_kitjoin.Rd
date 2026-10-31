@@ -2,7 +2,7 @@
 % Please edit documentation in R/run_kitjoin.R
 \name{run_kitjoin}
 \alias{run_kitjoin}
-\title{啟動 KIT 資料串接工具}
+\title{啟動 KIT 資料處理工具}
 \usage{
 run_kitjoin(launch.browser = kit_open_browser, ...)
 }

@@ -1,9 +1,9 @@
 Package: kitJoin
-Title: KIT Multi-Wave Data Join Tool
-Version: 0.6.0
-Date: 2026-10-31
+Title: KIT Multi-Wave Data Processing Tool
+Version: 0.7.0
+Date: 2026-11-01
 Authors@R: person("Jie-Wen", "Tsai", email = "tsai.jiewen@gmail.com", role = c("aut", "cre"))
-Description: Shiny application for joining multi-wave survey data (CSV and
+Description: Shiny application for processing multi-wave survey data (CSV and
     SPSS SAV). Launch with \code{run_kitjoin()}. Supports wide joins by ID,
     long-format stacking, attrition flags, missing-value code conversion,
     post-join validation, and export to CSV or SAV. The interface is built
@@ -17,7 +17,7 @@ Imports:
     haven,
     jsonlite,
     htmltools,
-    kitDesign (>= 0.4.0),
+    kitDesign (>= 0.5.0),
     purrr,
     readr,
     shiny,
@@ -28,7 +28,7 @@ Imports:
     utils,
     vctrs
 Remotes:
-    jiewenTsai/kitDesign@v0.4.0
+    jiewenTsai/kitDesign@v0.5.0
 Suggests:
     testthat (>= 3.0.0),
     withr

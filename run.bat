@@ -6,7 +6,7 @@ title kitJoin
 
 echo.
 echo  ========================================
-echo   kitJoin - KIT 資料串接工具
+echo   kitJoin - KIT 資料處理工具
 echo  ========================================
 echo.
 echo  資料夾：%CD%
