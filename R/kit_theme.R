@@ -304,16 +304,6 @@ kit_css <- function() {
     .kit-downloads {
       margin: 0.9rem 0 1.2rem;
     }
-    .kit-summary {
-      background: #fff;
-      border: 1px solid %6$s;
-      border-radius: 0.375rem;
-      padding: 0.8rem 1.1rem 0.3rem;
-      margin-bottom: 1.2rem;
-    }
-    .kit-summary ul {
-      margin: 0.4rem 0 0.5rem;
-    }
     .kit-source-note {
       color: #455a64;
       font-size: 0.9rem;

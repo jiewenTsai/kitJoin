@@ -243,7 +243,7 @@ summary:focus-visible {
   height: 0.5rem;
 }
 /* 檔案輸入：不拉滿整頁（最寬約一個長檔名） */
-.shiny-input-container:has(.btn-file) { max-width: 34rem; }
+.shiny-input-container:has(.btn-file) { max-width: min(34rem, 100%); }
 .progress-bar { background: var(--nb-green); border-radius: 0; }
 /* 檔案上傳的進度條：Shiny 設的寬度換算後只剩幾 px，看起來像沒在跑。
    改成：上傳中（.active）是流動的斜紋條；傳完整條填滿 */
@@ -600,6 +600,8 @@ input[type="checkbox"]:focus-visible { outline: 3px solid #0044ff; outline-offse
 .shiny-input-container { max-width: 100%; }
 /* 4 程式碼不要連字：<- 照原樣顯示（3.11） */
 pre, code, .kit-code-block, .kit-dg-table td { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
+/* 內文裡的長程式碼（欄名、路徑）可以斷行，窄螢幕才不會左右捲 */
+:not(pre) > code { overflow-wrap: anywhere; }
 /* 8 淡的字也要夠清楚（4.5:1 以上） */
 .btn-primary:disabled, .btn-primary[disabled] {
   opacity: 1; background: #e8e4d8; color: #5a5a5a; border-color: #8a8a8a; box-shadow: none;
@@ -618,7 +620,7 @@ pre, code, .kit-code-block, .kit-dg-table td { font-variant-ligatures: none; fon
   .kit-header p { font-size: 0.82rem; }
 }
 @media (max-width: 768px) {
-  .kit-navgroups { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; }
+  .kit-navgroups { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; width: 100%; max-width: 100%; min-width: 0; }
   .kit-navgroup { flex: none; }
   .kit-navgroup .nav-tabs { flex-wrap: nowrap; }
 }

@@ -22,7 +22,7 @@ mod_kitsdata_ui <- function(id) {
       ),
       output = shiny::tagList(
         "一個作答檔（.csv.gz；多個檔案合併成一個），可以直接上傳到 kitsUI。",
-        " ", htmltools::tagAppendAttributes(kit_kitsui_button("開啟 kitsUI"), class = "btn-sm")
+        " ", kit_kitsui_link("開啟 kitsUI", kind = "secondary", class = "btn-sm")
       ),
       note = paste0(
         "只要一個波次或一個領域時，請在「檔案上傳」只上傳那一個檔案。",
@@ -1025,6 +1025,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       )
       status(st)
       kit_notify(st)
+      kit_scroll_to("status")
     })
 
     output$status <- shiny::renderUI(make_status_ui(status()))
@@ -1041,8 +1042,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
             function(file) kitsdata_download(res$prep, file, write_kits_long_gz),
             class = "btn-primary"
           ),
-          shiny::tags$a(href = KITSUI_URL, target = "_blank", rel = "noopener",
-                        class = "kit-next-link", "開啟 kitsUI，上傳這個檔 →")
+          kit_kitsui_link("開啟 kitsUI，上傳這個檔 →", class = "kit-next-link")
         ),
         shiny::h5("每個世代、每個領域有幾列"),
         shiny::tableOutput(ns("summary")),

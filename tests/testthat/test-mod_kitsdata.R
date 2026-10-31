@@ -184,7 +184,8 @@ test_that("候選欄與領域：沒有檔案時是空的表", {
   expect_equal(nrow(kits_item_settings(list(), cand$numeric)), 0)
 })
 
-test_that("說明和下載區都有開啟 kitsUI 的按鈕（新分頁）", {
+test_that("雲端版：說明和下載區都有開啟 kitsUI 的按鈕（新分頁）", {
+  withr::local_envvar(KIT_DEPLOY = "cloud")
   ui <- as.character(mod_kitsdata_ui("kitsdata"))
   expect_match(ui, 'href="https://jiewentsai-kitsui.share.connect.posit.cloud/"', fixed = TRUE)
   expect_match(ui, 'target="_blank"', fixed = TRUE)
@@ -519,4 +520,11 @@ test_that("第 2 步的組：別的地方改了領域，選單重畫時不會改
     kd_cells(session, "sex", "x1")
     expect_no_match(kd_out(output, "items_list"), "b_1")
   })
+})
+
+test_that("本機版：不連到雲端版 kitsUI，改成說明怎麼在本機開", {
+  withr::local_envvar(KIT_DEPLOY = "local")
+  ui <- as.character(mod_kitsdata_ui("kitsdata"))
+  expect_no_match(ui, "share.connect.posit.cloud", fixed = TRUE)
+  expect_match(ui, "run_kitsui()", fixed = TRUE)
 })
