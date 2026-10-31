@@ -590,11 +590,17 @@ reshape_source_note_ui <- function(n_files, source, code_cells, ns) {
 #' 頁首的圖解：長轉寬（預設的方向）
 #' @noRd
 reshape_diagram <- function() {
+  # 教育、心理的資料多半是寬格式，所以寬格式在左；兩個方向都能轉，用雙箭頭
   kit_diagram(
-    before = kit_dg_table(
-      data.frame(id = c(1, 1, 2), item = c("q1", "q2", "q1"), score = c(4, 5, 3)), "長格式"
+    before = kit_dg_table(data.frame(id = c(1, 2), q1 = c(4, 3), q2 = c(5, NA)), "寬格式"),
+    after = kit_dg_table(
+      data.frame(id = c(1, 1, 2, 2), item = c("q1", "q2", "q1", "q2"), score = c(4, 5, 3, NA)),
+      "長格式"
     ),
-    after = kit_dg_table(data.frame(id = c(1, 2), q1 = c(4, 3), q2 = c(5, NA)), "寬格式"),
-    caption = "長轉寬：每人每題一列，變成每人一列、各題並排（缺的組合是空白）；寬轉長則倒過來"
+    arrow = "⇄",
+    caption = paste0(
+      "寬轉長：每人一列、各題並排，變成每人每題一列（空白的值也留一列）；",
+      "長轉寬則倒過來"
+    )
   )
 }

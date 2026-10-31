@@ -78,6 +78,8 @@ test_that("五個分頁的說明框都有圖解，而且各自畫出該做的事
   expect_match(guide_of(html$stack), 'kit-dg-added">\\s*wave')
   # 流失樣本：attrition 欄寫留存／流失
   expect_match(guide_of(html$attrition), 'kit-dg-added">\\s*attrition')
+  # 長寬轉換：寬格式在前（教育、心理的資料多半是寬的），雙箭頭表示兩個方向都能轉
+  expect_match(guide_of(html$reshape), "寬格式.*⇄.*長格式")
   expect_match(guide_of(html$attrition), "0 留存.*1 流失")
   # 長／寬：長格式 → 寬格式
   expect_match(guide_of(html$reshape), "長格式.*寬格式")
