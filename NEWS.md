@@ -1,3 +1,8 @@
+# kitJoin 0.7.6
+
+* Uses kitDesign 0.7.1 (the same version as kitsUI, kitverse and kitItemBank). The header still reads
+  "kitJoin v0.7.6 · 2026-11-02"; nothing changes on screen.
+
 # kitJoin 0.7.5
 
 * Uses kitDesign 0.7.0 (the same version as kitsUI, kitverse and kitItemBank). Nothing changes on screen.
