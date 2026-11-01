@@ -1,3 +1,7 @@
+# kitJoin 0.7.5
+
+* Uses kitDesign 0.7.0 (the same version as kitsUI, kitverse and kitItemBank). Nothing changes on screen.
+
 # kitJoin 0.7.4
 
 * Uses kitDesign 0.6.1: plots and tables inside closed sections are drawn when the section is opened
