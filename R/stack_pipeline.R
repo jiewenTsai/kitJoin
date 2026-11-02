@@ -12,7 +12,8 @@
 #' @noRd
 stack_waves <- function(dfs, file_names, wave_labels) {
   if (length(dfs) < 2) {
-    kit_abort("需要至少 2 個檔案才能疊加。請到「檔案上傳」再加入一個波次的檔案。")
+    # 原文：需要至少 2 個檔案才能疊加。請到「檔案上傳」再加入一個波次的檔案。
+    kit_abort("\u9700\u8981\u81f3\u5c11 2 \u500b\u6a94\u6848\u624d\u80fd\u758a\u52a0\u3002\u8acb\u5230\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u518d\u52a0\u5165\u4e00\u500b\u6ce2\u6b21\u7684\u6a94\u6848\u3002")
   }
   problem <- check_wave_labels(wave_labels, file_names, purpose = "stack")
   if (!is.null(problem)) kit_abort(problem)
@@ -21,7 +22,7 @@ stack_waves <- function(dfs, file_names, wave_labels) {
   harmonized <- harmonize_for_bind_rows(dfs)
   label_conflicts <- value_label_conflicts(harmonized$dfs)
 
-  # 波次名稱用 .env 取函式內的值：資料裡剛好有名為 label、w 的欄（例如權數 w）時，
+  # 波次名稱用 .env（檔案最下面宣告給 R CMD check）取函式內的值：資料裡剛好有名為 label、w 的欄（例如權數 w）時，
   # data masking 會改拿那一欄的值
   tagged <- purrr::map2(harmonized$dfs, wave_labels, function(df, label) {
     df <- dplyr::mutate(df, .kit_wave = .env$label, .before = 1)
@@ -51,26 +52,34 @@ stack_waves <- function(dfs, file_names, wave_labels) {
     warnings = c(
       if (!audit_ok) {
         paste0(
-          "核對結果不符（見下方「詳細核對」）：列數、欄位數或各波列數和預期不同。",
-          "請先確認結果再使用，並把這個情況回報給開發者。"
+          # 原文：核對結果不符（見下方「詳細核對」）：列數、欄位數或各波列數和預期不同。
+          "\u6838\u5c0d\u7d50\u679c\u4e0d\u7b26\uff08\u898b\u4e0b\u65b9\u300c\u8a73\u7d30\u6838\u5c0d\u300d\uff09\uff1a\u5217\u6578\u3001\u6b04\u4f4d\u6578\u6216\u5404\u6ce2\u5217\u6578\u548c\u9810\u671f\u4e0d\u540c\u3002",
+          # 原文：請先確認結果再使用，並把這個情況回報給開發者。
+          "\u8acb\u5148\u78ba\u8a8d\u7d50\u679c\u518d\u4f7f\u7528\uff0c\u4e26\u628a\u9019\u500b\u60c5\u6cc1\u56de\u5831\u7d66\u958b\u767c\u8005\u3002"
         )
       },
       if (wave_col != "wave") {
         paste0(
-          "原始檔案已經有 wave 欄，為了不覆蓋原資料，",
-          "波次標記放在新的 ", wave_col, " 欄。"
+          # 原文：原始檔案已經有 wave 欄，為了不覆蓋原資料，
+          "\u539f\u59cb\u6a94\u6848\u5df2\u7d93\u6709 wave \u6b04\uff0c\u70ba\u4e86\u4e0d\u8986\u84cb\u539f\u8cc7\u6599\uff0c",
+          # 原文：波次標記放在新的  |  欄。
+          "\u6ce2\u6b21\u6a19\u8a18\u653e\u5728\u65b0\u7684 ", wave_col, " \u6b04\u3002"
         )
       },
       if (length(harmonized$cols) > 0) {
         paste0(
-          "這些欄位在各波的型別不同（有的是數字、有的是文字），已統一轉成文字：",
-          paste(harmonized$cols, collapse = "、"), "。若應該是數字，請回原檔檢查是否有非數字的值。"
+          # 原文：這些欄位在各波的型別不同（有的是數字、有的是文字），已統一轉成文字：
+          "\u9019\u4e9b\u6b04\u4f4d\u5728\u5404\u6ce2\u7684\u578b\u5225\u4e0d\u540c\uff08\u6709\u7684\u662f\u6578\u5b57\u3001\u6709\u7684\u662f\u6587\u5b57\uff09\uff0c\u5df2\u7d71\u4e00\u8f49\u6210\u6587\u5b57\uff1a",
+          # 原文：、 | 。若應該是數字，請回原檔檢查是否有非數字的值。
+          paste(harmonized$cols, collapse = "\u3001"), "\u3002\u82e5\u61c9\u8a72\u662f\u6578\u5b57\uff0c\u8acb\u56de\u539f\u6a94\u6aa2\u67e5\u662f\u5426\u6709\u975e\u6578\u5b57\u7684\u503c\u3002"
         )
       },
       if (length(label_conflicts) > 0) {
         paste0(
-          "這些欄位在各波的數值標籤不同（例如 1 在一波是「是」、在另一波是「同意」），",
-          "結果只保留第一個檔案的標籤：", paste(label_conflicts, collapse = "、"), "。"
+          # 原文：這些欄位在各波的數值標籤不同（例如 1 在一波是「是」、在另一波是「同意」），
+          "\u9019\u4e9b\u6b04\u4f4d\u5728\u5404\u6ce2\u7684\u6578\u503c\u6a19\u7c64\u4e0d\u540c\uff08\u4f8b\u5982 1 \u5728\u4e00\u6ce2\u662f\u300c\u662f\u300d\u3001\u5728\u53e6\u4e00\u6ce2\u662f\u300c\u540c\u610f\u300d\uff09\uff0c",
+          # 原文：結果只保留第一個檔案的標籤： | 、 | 。
+          "\u7d50\u679c\u53ea\u4fdd\u7559\u7b2c\u4e00\u500b\u6a94\u6848\u7684\u6a19\u7c64\uff1a", paste(label_conflicts, collapse = "\u3001"), "\u3002"
         )
       }
     )
@@ -199,15 +208,21 @@ stack_stats <- function(dfs, wave_labels, result, wave_col) {
 stack_plain_summary <- function(stats, names_shown, wave_col) {
   c(
     paste0(
-      "共疊加 ", length(names_shown), " 個檔案：",
-      paste0(names_shown, " ", kit_num(stats$n_rows), " 列", collapse = "、"), "。"
+      # 原文：共疊加  |  個檔案：
+      "\u5171\u758a\u52a0 ", length(names_shown), " \u500b\u6a94\u6848\uff1a",
+      # 原文： 列 | 、 | 。
+      paste0(names_shown, " ", kit_num(stats$n_rows), " \u5217", collapse = "\u3001"), "\u3002"
     ),
-    paste0("每一列的 ", wave_col, " 欄標示它來自哪一波。"),
+    # 原文：每一列的  |  欄標示它來自哪一波。
+    paste0("\u6bcf\u4e00\u5217\u7684 ", wave_col, " \u6b04\u6a19\u793a\u5b83\u4f86\u81ea\u54ea\u4e00\u6ce2\u3002"),
     if (length(stats$partial_cols) > 0) {
       paste0(
-        "有 ", kit_num(length(stats$partial_cols)), " 個欄位只出現在部分波次（例如 ",
-        paste(utils::head(stats$partial_cols, 3), collapse = "、"),
-        "），沒有這些欄位的波次會是空白。"
+        # 原文：有  |  個欄位只出現在部分波次（例如 
+        "\u6709 ", kit_num(length(stats$partial_cols)), " \u500b\u6b04\u4f4d\u53ea\u51fa\u73fe\u5728\u90e8\u5206\u6ce2\u6b21\uff08\u4f8b\u5982 ",
+        # 原文：、
+        paste(utils::head(stats$partial_cols, 3), collapse = "\u3001"),
+        # 原文：），沒有這些欄位的波次會是空白。
+        "\uff09\uff0c\u6c92\u6709\u9019\u4e9b\u6b04\u4f4d\u7684\u6ce2\u6b21\u6703\u662f\u7a7a\u767d\u3002"
       )
     }
   )
@@ -215,19 +230,29 @@ stack_plain_summary <- function(stats, names_shown, wave_col) {
 
 #' @noRd
 stack_audit_tables <- function(stats, names_shown) {
-  yes_no <- function(ok) ifelse(ok, "符合", "不符")
+  # 原文：符合 | 不符
+  yes_no <- function(ok) ifelse(ok, "\u7b26\u5408", "\u4e0d\u7b26")
   files <- tibble::tibble(
-    順序 = seq_along(names_shown),
-    檔案 = names_shown,
-    列數 = stats$n_rows,
-    欄位數 = stats$n_cols,
-    結果中該波列數 = stats$n_by_wave
+    # 原文：順序
+    "\u9806\u5e8f" = seq_along(names_shown),
+    # 原文：檔案
+    "\u6a94\u6848" = names_shown,
+    # 原文：列數
+    "\u5217\u6578" = stats$n_rows,
+    # 原文：欄位數
+    "\u6b04\u4f4d\u6578" = stats$n_cols,
+    # 原文：結果中該波列數
+    "\u7d50\u679c\u4e2d\u8a72\u6ce2\u5217\u6578" = stats$n_by_wave
   )
   checks <- tibble::tibble(
-    檢查項目 = c("列數（各檔列數相加）", "欄位數（各檔欄位聯集 + 波次欄）", "各波列數"),
-    結果 = c(stats$nrow_out, stats$ncol_out, NA),
-    預期 = c(stats$nrow_expected, stats$ncol_expected, NA),
-    核對 = yes_no(c(
+    # 原文：檢查項目 | 列數（各檔列數相加） | 欄位數（各檔欄位聯集 + 波次欄） | 各波列數
+    "\u6aa2\u67e5\u9805\u76ee" = c("\u5217\u6578\uff08\u5404\u6a94\u5217\u6578\u76f8\u52a0\uff09", "\u6b04\u4f4d\u6578\uff08\u5404\u6a94\u6b04\u4f4d\u806f\u96c6 + \u6ce2\u6b21\u6b04\uff09", "\u5404\u6ce2\u5217\u6578"),
+    # 原文：結果
+    "\u7d50\u679c" = c(stats$nrow_out, stats$ncol_out, NA),
+    # 原文：預期
+    "\u9810\u671f" = c(stats$nrow_expected, stats$ncol_expected, NA),
+    # 原文：核對
+    "\u6838\u5c0d" = yes_no(c(
       stats$nrow_out == stats$nrow_expected,
       stats$ncol_out == stats$ncol_expected,
       stats$wave_ok
@@ -235,3 +260,6 @@ stack_audit_tables <- function(stats, names_shown) {
   )
   list(files = files, checks = checks)
 }
+
+# dplyr 的 .env 代名詞（stack_waves()）：R CMD check 不認得，宣告一下
+utils::globalVariables(".env")

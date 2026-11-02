@@ -5,9 +5,12 @@
 
 # 三種格式：值為副檔名，名稱為給使用者看的說明
 KIT_CONVERT_FORMATS <- c(
-  "CSV（.csv，可用 Excel 開啟）" = "csv",
-  "CSV.GZ（.csv.gz，檔案較小，可上傳 kitsUI）" = "csv.gz",
-  "SPSS（.sav）" = "sav"
+  # 原文：CSV（.csv，可用 Excel 開啟）
+  "CSV\uff08.csv\uff0c\u53ef\u7528 Excel \u958b\u555f\uff09" = "csv",
+  # 原文：CSV.GZ（.csv.gz，檔案較小，可上傳 kitsUI）
+  "CSV.GZ\uff08.csv.gz\uff0c\u6a94\u6848\u8f03\u5c0f\uff0c\u53ef\u4e0a\u50b3 kitsUI\uff09" = "csv.gz",
+  # 原文：SPSS（.sav）
+  "SPSS\uff08.sav\uff09" = "sav"
 )
 
 # 逐段處理時每次讀多少：位元組數（直接複製）與列數（轉編碼、判斷編碼）
@@ -50,7 +53,8 @@ convert_out_name <- function(name, target) {
 #' @noRd
 format_bytes <- function(bytes) {
   vapply(bytes, function(b) {
-    if (is.na(b)) return("—")
+    # 原文：—
+    if (is.na(b)) return("\u2014")
     units <- c("B", "KB", "MB", "GB")
     i <- min(max(floor(log(max(b, 1), 1024)), 0), length(units) - 1)
     digits <- if (i == 0) 0 else 1
@@ -151,7 +155,8 @@ csv_header_ncol <- function(path, kind, encoding) {
   first <- readLines(con, n = 1, warn = FALSE)
   if (length(first) == 0) return(0L)
   if (identical(encoding, "BIG5")) first <- iconv(first, "CP950", "UTF-8")
-  first <- sub("^﻿", "", first, useBytes = TRUE)
+  # 原文：^﻿
+  first <- sub("^\ufeff", "", first, useBytes = TRUE)
   ncol(readr::read_csv(I(paste0(first, "\n")), n_max = 0, show_col_types = FALSE))
 }
 
@@ -166,11 +171,13 @@ convert_csv_stream <- function(path, kind, out, target) {
   notes <- character(0)
   if (identical(enc, "BIG5")) {
     n_lines <- stream_big5_to_utf8(path, kind, out, target, bom = target == "csv")
-    notes <- "原檔是 BIG5 編碼，已轉成 UTF-8。"
+    # 原文：原檔是 BIG5 編碼，已轉成 UTF-8。
+    notes <- "\u539f\u6a94\u662f BIG5 \u7de8\u78bc\uff0c\u5df2\u8f49\u6210 UTF-8\u3002"
   } else {
     n_lines <- stream_copy(path, kind, out, target, bom = target == "csv" && identical(enc, "UTF-8"))
     if (is.na(enc)) {
-      notes <- "無法判斷編碼（不是 UTF-8 也不是 BIG5），內容照原樣保留，中文可能是亂碼。"
+      # 原文：無法判斷編碼（不是 UTF-8 也不是 BIG5），內容照原樣保留，中文可能是亂碼。
+      notes <- "\u7121\u6cd5\u5224\u65b7\u7de8\u78bc\uff08\u4e0d\u662f UTF-8 \u4e5f\u4e0d\u662f BIG5\uff09\uff0c\u5167\u5bb9\u7167\u539f\u6a23\u4fdd\u7559\uff0c\u4e2d\u6587\u53ef\u80fd\u662f\u4e82\u78bc\u3002"
     }
   }
   list(
@@ -193,9 +200,11 @@ convert_df <- function(path, name, kind, out, target, labels_as_text = FALSE) {
   read <- if (kind == "csv.gz") read_csv_auto(kit_gz_path(path)) else read_data_file(path, name)
   data <- read$data
   notes <- character(0)
-  if (identical(read$encoding, "BIG5")) notes <- "原檔是 BIG5 編碼，已轉成 UTF-8。"
+  # 原文：原檔是 BIG5 編碼，已轉成 UTF-8。
+  if (identical(read$encoding, "BIG5")) notes <- "\u539f\u6a94\u662f BIG5 \u7de8\u78bc\uff0c\u5df2\u8f49\u6210 UTF-8\u3002"
   if (identical(read$encoding, "Latin1")) {
-    notes <- "無法判斷編碼（不是 UTF-8 也不是 BIG5），中文可能是亂碼。"
+    # 原文：無法判斷編碼（不是 UTF-8 也不是 BIG5），中文可能是亂碼。
+    notes <- "\u7121\u6cd5\u5224\u65b7\u7de8\u78bc\uff08\u4e0d\u662f UTF-8 \u4e5f\u4e0d\u662f BIG5\uff09\uff0c\u4e2d\u6587\u53ef\u80fd\u662f\u4e82\u78bc\u3002"
   }
   if (kind == "sav") {
     data <- if (labels_as_text) {
@@ -203,14 +212,17 @@ convert_df <- function(path, name, kind, out, target, labels_as_text = FALSE) {
     } else {
       haven::zap_labels(data)
     }
-    notes <- c(notes, "CSV 不會保留 SPSS 的變項標籤與數值標籤；自訂遺漏值已變成空白。")
+    # 原文：CSV 不會保留 SPSS 的變項標籤與數值標籤；自訂遺漏值已變成空白。
+    notes <- c(notes, "CSV \u4e0d\u6703\u4fdd\u7559 SPSS \u7684\u8b8a\u9805\u6a19\u7c64\u8207\u6578\u503c\u6a19\u7c64\uff1b\u81ea\u8a02\u907a\u6f0f\u503c\u5df2\u8b8a\u6210\u7a7a\u767d\u3002")
   }
   if (target == "sav") {
     renamed <- sav_renamed_cols(names(data))
     if (length(renamed) > 0) {
       notes <- c(notes, paste0(
-        "有 ", kit_num(length(renamed)), " 個欄名不符合 SPSS 規則，已改名：",
-        paste(paste(names(renamed), "→", renamed), collapse = "、"), "。"
+        # 原文：有  |  個欄名不符合 SPSS 規則，已改名：
+        "\u6709 ", kit_num(length(renamed)), " \u500b\u6b04\u540d\u4e0d\u7b26\u5408 SPSS \u898f\u5247\uff0c\u5df2\u6539\u540d\uff1a",
+        # 原文：→ | 、 | 。
+        paste(paste(names(renamed), "\u2192", renamed), collapse = "\u3001"), "\u3002"
       ))
     }
   }
@@ -243,14 +255,17 @@ convert_file <- function(path, name, target, out_dir, labels_as_text = FALSE) {
   kind <- convert_kind(name)
   if (is.na(kind)) {
     kit_abort(
-      "無法轉換 ", name, "：只支援 CSV（.csv）、CSV.GZ（.csv.gz、.gz）與 SPSS（.sav）檔。",
+      # 原文：無法轉換  | ：只支援 CSV（.csv）、CSV.GZ（.csv.gz、.gz）與 SPSS（.sav）檔。
+      "\u7121\u6cd5\u8f49\u63db ", name, "\uff1a\u53ea\u652f\u63f4 CSV\uff08.csv\uff09\u3001CSV.GZ\uff08.csv.gz\u3001.gz\uff09\u8207 SPSS\uff08.sav\uff09\u6a94\u3002",
       if (grepl("[.]xlsx?$", tolower(name))) {
-        "Excel 檔請先在 Excel 用「另存新檔 → CSV UTF-8（逗號分隔）」存成 CSV。"
+        # 原文：Excel 檔請先在 Excel 用「另存新檔 → CSV UTF-8（逗號分隔）」存成 CSV。
+        "Excel \u6a94\u8acb\u5148\u5728 Excel \u7528\u300c\u53e6\u5b58\u65b0\u6a94 \u2192 CSV UTF-8\uff08\u9017\u865f\u5206\u9694\uff09\u300d\u5b58\u6210 CSV\u3002"
       }
     )
   }
   if (!target %in% convert_targets(kind)) {
-    kit_abort("請選擇和原檔不同的格式。")
+    # 原文：請選擇和原檔不同的格式。
+    kit_abort("\u8acb\u9078\u64c7\u548c\u539f\u6a94\u4e0d\u540c\u7684\u683c\u5f0f\u3002")
   }
   out_name <- convert_out_name(name, target)
   out <- file.path(out_dir, out_name)
@@ -275,10 +290,15 @@ convert_file <- function(path, name, target, out_dir, labels_as_text = FALSE) {
 #' @noRd
 convert_summary_table <- function(res) {
   tibble::tibble(
-    檔案 = res$name,
-    轉成 = res$out_name,
-    `列 × 欄` = kit_dims(res$nrow, res$ncol),
-    原始大小 = format_bytes(res$size_before),
-    轉換後大小 = format_bytes(res$size_after)
+    # 原文：檔案
+    "\u6a94\u6848" = res$name,
+    # 原文：轉成
+    "\u8f49\u6210" = res$out_name,
+    # 原文：列 × 欄
+    "\u5217 \u00d7 \u6b04" = kit_dims(res$nrow, res$ncol),
+    # 原文：原始大小
+    "\u539f\u59cb\u5927\u5c0f" = format_bytes(res$size_before),
+    # 原文：轉換後大小
+    "\u8f49\u63db\u5f8c\u5927\u5c0f" = format_bytes(res$size_after)
   )
 }

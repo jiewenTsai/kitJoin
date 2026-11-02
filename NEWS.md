@@ -1,3 +1,13 @@
+# kitJoin 0.7.7
+
+`R CMD check` passes on every platform (r-universe showed a WARNING and 2 NOTEs). Nothing changes on screen.
+
+* Chinese text in the R code is written as `\uXXXX`, with the original on a `# 原文：` line above
+  (`tools/escape_non_ascii.R`, the same tool as kitDesign and kitItemBank). Chinese column names in
+  tables are written as strings (`"檔案" = `, `x[["合計"]]`) instead of names, so they can be escaped too.
+* bslib is no longer in Imports (kitJoin does not call it; kitDesign already needs bslib 0.11.0).
+* `.env` in `stack_waves()` is declared for R CMD check.
+
 # kitJoin 0.7.6
 
 * Uses kitDesign 0.7.1 (the same version as kitsUI, kitverse and kitItemBank). The header still reads

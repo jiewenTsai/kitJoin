@@ -1,6 +1,6 @@
 Package: kitJoin
 Title: KIT Multi-Wave Data Processing Tool
-Version: 0.7.6
+Version: 0.7.7
 Date: 2026-11-02
 Authors@R: person("Jie-Wen", "Tsai", email = "tsai.jiewen@gmail.com", role = c("aut", "cre"))
 Description: Shiny application for processing multi-wave survey data (CSV and
@@ -12,7 +12,6 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
 Imports:
-    bslib (>= 0.11.0),
     dplyr (>= 1.1.0),
     haven,
     jsonlite,

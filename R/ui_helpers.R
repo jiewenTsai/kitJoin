@@ -13,24 +13,29 @@
 #' @return 雲端版：<span class="kit-app-link"><a …>label</a> <small>…</small></span>；
 #'   本機版：<span class="kit-hint kit-kitsui-local">本機版：…</span>
 #' @noRd
-kit_kitsui_link <- function(label = "開啟 kitsUI", kind = "link", class = NULL,
+# 原文：開啟 kitsUI
+kit_kitsui_link <- function(label = "\u958b\u555f kitsUI", kind = "link", class = NULL,
                             cloud = kit_is_cloud()) {
   if (!isTRUE(cloud)) {
     return(shiny::tags$span(
       class = "kit-hint kit-kitsui-local",
-      "本機版：在 R 執行 ", shiny::tags$code("kitsUI::run_kitsui()"),
-      " 開啟 kitsUI，作答檔不會離開這台電腦。"
+      # 原文：本機版：在 R 執行 
+      "\u672c\u6a5f\u7248\uff1a\u5728 R \u57f7\u884c ", shiny::tags$code("kitsUI::run_kitsui()"),
+      # 原文： 開啟 kitsUI，作答檔不會離開這台電腦。
+      " \u958b\u555f kitsUI\uff0c\u4f5c\u7b54\u6a94\u4e0d\u6703\u96e2\u958b\u9019\u53f0\u96fb\u8166\u3002"
     ))
   }
   # 連結本身是 kitDesign 的 kit_app_link()（外層 <span class="kit-app-link">）
   kit_app_link(label, KITSUI_URL, kind = kind, class = class,
-               note = "（開啟網路上的雲端版 kitsUI）")
+               # 原文：（開啟網路上的雲端版 kitsUI）
+               note = "\uff08\u958b\u555f\u7db2\u8def\u4e0a\u7684\u96f2\u7aef\u7248 kitsUI\uff09")
 }
 
 #' 開啟 kitsUI 的按鈕（舊名，和 kit_kitsui_link(kind = "secondary") 一樣）
 #' @param kind 按鈕種類（kit_btn_class()）
 #' @noRd
-kit_kitsui_button <- function(label = "開啟 kitsUI", kind = "secondary") {
+# 原文：開啟 kitsUI
+kit_kitsui_button <- function(label = "\u958b\u555f kitsUI", kind = "secondary") {
   kit_kitsui_link(label, kind = kind)
 }
 
@@ -47,12 +52,16 @@ join_method_example <- function() {
     class = "kit-dg-compare",
     kit_dg_table(
       data.frame(
-        "方式" = c("向後追蹤樣本（預設）", "全勤樣本", "全樣本"),
-        "留下的人" = c("1、2 號", "1 號", "1、2、3 號"),
-        "空白的格子" = c("2 號的 t2", "沒有", "2 號的 t2、3 號的 t1"),
+        # 原文：方式 | 向後追蹤樣本（預設） | 全勤樣本 | 全樣本
+        "\u65b9\u5f0f" = c("\u5411\u5f8c\u8ffd\u8e64\u6a23\u672c\uff08\u9810\u8a2d\uff09", "\u5168\u52e4\u6a23\u672c", "\u5168\u6a23\u672c"),
+        # 原文：留下的人 | 1、2 號 | 1 號 | 1、2、3 號
+        "\u7559\u4e0b\u7684\u4eba" = c("1\u30012 \u865f", "1 \u865f", "1\u30012\u30013 \u865f"),
+        # 原文：空白的格子 | 2 號的 t2 | 沒有 | 2 號的 t2、3 號的 t1
+        "\u7a7a\u767d\u7684\u683c\u5b50" = c("2 \u865f\u7684 t2", "\u6c92\u6709", "2 \u865f\u7684 t2\u30013 \u865f\u7684 t1"),
         check.names = FALSE
       ),
-      title = "三種方式各留下誰（第 1 波有 1、2 號，第 2 波有 1、3 號）",
+      # 原文：三種方式各留下誰（第 1 波有 1、2 號，第 2 波有 1、3 號）
+      title = "\u4e09\u7a2e\u65b9\u5f0f\u5404\u7559\u4e0b\u8ab0\uff08\u7b2c 1 \u6ce2\u6709 1\u30012 \u865f\uff0c\u7b2c 2 \u6ce2\u6709 1\u30013 \u865f\uff09",
       row_header = TRUE
     )
   )
@@ -65,7 +74,8 @@ join_method_example <- function() {
 #' @noRd
 kit_upload_todo <- function(ns, n_files, need = 1L) {
   if (n_files >= need) return(NULL)
-  shiny::actionLink(ns("goto_upload_status"), "到「檔案上傳」加入檔案 →")
+  # 原文：到「檔案上傳」加入檔案 →
+  shiny::actionLink(ns("goto_upload_status"), "\u5230\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u52a0\u5165\u6a94\u6848 \u2192")
 }
 
 #' 目前使用哪一份資料（原始 / 遺漏值處理後），以及檔案數不足的提醒
@@ -81,28 +91,38 @@ kit_source_note_ui <- function(n_files, source, code_cells, ns) {
   if (identical(source, "na")) {
     return(shiny::tags$p(
       class = "kit-source-note",
-      "目前使用：「遺漏值處理」處理後的資料。"
+      # 原文：目前使用：「遺漏值處理」處理後的資料。
+      "\u76ee\u524d\u4f7f\u7528\uff1a\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u8655\u7406\u5f8c\u7684\u8cc7\u6599\u3002"
     ))
   }
   if (identical(source, "stale")) {
     return(kit_callout(
       warn = TRUE,
-      "目前使用：原始資料。「遺漏值處理」的代碼、設定或檔案改過了，舊的轉換結果已清除，",
-      shiny::actionLink(ns("goto_missing"), "請回「遺漏值處理」重新按「執行轉換」"),
-      "；在那之前，這裡用的是還沒轉換的原始資料。"
+      # 原文：目前使用：原始資料。「遺漏值處理」的代碼、設定或檔案改過了，舊的轉換結果已清除，
+      "\u76ee\u524d\u4f7f\u7528\uff1a\u539f\u59cb\u8cc7\u6599\u3002\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u7684\u4ee3\u78bc\u3001\u8a2d\u5b9a\u6216\u6a94\u6848\u6539\u904e\u4e86\uff0c\u820a\u7684\u8f49\u63db\u7d50\u679c\u5df2\u6e05\u9664\uff0c",
+      # 原文：請回「遺漏值處理」重新按「執行轉換」
+      shiny::actionLink(ns("goto_missing"), "\u8acb\u56de\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u91cd\u65b0\u6309\u300c\u57f7\u884c\u8f49\u63db\u300d"),
+      # 原文：；在那之前，這裡用的是還沒轉換的原始資料。
+      "\uff1b\u5728\u90a3\u4e4b\u524d\uff0c\u9019\u88e1\u7528\u7684\u662f\u9084\u6c92\u8f49\u63db\u7684\u539f\u59cb\u8cc7\u6599\u3002"
     ))
   }
   if (code_cells > 0) {
     return(kit_callout(
       warn = TRUE,
-      "目前使用：原始資料。資料中有 ", kit_num(code_cells), " 格看起來是遺漏值代碼",
-      "（7777、9999 等，或 SPSS 數值標籤寫著「遺漏值」「跳答」的值），",
-      "若它們代表遺漏，請先",
-      shiny::actionLink(ns("goto_missing"), "到「遺漏值處理」處理"),
-      "，否則會被當成一般數值。"
+      # 原文：目前使用：原始資料。資料中有  |  格看起來是遺漏值代碼
+      "\u76ee\u524d\u4f7f\u7528\uff1a\u539f\u59cb\u8cc7\u6599\u3002\u8cc7\u6599\u4e2d\u6709 ", kit_num(code_cells), " \u683c\u770b\u8d77\u4f86\u662f\u907a\u6f0f\u503c\u4ee3\u78bc",
+      # 原文：（7777、9999 等，或 SPSS 數值標籤寫著「遺漏值」「跳答」的值），
+      "\uff087777\u30019999 \u7b49\uff0c\u6216 SPSS \u6578\u503c\u6a19\u7c64\u5beb\u8457\u300c\u907a\u6f0f\u503c\u300d\u300c\u8df3\u7b54\u300d\u7684\u503c\uff09\uff0c",
+      # 原文：若它們代表遺漏，請先
+      "\u82e5\u5b83\u5011\u4ee3\u8868\u907a\u6f0f\uff0c\u8acb\u5148",
+      # 原文：到「遺漏值處理」處理
+      shiny::actionLink(ns("goto_missing"), "\u5230\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u8655\u7406"),
+      # 原文：，否則會被當成一般數值。
+      "\uff0c\u5426\u5247\u6703\u88ab\u7576\u6210\u4e00\u822c\u6578\u503c\u3002"
     ))
   }
-  shiny::tags$p(class = "kit-source-note", "目前使用：原始資料。")
+  # 原文：目前使用：原始資料。
+  shiny::tags$p(class = "kit-source-note", "\u76ee\u524d\u4f7f\u7528\uff1a\u539f\u59cb\u8cc7\u6599\u3002")
 }
 
 
@@ -136,10 +156,12 @@ kit_download_server <- function(session, output, data_fn, filename_fn, run_label
       }
       return(shiny::tags$div(
         class = "kit-downloads",
-        disabled("下載 CSV"), disabled("下載 CSV.GZ"), disabled("下載 SAV"),
+        # 原文：下載 CSV | 下載 CSV.GZ | 下載 SAV
+        disabled("\u4e0b\u8f09 CSV"), disabled("\u4e0b\u8f09 CSV.GZ"), disabled("\u4e0b\u8f09 SAV"),
         shiny::tags$small(
           class = "kit-hint",
-          paste0("先按上方「", run_label, "」，才能下載結果。")
+          # 原文：先按上方「 | 」，才能下載結果。
+          paste0("\u5148\u6309\u4e0a\u65b9\u300c", run_label, "\u300d\uff0c\u624d\u80fd\u4e0b\u8f09\u7d50\u679c\u3002")
         )
       ))
     }
@@ -162,21 +184,30 @@ kit_download_server <- function(session, output, data_fn, filename_fn, run_label
     }
     shiny::tags$div(
       class = "kit-downloads",
-      button("download_csv", "下載 CSV", "csv", write_kit_csv, kit_btn_class("secondary")),
-      button("download_csvgz", "下載 CSV.GZ", "csv.gz", write_kit_csv_gz, kit_btn_class("secondary")),
-      button("download_sav", "下載 SAV（SPSS）", "sav", write_sav_notify, kit_btn_class("secondary")),
+      # 原文：下載 CSV
+      button("download_csv", "\u4e0b\u8f09 CSV", "csv", write_kit_csv, kit_btn_class("secondary")),
+      # 原文：下載 CSV.GZ
+      button("download_csvgz", "\u4e0b\u8f09 CSV.GZ", "csv.gz", write_kit_csv_gz, kit_btn_class("secondary")),
+      # 原文：下載 SAV（SPSS）
+      button("download_sav", "\u4e0b\u8f09 SAV\uff08SPSS\uff09", "sav", write_sav_notify, kit_btn_class("secondary")),
       shiny::tags$small(
         class = "kit-hint",
-        "CSV 的遺漏值為空白儲存格，可直接用 Excel 開啟。",
-        "CSV.GZ 是壓縮過的 CSV，檔案較小，可直接上傳 kitsUI；Excel 不能直接開。",
+        # 原文：CSV 的遺漏值為空白儲存格，可直接用 Excel 開啟。
+        "CSV \u7684\u907a\u6f0f\u503c\u70ba\u7a7a\u767d\u5132\u5b58\u683c\uff0c\u53ef\u76f4\u63a5\u7528 Excel \u958b\u555f\u3002",
+        # 原文：CSV.GZ 是壓縮過的 CSV，檔案較小，可直接上傳 kitsUI；Excel 不能直接開。
+        "CSV.GZ \u662f\u58d3\u7e2e\u904e\u7684 CSV\uff0c\u6a94\u6848\u8f03\u5c0f\uff0c\u53ef\u76f4\u63a5\u4e0a\u50b3 kitsUI\uff1bExcel \u4e0d\u80fd\u76f4\u63a5\u958b\u3002",
         if (length(renamed) > 0) {
           paste0(
-            "匯出 SAV 時，有 ", kit_num(length(renamed)), " 個欄名不符合 SPSS 規則，會自動改名：",
+            # 原文：匯出 SAV 時，有  |  個欄名不符合 SPSS 規則，會自動改名：
+            "\u532f\u51fa SAV \u6642\uff0c\u6709 ", kit_num(length(renamed)), " \u500b\u6b04\u540d\u4e0d\u7b26\u5408 SPSS \u898f\u5247\uff0c\u6703\u81ea\u52d5\u6539\u540d\uff1a",
             paste(
-              utils::head(paste(names(renamed), "→", renamed), 5),
-              collapse = "、"
+              # 原文：→
+              utils::head(paste(names(renamed), "\u2192", renamed), 5),
+              # 原文：、
+              collapse = "\u3001"
             ),
-            if (length(renamed) > 5) " …" else "", "。"
+            # 原文： … | 。
+            if (length(renamed) > 5) " \u2026" else "", "\u3002"
           )
         }
       )

@@ -8,12 +8,16 @@
 # 分頁列：三組、不編號。①② 是準備；③④⑤⑥ 選一個做；⑦⑧ 是獨立的小工具。
 # 名稱是分頁的 value（和以前一樣，updateTabsetPanel() 與各頁的連結都用它）
 KIT_TAB_GROUPS <- list(
-  kitDesign::kit_navgroup("準備", c(upload = "檔案上傳", missing = "遺漏值處理")),
+  # 原文：準備 | 檔案上傳 | 遺漏值處理
+  kitDesign::kit_navgroup("\u6e96\u5099", c(upload = "\u6a94\u6848\u4e0a\u50b3", missing = "\u907a\u6f0f\u503c\u8655\u7406")),
   kitDesign::kit_navgroup(
-    "做出資料（選一個）",
-    c(join = "橫向資料串接", stack = "直向波次疊加", attrition = "流失樣本", kitsdata = "kits 作答檔")
+    # 原文：做出資料（選一個）
+    "\u505a\u51fa\u8cc7\u6599\uff08\u9078\u4e00\u500b\uff09",
+    # 原文：橫向資料串接 | 直向波次疊加 | 流失樣本 | kits 作答檔
+    c(join = "\u6a6b\u5411\u8cc7\u6599\u4e32\u63a5", stack = "\u76f4\u5411\u6ce2\u6b21\u758a\u52a0", attrition = "\u6d41\u5931\u6a23\u672c", kitsdata = "kits \u4f5c\u7b54\u6a94")
   ),
-  kitDesign::kit_navgroup("其他工具", c(reshape = "長/寬格式轉換", convert = "檔案格式轉換"),
+  # 原文：其他工具 | 長/寬格式轉換 | 檔案格式轉換
+  kitDesign::kit_navgroup("\u5176\u4ed6\u5de5\u5177", c(reshape = "\u9577/\u5bec\u683c\u5f0f\u8f49\u63db", convert = "\u6a94\u6848\u683c\u5f0f\u8f49\u63db"),
                           tools = TRUE)
 )
 
@@ -43,7 +47,10 @@ kitjoin_tab_states <- function(n_files, states = list(), tabset = "tabs") {
 #' 還不能用的分頁：滑過時的說明
 #' @noRd
 kit_tab_locked_tip <- function(n_files, need) {
-  if (need <= 1L) return("還不能用：先在「檔案上傳」加入檔案")
-  if (n_files == 0) return(paste0("還不能用：先在「檔案上傳」加入至少 ", need, " 個檔案"))
-  paste0("還不能用：這一頁要 ", need, " 個以上的檔案，先在「檔案上傳」再加入檔案")
+  # 原文：還不能用：先在「檔案上傳」加入檔案
+  if (need <= 1L) return("\u9084\u4e0d\u80fd\u7528\uff1a\u5148\u5728\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u52a0\u5165\u6a94\u6848")
+  # 原文：還不能用：先在「檔案上傳」加入至少  |  個檔案
+  if (n_files == 0) return(paste0("\u9084\u4e0d\u80fd\u7528\uff1a\u5148\u5728\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u52a0\u5165\u81f3\u5c11 ", need, " \u500b\u6a94\u6848"))
+  # 原文：還不能用：這一頁要  |  個以上的檔案，先在「檔案上傳」再加入檔案
+  paste0("\u9084\u4e0d\u80fd\u7528\uff1a\u9019\u4e00\u9801\u8981 ", need, " \u500b\u4ee5\u4e0a\u7684\u6a94\u6848\uff0c\u5148\u5728\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u518d\u52a0\u5165\u6a94\u6848")
 }

@@ -7,7 +7,8 @@ kit_na_codes_default <- function() "7777, 8888, 9995, 9996, 9999"
 #' @noRd
 parse_na_codes <- function(text) {
   text <- if (is.null(text)) "" else text
-  parts <- strsplit(text, "[,，、;；[:space:]]+")[[1]]
+  # 原文：[,，、;；[:space:]]+
+  parts <- strsplit(text, "[,\uff0c\u3001;\uff1b[:space:]]+")[[1]]
   parts <- parts[nzchar(parts)]
   nums <- suppressWarnings(as.numeric(parts))
   list(
@@ -28,7 +29,8 @@ guess_id_cols <- function(cols) {
   hit <- grepl("(^|[^A-Za-z])id(no)?($|[^A-Za-z])", cols, ignore.case = TRUE) |
     grepl("[a-z](ID|Id)$", cols) |
     grepl("^(s|p|u|c|hh|stu|subj|child|case|resp)id$", cols, ignore.case = TRUE) |
-    grepl("編號|學號|序號|流水號|識別碼", cols)
+    # 原文：編號|學號|序號|流水號|識別碼
+    grepl("\u7de8\u865f|\u5b78\u865f|\u5e8f\u865f|\u6d41\u6c34\u865f|\u8b58\u5225\u78bc", cols)
   cols[hit]
 }
 
@@ -39,7 +41,8 @@ guess_id_cols <- function(cols) {
 #' @noRd
 kit_na_label_keywords_default <- function() {
   paste(
-    "遺漏, 跳答, 跳題, 不適用, 拒答, 拒絕回答, 未回答, 未作答, 漏答, 無反應,",
+    # 原文：遺漏, 跳答, 跳題, 不適用, 拒答, 拒絕回答, 未回答, 未作答, 漏答, 無反應,
+    "\u907a\u6f0f, \u8df3\u7b54, \u8df3\u984c, \u4e0d\u9069\u7528, \u62d2\u7b54, \u62d2\u7d55\u56de\u7b54, \u672a\u56de\u7b54, \u672a\u4f5c\u7b54, \u6f0f\u7b54, \u7121\u53cd\u61c9,",
     "missing, refused, not applicable, skip, no answer"
   )
 }
@@ -47,7 +50,8 @@ kit_na_label_keywords_default <- function() {
 #' 解析關鍵字（逗號、頓號、分號分隔；英文片語中的空白保留）
 #' @noRd
 parse_na_keywords <- function(text) {
-  parts <- trimws(strsplit(text %||% "", "[,，、;；]+")[[1]])
+  # 原文：[,，、;；]+
+  parts <- trimws(strsplit(text %||% "", "[,\uff0c\u3001;\uff1b]+")[[1]])
   unique(parts[nzchar(parts)])
 }
 
@@ -86,8 +90,10 @@ label_na_codes <- function(df, keywords, exclude = character(0)) {
 format_label_codes <- function(codes, counts = NULL) {
   value <- if (is.numeric(codes)) num_to_text(codes) else trimws(codes)
   text <- paste(value, trimws(names(codes)))
-  if (!is.null(counts)) text <- paste0(text, "（", kit_num(counts), " 格）")
-  paste(text, collapse = "、")
+  # 原文：（ |  格）
+  if (!is.null(counts)) text <- paste0(text, "\uff08", kit_num(counts), " \u683c\uff09")
+  # 原文：、
+  paste(text, collapse = "\u3001")
 }
 
 #' 依數值標籤偵測到的遺漏值代碼（給 ② 在轉換前預覽）
@@ -98,10 +104,14 @@ label_na_table <- function(dfs, file_names, keywords, exclude = character(0)) {
     found <- label_na_codes(df, keywords, exclude)
     if (length(found) == 0) return(NULL)
     tibble::tibble(
-      檔案 = name,
-      欄位 = names(found),
-      遺漏值代碼 = vapply(found, format_label_codes, character(1), USE.NAMES = FALSE),
-      資料中的格數 = vapply(names(found), function(col) {
+      # 原文：檔案
+      "\u6a94\u6848" = name,
+      # 原文：欄位
+      "\u6b04\u4f4d" = names(found),
+      # 原文：遺漏值代碼
+      "\u907a\u6f0f\u503c\u4ee3\u78bc" = vapply(found, format_label_codes, character(1), USE.NAMES = FALSE),
+      # 原文：資料中的格數
+      "\u8cc7\u6599\u4e2d\u7684\u683c\u6578" = vapply(names(found), function(col) {
         sum(na_code_hits(df[[col]], found[[col]]))
       }, integer(1), USE.NAMES = FALSE)
     )
@@ -109,7 +119,8 @@ label_na_table <- function(dfs, file_names, keywords, exclude = character(0)) {
   rows <- purrr::compact(rows)
   if (length(rows) == 0) {
     return(tibble::tibble(
-      檔案 = character(), 欄位 = character(), 遺漏值代碼 = character(), 資料中的格數 = integer()
+      # 原文：檔案 | 欄位 | 遺漏值代碼 | 資料中的格數
+      "\u6a94\u6848" = character(), "\u6b04\u4f4d" = character(), "\u907a\u6f0f\u503c\u4ee3\u78bc" = character(), "\u8cc7\u6599\u4e2d\u7684\u683c\u6578" = integer()
     ))
   }
   dplyr::bind_rows(rows)
@@ -138,21 +149,28 @@ na_code_hits <- function(x, codes) {
 na_mode_suggestion <- function(kit_cells, label_cells) {
   fmt <- \(x) format(x, big.mark = ",", scientific = FALSE, trim = TRUE)
   if (label_cells == 0 || label_cells <= kit_cells) return(list(switch = FALSE, note = NULL))
-  what <- paste0("SPSS 數值標籤標示了 ", fmt(label_cells), " 格遺漏值（例如「遺漏值」「跳答」）")
+  # 原文：SPSS 數值標籤標示了  |  格遺漏值（例如「遺漏值」「跳答」）
+  what <- paste0("SPSS \u6578\u503c\u6a19\u7c64\u6a19\u793a\u4e86 ", fmt(label_cells), " \u683c\u907a\u6f0f\u503c\uff08\u4f8b\u5982\u300c\u907a\u6f0f\u503c\u300d\u300c\u8df3\u7b54\u300d\uff09")
   if (kit_cells == 0 || label_cells >= 10 * kit_cells) {
     kit <- if (kit_cells == 0) {
-      "資料中沒有 7777、9999 這類遺漏值代碼，"
+      # 原文：資料中沒有 7777、9999 這類遺漏值代碼，
+      "\u8cc7\u6599\u4e2d\u6c92\u6709 7777\u30019999 \u9019\u985e\u907a\u6f0f\u503c\u4ee3\u78bc\uff0c"
     } else {
-      paste0("資料中只有 ", fmt(kit_cells), " 格等於 7777、9999 這類遺漏值代碼（可能是真實的值），")
+      # 原文：資料中只有  |  格等於 7777、9999 這類遺漏值代碼（可能是真實的值），
+      paste0("\u8cc7\u6599\u4e2d\u53ea\u6709 ", fmt(kit_cells), " \u683c\u7b49\u65bc 7777\u30019999 \u9019\u985e\u907a\u6f0f\u503c\u4ee3\u78bc\uff08\u53ef\u80fd\u662f\u771f\u5be6\u7684\u503c\uff09\uff0c")
     }
     return(list(switch = TRUE, note = paste0(
-      kit, "但", what, "，所以已改用「依 SPSS 數值標籤」。",
-      "要用自己的代碼清單，請改選「依代碼清單」。"
+      # 原文：但 | ，所以已改用「依 SPSS 數值標籤」。
+      kit, "\u4f46", what, "\uff0c\u6240\u4ee5\u5df2\u6539\u7528\u300c\u4f9d SPSS \u6578\u503c\u6a19\u7c64\u300d\u3002",
+      # 原文：要用自己的代碼清單，請改選「依代碼清單」。
+      "\u8981\u7528\u81ea\u5df1\u7684\u4ee3\u78bc\u6e05\u55ae\uff0c\u8acb\u6539\u9078\u300c\u4f9d\u4ee3\u78bc\u6e05\u55ae\u300d\u3002"
     )))
   }
   list(switch = FALSE, note = paste0(
-    "資料中有 ", fmt(kit_cells), " 格等於 7777、9999 這類遺漏值代碼，", what,
-    "。如果資料的遺漏值是寫在數值標籤裡，可以改選「依 SPSS 數值標籤」。"
+    # 原文：資料中有  |  格等於 7777、9999 這類遺漏值代碼，
+    "\u8cc7\u6599\u4e2d\u6709 ", fmt(kit_cells), " \u683c\u7b49\u65bc 7777\u30019999 \u9019\u985e\u907a\u6f0f\u503c\u4ee3\u78bc\uff0c", what,
+    # 原文：。如果資料的遺漏值是寫在數值標籤裡，可以改選「依 SPSS 數值標籤」。
+    "\u3002\u5982\u679c\u8cc7\u6599\u7684\u907a\u6f0f\u503c\u662f\u5beb\u5728\u6578\u503c\u6a19\u7c64\u88e1\uff0c\u53ef\u4ee5\u6539\u9078\u300c\u4f9d SPSS \u6578\u503c\u6a19\u7c64\u300d\u3002"
   ))
 }
 
@@ -231,14 +249,16 @@ replace_na_codes <- function(
 
     x[hit] <- NA
     df[[col]] <- x
-    rows[[col]] <- c(stats::setNames(counts, code_text), 合計 = sum(hit))
+    # 原文：合計
+    rows[[col]] <- c(stats::setNames(counts, code_text), "\u5408\u8a08" = sum(hit))
   }
 
   detail <- if (length(rows) == 0) {
     NULL
   } else {
     tibble::as_tibble(as.data.frame(do.call(rbind, rows), check.names = FALSE),
-                      rownames = "欄位")
+                      # 原文：欄位
+                      rownames = "\u6b04\u4f4d")
   }
   list(data = df, detail = detail)
 }
@@ -268,9 +288,12 @@ replace_na_by_labels <- function(df, keywords, exclude = character(0)) {
     if (any(hit)) {
       shown <- counts > 0
       rows[[col]] <- tibble::tibble(
-        欄位 = col,
-        轉換的代碼 = format_label_codes(codes[shown], counts[shown]),
-        合計 = sum(hit)
+        # 原文：欄位
+        "\u6b04\u4f4d" = col,
+        # 原文：轉換的代碼
+        "\u8f49\u63db\u7684\u4ee3\u78bc" = format_label_codes(codes[shown], counts[shown]),
+        # 原文：合計
+        "\u5408\u8a08" = sum(hit)
       )
     }
   }

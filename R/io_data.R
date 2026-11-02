@@ -24,8 +24,10 @@ read_data_file <- function(path, name, sav_encoding = "auto") {
         haven::read_sav(path, encoding = encoding),
         error = function(e) {
           kit_abort(
-            "無法讀取 ", name, "：檔案可能已損壞，或不是 SPSS 檔。",
-            "請用 SPSS 開啟確認後重新存檔再上傳。"
+            # 原文：無法讀取  | ：檔案可能已損壞，或不是 SPSS 檔。
+            "\u7121\u6cd5\u8b80\u53d6 ", name, "\uff1a\u6a94\u6848\u53ef\u80fd\u5df2\u640d\u58de\uff0c\u6216\u4e0d\u662f SPSS \u6a94\u3002",
+            # 原文：請用 SPSS 開啟確認後重新存檔再上傳。
+            "\u8acb\u7528 SPSS \u958b\u555f\u78ba\u8a8d\u5f8c\u91cd\u65b0\u5b58\u6a94\u518d\u4e0a\u50b3\u3002"
           )
         }
       )
@@ -52,11 +54,14 @@ read_data_file <- function(path, name, sav_encoding = "auto") {
     ))
   }
   kit_abort(
-    "無法讀取 ", name, "：目前只支援 CSV 與 SPSS（.sav）檔。",
+    # 原文：無法讀取  | ：目前只支援 CSV 與 SPSS（.sav）檔。
+    "\u7121\u6cd5\u8b80\u53d6 ", name, "\uff1a\u76ee\u524d\u53ea\u652f\u63f4 CSV \u8207 SPSS\uff08.sav\uff09\u6a94\u3002",
     if (ext %in% c("xlsx", "xls")) {
-      "Excel 檔請先在 Excel 用「另存新檔 → CSV UTF-8（逗號分隔）」存成 CSV 再上傳。"
+      # 原文：Excel 檔請先在 Excel 用「另存新檔 → CSV UTF-8（逗號分隔）」存成 CSV 再上傳。
+      "Excel \u6a94\u8acb\u5148\u5728 Excel \u7528\u300c\u53e6\u5b58\u65b0\u6a94 \u2192 CSV UTF-8\uff08\u9017\u865f\u5206\u9694\uff09\u300d\u5b58\u6210 CSV \u518d\u4e0a\u50b3\u3002"
     } else if (ext == "gz") {
-      "壓縮過的 CSV（.csv.gz）請先到「檔案格式轉換」解壓縮成 .csv 再上傳。"
+      # 原文：壓縮過的 CSV（.csv.gz）請先到「檔案格式轉換」解壓縮成 .csv 再上傳。
+      "\u58d3\u7e2e\u904e\u7684 CSV\uff08.csv.gz\uff09\u8acb\u5148\u5230\u300c\u6a94\u6848\u683c\u5f0f\u8f49\u63db\u300d\u89e3\u58d3\u7e2e\u6210 .csv \u518d\u4e0a\u50b3\u3002"
     }
   )
 }
@@ -65,12 +70,15 @@ read_data_file <- function(path, name, sav_encoding = "auto") {
 #' @noRd
 check_not_empty <- function(df, name) {
   if (ncol(df) == 0) {
-    kit_abort("無法讀取 ", name, "：檔案是空的（沒有任何欄位）。請確認選對檔案。")
+    # 原文：無法讀取  | ：檔案是空的（沒有任何欄位）。請確認選對檔案。
+    kit_abort("\u7121\u6cd5\u8b80\u53d6 ", name, "\uff1a\u6a94\u6848\u662f\u7a7a\u7684\uff08\u6c92\u6709\u4efb\u4f55\u6b04\u4f4d\uff09\u3002\u8acb\u78ba\u8a8d\u9078\u5c0d\u6a94\u6848\u3002")
   }
   if (nrow(df) == 0) {
     kit_abort(
-      "無法讀取 ", name, "：檔案只有欄名，沒有任何資料列（0 列）。",
-      "請確認匯出時有包含資料。"
+      # 原文：無法讀取  | ：檔案只有欄名，沒有任何資料列（0 列）。
+      "\u7121\u6cd5\u8b80\u53d6 ", name, "\uff1a\u6a94\u6848\u53ea\u6709\u6b04\u540d\uff0c\u6c92\u6709\u4efb\u4f55\u8cc7\u6599\u5217\uff080 \u5217\uff09\u3002",
+      # 原文：請確認匯出時有包含資料。
+      "\u8acb\u78ba\u8a8d\u532f\u51fa\u6642\u6709\u5305\u542b\u8cc7\u6599\u3002"
     )
   }
   invisible(TRUE)
@@ -192,7 +200,8 @@ write_kit_sav <- function(df, file) {
       return(invisible(list(fixed = original[match(fixed$cols, names(df))], step = step)))
     }
   }
-  kit_abort("SAV 檔寫出後無法讀回，可能是資料中有 SPSS 不支援的內容。請改下載 CSV。")
+  # 原文：SAV 檔寫出後無法讀回，可能是資料中有 SPSS 不支援的內容。請改下載 CSV。
+  kit_abort("SAV \u6a94\u5beb\u51fa\u5f8c\u7121\u6cd5\u8b80\u56de\uff0c\u53ef\u80fd\u662f\u8cc7\u6599\u4e2d\u6709 SPSS \u4e0d\u652f\u63f4\u7684\u5167\u5bb9\u3002\u8acb\u6539\u4e0b\u8f09 CSV\u3002")
 }
 
 #' 寫出的 SAV 讀得回來嗎（只讀表頭與第 1 列；數值標籤在表頭）
@@ -251,16 +260,24 @@ sav_fix_message <- function(written) {
   cols <- written$fixed
   if (is.null(cols) || length(cols) == 0) return(NULL)
   what <- switch(as.character(written$step),
-    "1" = "去掉了這些文字欄數值標籤裡的控制字元與多餘空白",
-    "2" = "移除了這些文字欄的數值標籤",
-    "移除了這些欄的數值標籤"
+    # 原文：去掉了這些文字欄數值標籤裡的控制字元與多餘空白
+    "1" = "\u53bb\u6389\u4e86\u9019\u4e9b\u6587\u5b57\u6b04\u6578\u503c\u6a19\u7c64\u88e1\u7684\u63a7\u5236\u5b57\u5143\u8207\u591a\u9918\u7a7a\u767d",
+    # 原文：移除了這些文字欄的數值標籤
+    "2" = "\u79fb\u9664\u4e86\u9019\u4e9b\u6587\u5b57\u6b04\u7684\u6578\u503c\u6a19\u7c64",
+    # 原文：移除了這些欄的數值標籤
+    "\u79fb\u9664\u4e86\u9019\u4e9b\u6b04\u7684\u6578\u503c\u6a19\u7c64"
   )
   paste0(
-    "SAV 檔照原樣寫出後讀不回來（原檔的數值標籤有 SPSS 存不了的內容），",
-    "所以", what, "再重新寫出：",
-    paste(utils::head(cols, 10), collapse = "、"),
-    if (length(cols) > 10) paste0(" 等 ", kit_num(length(cols)), " 欄") else "",
-    "。資料值與變項標籤都沒有改。"
+    # 原文：SAV 檔照原樣寫出後讀不回來（原檔的數值標籤有 SPSS 存不了的內容），
+    "SAV \u6a94\u7167\u539f\u6a23\u5beb\u51fa\u5f8c\u8b80\u4e0d\u56de\u4f86\uff08\u539f\u6a94\u7684\u6578\u503c\u6a19\u7c64\u6709 SPSS \u5b58\u4e0d\u4e86\u7684\u5167\u5bb9\uff09\uff0c",
+    # 原文：所以 | 再重新寫出：
+    "\u6240\u4ee5", what, "\u518d\u91cd\u65b0\u5beb\u51fa\uff1a",
+    # 原文：、
+    paste(utils::head(cols, 10), collapse = "\u3001"),
+    # 原文： 等  |  欄
+    if (length(cols) > 10) paste0(" \u7b49 ", kit_num(length(cols)), " \u6b04") else "",
+    # 原文：。資料值與變項標籤都沒有改。
+    "\u3002\u8cc7\u6599\u503c\u8207\u8b8a\u9805\u6a19\u7c64\u90fd\u6c92\u6709\u6539\u3002"
   )
 }
 
@@ -305,8 +322,10 @@ read_csv_auto <- function(path) {
     try_enc("Latin1"),
     error = function(e) {
       kit_abort(
-        "無法讀取這個 CSV 檔，檔案可能不是文字格式的 CSV。",
-        "請用 Excel 開啟確認後另存為「CSV UTF-8」再上傳。"
+        # 原文：無法讀取這個 CSV 檔，檔案可能不是文字格式的 CSV。
+        "\u7121\u6cd5\u8b80\u53d6\u9019\u500b CSV \u6a94\uff0c\u6a94\u6848\u53ef\u80fd\u4e0d\u662f\u6587\u5b57\u683c\u5f0f\u7684 CSV\u3002",
+        # 原文：請用 Excel 開啟確認後另存為「CSV UTF-8」再上傳。
+        "\u8acb\u7528 Excel \u958b\u555f\u78ba\u8a8d\u5f8c\u53e6\u5b58\u70ba\u300cCSV UTF-8\u300d\u518d\u4e0a\u50b3\u3002"
       )
     }
   )

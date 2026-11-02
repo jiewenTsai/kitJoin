@@ -25,12 +25,18 @@ PIVOT_LONGER_DEFAULTS <- list(
 
 # 控制項的中文名稱
 PIVOT_LONGER_LABELS <- c(
-  cols = "要轉成長格式的欄",
-  names_to = "原本的欄名放到哪一欄",
-  values_to = "原本的值放到哪一欄",
-  names_prefix = "欄名要去掉的開頭",
-  names_pattern = "從欄名取出部分的規則",
-  values_drop_na = "去掉空白的值"
+  # 原文：要轉成長格式的欄
+  cols = "\u8981\u8f49\u6210\u9577\u683c\u5f0f\u7684\u6b04",
+  # 原文：原本的欄名放到哪一欄
+  names_to = "\u539f\u672c\u7684\u6b04\u540d\u653e\u5230\u54ea\u4e00\u6b04",
+  # 原文：原本的值放到哪一欄
+  values_to = "\u539f\u672c\u7684\u503c\u653e\u5230\u54ea\u4e00\u6b04",
+  # 原文：欄名要去掉的開頭
+  names_prefix = "\u6b04\u540d\u8981\u53bb\u6389\u7684\u958b\u982d",
+  # 原文：從欄名取出部分的規則
+  names_pattern = "\u5f9e\u6b04\u540d\u53d6\u51fa\u90e8\u5206\u7684\u898f\u5247",
+  # 原文：去掉空白的值
+  values_drop_na = "\u53bb\u6389\u7a7a\u767d\u7684\u503c"
 )
 
 # 主畫面上的控制項（只寫中文）；其他的在「進階設定」裡，標題後面附參數名稱
@@ -40,7 +46,8 @@ PIVOT_LONGER_MAIN <- c("cols", "names_to", "values_to")
 #' @noRd
 pivot_label <- function(arg, labels = PIVOT_LONGER_LABELS) {
   if (arg %in% PIVOT_LONGER_MAIN) return(labels[[arg]])
-  shiny::tagList(labels[[arg]], shiny::tags$code(paste0("（", arg, "）")))
+  # 原文：（ | ）
+  shiny::tagList(labels[[arg]], shiny::tags$code(paste0("\uff08", arg, "\uff09")))
 }
 
 #' 進階設定最上面一行：主畫面的控制項對應 tidyr::pivot_longer() 的哪個參數
@@ -48,12 +55,15 @@ pivot_label <- function(arg, labels = PIVOT_LONGER_LABELS) {
 pivot_longer_arg_map <- function(labels = PIVOT_LONGER_LABELS) {
   shiny::tags$p(
     class = "kit-hint",
-    "對照 R 的 ", shiny::tags$code("tidyr::pivot_longer()"), "：",
+    # 原文：對照 R 的  | ：
+    "\u5c0d\u7167 R \u7684 ", shiny::tags$code("tidyr::pivot_longer()"), "\uff1a",
     lapply(seq_along(PIVOT_LONGER_MAIN), function(i) {
       a <- PIVOT_LONGER_MAIN[i]
       shiny::tagList(
-        "「", labels[[a]], "」是 ", shiny::tags$code(a),
-        if (i < length(PIVOT_LONGER_MAIN)) "；" else "。"
+        # 原文：「 | 」是 
+        "\u300c", labels[[a]], "\u300d\u662f ", shiny::tags$code(a),
+        # 原文：； | 。
+        if (i < length(PIVOT_LONGER_MAIN)) "\uff1b" else "\u3002"
       )
     })
   )
@@ -97,11 +107,14 @@ mod_pivot_longer_server <- function(id, data, fixed = list()) {
         },
         shiny::tags$div(class = "kit-pivot-row", text("names_to"), text("values_to")),
         kit_advanced(
-          title = "進階設定：欄名的開頭、規則、空白的值、R 的參數名稱",
+          # 原文：進階設定：欄名的開頭、規則、空白的值、R 的參數名稱
+          title = "\u9032\u968e\u8a2d\u5b9a\uff1a\u6b04\u540d\u7684\u958b\u982d\u3001\u898f\u5247\u3001\u7a7a\u767d\u7684\u503c\u3001R \u7684\u53c3\u6578\u540d\u7a31",
           open = any(c("names_prefix", "names_pattern", "values_drop_na") %in% names(fixed)),
           pivot_longer_arg_map(),
-          text("names_prefix", "例如 score_"),
-          text("names_pattern", "例如 (.*)_t(\\d)"),
+          # 原文：例如 score_
+          text("names_prefix", "\u4f8b\u5982 score_"),
+          # 原文：例如 (.*)_t(\\d)
+          text("names_pattern", "\u4f8b\u5982 (.*)_t(\\d)"),
           if (locked("values_drop_na")) {
             pivot_locked_ui(ns, "values_drop_na")
           } else {
@@ -188,8 +201,10 @@ mod_pivot_longer_server <- function(id, data, fixed = list()) {
 
 # 選欄框的標題（跟著模式換）
 PIVOT_COLS_PICK <- c(
-  include = "要轉的欄（點選，可多選）",
-  exclude = "不轉的欄（通常是 id、性別這類每人一個值的欄；其餘全部轉）"
+  # 原文：要轉的欄（點選，可多選）
+  include = "\u8981\u8f49\u7684\u6b04\uff08\u9ede\u9078\uff0c\u53ef\u591a\u9078\uff09",
+  # 原文：不轉的欄（通常是 id、性別這類每人一個值的欄；其餘全部轉）
+  exclude = "\u4e0d\u8f49\u7684\u6b04\uff08\u901a\u5e38\u662f id\u3001\u6027\u5225\u9019\u985e\u6bcf\u4eba\u4e00\u500b\u503c\u7684\u6b04\uff1b\u5176\u9918\u5168\u90e8\u8f49\uff09"
 )
 
 # cols：全部用點選。挑要轉的欄，或挑不轉的欄（其餘全部轉）
@@ -197,14 +212,16 @@ pivot_cols_ui <- function(ns, choices = NULL, selected = NULL) {
   shiny::tagList(
     shiny::radioButtons(
       ns("cols_mode"), pivot_label("cols"),
-      choices = c("挑要轉的欄" = "include", "挑不轉的欄（其餘全部轉）" = "exclude"),
+      # 原文：挑要轉的欄 | 挑不轉的欄（其餘全部轉）
+      choices = c("\u6311\u8981\u8f49\u7684\u6b04" = "include", "\u6311\u4e0d\u8f49\u7684\u6b04\uff08\u5176\u9918\u5168\u90e8\u8f49\uff09" = "exclude"),
       inline = TRUE
     ),
     shiny::selectizeInput(
       ns("cols"), PIVOT_COLS_PICK[["include"]], choices = choices, selected = selected,
       multiple = TRUE,
       width = "100%",
-      options = list(placeholder = "點這裡選欄", plugins = list("remove_button"))
+      # 原文：點這裡選欄
+      options = list(placeholder = "\u9ede\u9019\u88e1\u9078\u6b04", plugins = list("remove_button"))
     ),
     shiny::uiOutput(ns("cols_quick")),
     shiny::uiOutput(ns("cols_count"))
@@ -223,15 +240,19 @@ pivot_quick_ui <- function(input_id, groups) {
     )
   }
   group_btns <- purrr::map(seq_len(nrow(groups)), function(i) {
-    label <- paste0(groups$prefix[i], " 開頭（", kit_num(groups$n[i]), " 欄）")
+    # 原文： 開頭（ |  欄）
+    label <- paste0(groups$prefix[i], " \u958b\u982d\uff08", kit_num(groups$n[i]), " \u6b04\uff09")
     btn(paste0("g", i), label)
   })
   shiny::tags$div(
     class = "d-flex flex-wrap align-items-center gap-1 mb-2",
-    shiny::tags$span(class = "small text-muted me-1", "快速選："),
-    btn("all", "全選"), btn("none", "清除"),
+    # 原文：快速選：
+    shiny::tags$span(class = "small text-muted me-1", "\u5feb\u901f\u9078\uff1a"),
+    # 原文：全選 | 清除
+    btn("all", "\u5168\u9078"), btn("none", "\u6e05\u9664"),
     if (length(group_btns) > 0) {
-      shiny::tags$span(class = "small text-muted ms-2 me-1", "加入一組：")
+      # 原文：加入一組：
+      shiny::tags$span(class = "small text-muted ms-2 me-1", "\u52a0\u5165\u4e00\u7d44\uff1a")
     },
     group_btns
   )
@@ -268,18 +289,23 @@ pivot_order_cols <- function(cols, all) {
 #' @noRd
 pivot_cols_count_text <- function(all, picked, exclude) {
   picked <- picked %||% character(0)
-  if (length(all) == 0) return("還沒有資料。")
+  # 原文：還沒有資料。
+  if (length(all) == 0) return("\u9084\u6c92\u6709\u8cc7\u6599\u3002")
   conv <- if (exclude) setdiff(all, picked) else intersect(all, picked)
   keep <- setdiff(all, conv)
   if (length(conv) == 0) {
-    return(if (exclude) "每一欄都挑成不轉了，沒有欄可以轉。" else "還沒選要轉的欄。")
+    # 原文：每一欄都挑成不轉了，沒有欄可以轉。 | 還沒選要轉的欄。
+    return(if (exclude) "\u6bcf\u4e00\u6b04\u90fd\u6311\u6210\u4e0d\u8f49\u4e86\uff0c\u6c92\u6709\u6b04\u53ef\u4ee5\u8f49\u3002" else "\u9084\u6c92\u9078\u8981\u8f49\u7684\u6b04\u3002")
   }
   few <- function(x, n) {
-    paste0("（", paste(utils::head(x, n), collapse = "、"), if (length(x) > n) "…", "）")
+    # 原文：（ | 、 | … | ）
+    paste0("\uff08", paste(utils::head(x, n), collapse = "\u3001"), if (length(x) > n) "\u2026", "\uff09")
   }
   paste0(
-    "會轉 ", kit_num(length(conv)), " 欄", few(conv, 4), "，",
-    "保留 ", kit_num(length(keep)), " 欄不動", if (length(keep) > 0) few(keep, 6), "。"
+    # 原文：會轉  |  欄 | ，
+    "\u6703\u8f49 ", kit_num(length(conv)), " \u6b04", few(conv, 4), "\uff0c",
+    # 原文：保留  |  欄不動 | 。
+    "\u4fdd\u7559 ", kit_num(length(keep)), " \u6b04\u4e0d\u52d5", if (length(keep) > 0) few(keep, 6), "\u3002"
   )
 }
 
@@ -323,14 +349,19 @@ pivot_locked_ui <- function(ns, arg) {
 # 固定參數的顯示文字
 pivot_locked_text <- function(arg, value) {
   if (arg == "cols") {
-    if (length(value) == 0) return("（還沒有題目欄）")
-    more <- if (length(value) > 6) paste0("…（共 ", kit_num(length(value)), " 欄）") else ""
-    return(paste0(paste(utils::head(value, 6), collapse = "、"), more, "　固定"))
+    # 原文：（還沒有題目欄）
+    if (length(value) == 0) return("\uff08\u9084\u6c92\u6709\u984c\u76ee\u6b04\uff09")
+    # 原文：…（共  |  欄）
+    more <- if (length(value) > 6) paste0("\u2026\uff08\u5171 ", kit_num(length(value)), " \u6b04\uff09") else ""
+    # 原文：、 | 　固定
+    return(paste0(paste(utils::head(value, 6), collapse = "\u3001"), more, "\u3000\u56fa\u5b9a"))
   }
-  if (is.null(value)) return("（不用）　固定")
+  # 原文：（不用）　固定
+  if (is.null(value)) return("\uff08\u4e0d\u7528\uff09\u3000\u56fa\u5b9a")
   shown <- if (is.character(value)) paste0("\"", value, "\"", collapse = ", ") else
     paste(value, collapse = ", ")
-  paste0(shown, "　固定")
+  # 原文：　固定
+  paste0(shown, "\u3000\u56fa\u5b9a")
 }
 
 
@@ -365,9 +396,11 @@ pivot_longer_run <- function(df, args) {
     error = function(e) {
       msg <- conditionMessage(e)
       hint <- if (grepl("combine|incompatible|type", msg, ignore.case = TRUE)) {
-        "（常見原因：選到的欄有的是數字、有的是文字。請只選同一種型別的欄。）"
+        # 原文：（常見原因：選到的欄有的是數字、有的是文字。請只選同一種型別的欄。）
+        "\uff08\u5e38\u898b\u539f\u56e0\uff1a\u9078\u5230\u7684\u6b04\u6709\u7684\u662f\u6578\u5b57\u3001\u6709\u7684\u662f\u6587\u5b57\u3002\u8acb\u53ea\u9078\u540c\u4e00\u7a2e\u578b\u5225\u7684\u6b04\u3002\uff09"
       }
-      kit_abort("寬轉長沒有成功：", msg, hint)
+      # 原文：寬轉長沒有成功：
+      kit_abort("\u5bec\u8f49\u9577\u6c92\u6709\u6210\u529f\uff1a", msg, hint)
     }
   )
   if (length(caught) > 0) attr(out, "kit_warnings") <- unique(caught)
@@ -401,14 +434,20 @@ pivot_longer_labels <- function(df, cols) {
     first <- cols[has_v][match(sets, vlab[has_v])]
     show <- function(lab) {
       txt <- paste0(format(unname(lab), trim = TRUE, scientific = FALSE), "=", names(lab))
-      paste0(paste(utils::head(txt, 3), collapse = "、"), if (length(txt) > 3) "…")
+      # 原文：、 | …
+      paste0(paste(utils::head(txt, 3), collapse = "\u3001"), if (length(txt) > 3) "\u2026")
     }
-    examples <- paste0(utils::head(first, 2), "（", vapply(utils::head(sets, 2), show, ""), "）")
+    # 原文：（ | ）
+    examples <- paste0(utils::head(first, 2), "\uff08", vapply(utils::head(sets, 2), show, ""), "\uff09")
     out$warning <- paste0(
-      "要轉的 ", length(cols), " 欄有 ", length(sets) + (!all(has_v)), " 種不同的數值標籤（例如 ",
-      paste(examples, collapse = "；"), if (!all(has_v)) "；有的欄沒有數值標籤", "）。",
-      "放進同一欄會把第一欄的標籤套到每一題，所以值欄不放數值標籤（值不變）。",
-      "需要標籤的話，請每次只轉標籤相同的欄。"
+      # 原文：要轉的  |  欄有  |  種不同的數值標籤（例如 
+      "\u8981\u8f49\u7684 ", length(cols), " \u6b04\u6709 ", length(sets) + (!all(has_v)), " \u7a2e\u4e0d\u540c\u7684\u6578\u503c\u6a19\u7c64\uff08\u4f8b\u5982 ",
+      # 原文：； | ；有的欄沒有數值標籤 | ）。
+      paste(examples, collapse = "\uff1b"), if (!all(has_v)) "\uff1b\u6709\u7684\u6b04\u6c92\u6709\u6578\u503c\u6a19\u7c64", "\uff09\u3002",
+      # 原文：放進同一欄會把第一欄的標籤套到每一題，所以值欄不放數值標籤（值不變）。
+      "\u653e\u9032\u540c\u4e00\u6b04\u6703\u628a\u7b2c\u4e00\u6b04\u7684\u6a19\u7c64\u5957\u5230\u6bcf\u4e00\u984c\uff0c\u6240\u4ee5\u503c\u6b04\u4e0d\u653e\u6578\u503c\u6a19\u7c64\uff08\u503c\u4e0d\u8b8a\uff09\u3002",
+      # 原文：需要標籤的話，請每次只轉標籤相同的欄。
+      "\u9700\u8981\u6a19\u7c64\u7684\u8a71\uff0c\u8acb\u6bcf\u6b21\u53ea\u8f49\u6a19\u7c64\u76f8\u540c\u7684\u6b04\u3002"
     )
   }
   if (any(has_l) && !(all(has_l) && same(var_lab))) {
@@ -436,22 +475,28 @@ pivot_longer_cols <- function(df, args) {
 
 # 轉換前的檢查；沒問題時 NULL
 pivot_longer_problem <- function(df, cols, args) {
-  if (length(cols) == 0) return("請選要轉成長格式的欄。")
+  # 原文：請選要轉成長格式的欄。
+  if (length(cols) == 0) return("\u8acb\u9078\u8981\u8f49\u6210\u9577\u683c\u5f0f\u7684\u6b04\u3002")
   new_cols <- c(args$names_to, args$values_to)
   if (any(!nzchar(new_cols))) {
     return(paste0(
-      "「", PIVOT_LONGER_LABELS[["names_to"]], "」與「", PIVOT_LONGER_LABELS[["values_to"]],
-      "」不能空白。"
+      # 原文：「 | 」與「
+      "\u300c", PIVOT_LONGER_LABELS[["names_to"]], "\u300d\u8207\u300c", PIVOT_LONGER_LABELS[["values_to"]],
+      # 原文：」不能空白。
+      "\u300d\u4e0d\u80fd\u7a7a\u767d\u3002"
     ))
   }
   clash <- intersect(new_cols, setdiff(names(df), cols))
   if (length(clash) > 0) {
-    return(paste0("新的欄名 ", paste(clash, collapse = "、"), " 和留下來的欄撞名了，請換一個名字。"))
+    # 原文：新的欄名  | 、 |  和留下來的欄撞名了，請換一個名字。
+    return(paste0("\u65b0\u7684\u6b04\u540d ", paste(clash, collapse = "\u3001"), " \u548c\u7559\u4e0b\u4f86\u7684\u6b04\u649e\u540d\u4e86\uff0c\u8acb\u63db\u4e00\u500b\u540d\u5b57\u3002"))
   }
   if (length(args$names_to) > 1 && is.null(args$names_pattern)) {
     return(paste0(
-      "「", PIVOT_LONGER_LABELS[["names_to"]], "」填了好幾個名稱時，要在進階設定填「",
-      PIVOT_LONGER_LABELS[["names_pattern"]], "（names_pattern）」，說明怎麼從欄名切出各部分。"
+      # 原文：「 | 」填了好幾個名稱時，要在進階設定填「
+      "\u300c", PIVOT_LONGER_LABELS[["names_to"]], "\u300d\u586b\u4e86\u597d\u5e7e\u500b\u540d\u7a31\u6642\uff0c\u8981\u5728\u9032\u968e\u8a2d\u5b9a\u586b\u300c",
+      # 原文：（names_pattern）」，說明怎麼從欄名切出各部分。
+      PIVOT_LONGER_LABELS[["names_pattern"]], "\uff08names_pattern\uff09\u300d\uff0c\u8aaa\u660e\u600e\u9ebc\u5f9e\u6b04\u540d\u5207\u51fa\u5404\u90e8\u5206\u3002"
     ))
   }
   NULL
@@ -471,9 +516,11 @@ pivot_longer_labels_code <- function(labels, data_name) {
   }
   code_lines(
     if (labels$conflict) {
-      "# 要轉的欄數值標籤不一樣：先拿掉，才不會把第一欄的標籤套到每一題（值不變）"
+      # 原文：# 要轉的欄數值標籤不一樣：先拿掉，才不會把第一欄的標籤套到每一題（值不變）
+      "# \u8981\u8f49\u7684\u6b04\u6578\u503c\u6a19\u7c64\u4e0d\u4e00\u6a23\uff1a\u5148\u62ff\u6389\uff0c\u624d\u4e0d\u6703\u628a\u7b2c\u4e00\u6b04\u7684\u6a19\u7c64\u5957\u5230\u6bcf\u4e00\u984c\uff08\u503c\u4e0d\u8b8a\uff09"
     } else {
-      "# 要轉的欄變項標籤不一樣：先拿掉（值欄不是任何一題）"
+      # 原文：# 要轉的欄變項標籤不一樣：先拿掉（值欄不是任何一題）
+      "# \u8981\u8f49\u7684\u6b04\u8b8a\u9805\u6a19\u7c64\u4e0d\u4e00\u6a23\uff1a\u5148\u62ff\u6389\uff08\u503c\u6b04\u4e0d\u662f\u4efb\u4f55\u4e00\u984c\uff09"
     },
     paste0(data_name, " <- ", data_name, " |>"),
     paste0("  mutate(across(", r_cols_vector(labels$cols, indent = "      "), ", ", fun, "))"),

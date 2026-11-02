@@ -1861,7 +1861,7 @@
       "checksum": "d2a299d0cff64f653d470e7a44ef8d9b"
     },
     "DESCRIPTION": {
-      "checksum": "7cf0bb9384cf84a224bf5bbd2f037458"
+      "checksum": "712fc43349a9ab4a30a8b60cdd77fdce"
     },
     "inst/extdata/example_t1.csv": {
       "checksum": "86b287c755537d1155c134d0572929a5"
@@ -1879,94 +1879,94 @@
       "checksum": "12210821c1ef62c9965932db4c65c5da"
     },
     "NEWS.md": {
-      "checksum": "265f351ec1aa2c1f4dad6af3aa7c9b54"
+      "checksum": "f53f257a5cf7b7b66a266e7bfd0d1de8"
     },
     "R/_disable_autoload.R": {
       "checksum": "9dad897ff481b6a729440efca3d65e6e"
     },
     "R/app.R": {
-      "checksum": "a121f7d100ac75310d5333425746a02a"
+      "checksum": "abc1698501219aed112f2e17160e6c66"
     },
     "R/attrition_pipeline.R": {
-      "checksum": "a019e69fe73172ab5ab9ad6700d147a0"
+      "checksum": "3bcfc0549e07fc7e72ec48d0acd2089b"
     },
     "R/cloud.R": {
-      "checksum": "d49f8fb41b1654e1340d75e91a0740c8"
+      "checksum": "b99f2771a1d71848bde2f98fdc3af8a4"
     },
     "R/code_kitsdata.R": {
-      "checksum": "483eb2a375b4f919b27f69f006e774ca"
+      "checksum": "95e99bc33cc8c1b2ce2609e55d38603d"
     },
     "R/code_reshape.R": {
-      "checksum": "d0e30a83235c55f14762caa74f4104b0"
+      "checksum": "7774ec138f5d9635f0d423fd0e2d3a40"
     },
     "R/code_snippets.R": {
-      "checksum": "3548419e41b26c6c22453cf36d119f23"
+      "checksum": "a7f9f44a854ee5412a745d427a262072"
     },
     "R/constants.R": {
-      "checksum": "eb241b0695631180c93a25f08d64aba3"
+      "checksum": "a364bd8717d59ccdf6b5592958652865"
     },
     "R/convert_pipeline.R": {
-      "checksum": "558c3bb57a651e022a8090cf0246150d"
+      "checksum": "3fb7cf9d7d0bfe4e761c563a182253ce"
     },
     "R/io_data.R": {
-      "checksum": "af8f135f9110f1f8ae8e9943684c5525"
+      "checksum": "9eeabb1c23fb24cfc02da119297b84eb"
     },
     "R/join_pipeline.R": {
-      "checksum": "e51352298559a68d7e2478175fd9d86f"
+      "checksum": "18bd47615be5efe56b7f84b9194e0855"
     },
     "R/kitsdata_pipeline.R": {
-      "checksum": "1c38032a472e7982380d6aa5e2f21af9"
+      "checksum": "2df671803709a8f223439e9a16844547"
     },
     "R/kitsdata_steps.R": {
-      "checksum": "6ce11a76624f76d822bd69924d52f73a"
+      "checksum": "e78bc45a42a36678963e8acabb621870"
     },
     "R/missing_pipeline.R": {
-      "checksum": "3b4a69c6ab0dbf950870fcc225a44d24"
+      "checksum": "d6e2fbd3a5bc1bc82579917d5368d992"
     },
     "R/mod_attrition.R": {
-      "checksum": "8b1a8e92c09d388d88f95826d449e026"
+      "checksum": "3299d6895c26db0177cc009a5d65d57f"
     },
     "R/mod_convert.R": {
-      "checksum": "fe975b11f56adbcdeeacea96409407c7"
+      "checksum": "1c13d231198fd088cae5f433bea35c47"
     },
     "R/mod_join.R": {
-      "checksum": "22fe702233c6248cb6cfbef0e2c5a7f3"
+      "checksum": "0634e6bea1eedecfa32d67ad9991a909"
     },
     "R/mod_kitsdata.R": {
-      "checksum": "39211ba411e3bff1ddbd7293965bf173"
+      "checksum": "bb6f7a78013956e56540fc0072f79e2e"
     },
     "R/mod_missing.R": {
-      "checksum": "293955720e9d9cdb674698c02eef7ab2"
+      "checksum": "215f307fbc559fc4cc9b78a6fd9fcef8"
     },
     "R/mod_pivot_longer.R": {
-      "checksum": "bfcef0a75658d6f1ddce84c40b125381"
+      "checksum": "6121a2a0272cb4a9c4a718eac12d113d"
     },
     "R/mod_reshape.R": {
-      "checksum": "5e1a8a3d87cd43ea6c1e9a277f75d94f"
+      "checksum": "1904e04d7c4135db213fc4179d8bd3b6"
     },
     "R/mod_stack.R": {
-      "checksum": "e883536590ed138ffdef536b9ed2f4cc"
+      "checksum": "d6c1637fc924ae0f2c9ec6fd502f3f6a"
     },
     "R/mod_upload.R": {
-      "checksum": "5d454c0e9b0e892e660cd85f19c993dd"
+      "checksum": "14f5dd42cb169253ef325ebb606fb20d"
     },
     "R/reshape_pipeline.R": {
-      "checksum": "7f46dd18a86935aa593e2649dfc715a0"
+      "checksum": "cbcae8381e16009c62ed333d4413209a"
     },
     "R/run_kitjoin.R": {
       "checksum": "08ff23a60ddea6457f791c493fabfa23"
     },
     "R/stack_pipeline.R": {
-      "checksum": "e61e1b441b585469bd441b0a700681a7"
+      "checksum": "a7e7803f42951734f673b2830e0f00f5"
     },
     "R/tab_states.R": {
-      "checksum": "69b11346677d0fa2713ac1273d3d1849"
+      "checksum": "7dbcefe151b05d94869fd2e8324a9615"
     },
     "R/ui_helpers.R": {
-      "checksum": "766873362a0983993359ad32b8ebdcb0"
+      "checksum": "846cfb91f164d267fac0d4052e70fc1f"
     },
     "R/utils.R": {
-      "checksum": "90835e65c1a77ce1483a3a0b9c141160"
+      "checksum": "b5e65a08ff4385641df9048dda4056fb"
     },
     "README.md": {
       "checksum": "042a1ad83e01f3d1514ae70f1a6470fd"

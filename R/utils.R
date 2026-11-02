@@ -32,5 +32,6 @@ key_strings <- function(df, by_vars) {
 #' 「t1（wave1.csv）」這種給使用者看的檔案稱呼
 #' @noRd
 file_display_name <- function(wave_label, file_name) {
-  ifelse(nzchar(wave_label), paste0(wave_label, "（", file_name, "）"), file_name)
+  # 原文：（ | ）
+  ifelse(nzchar(wave_label), paste0(wave_label, "\uff08", file_name, "\uff09"), file_name)
 }

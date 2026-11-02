@@ -34,8 +34,10 @@ kit_set_options <- function() {
 kit_ui <- function(request) {
   meta <- kit_app_description("kitJoin")
   kit_page(
-    "KIT 資料處理工具", "臺灣幼兒發展調查資料庫",
-    tagline = "跨波次資料處理",
+    # 原文：KIT 資料處理工具 | 臺灣幼兒發展調查資料庫
+    "KIT \u8cc7\u6599\u8655\u7406\u5de5\u5177", "\u81fa\u7063\u5e7c\u5152\u767c\u5c55\u8abf\u67e5\u8cc7\u6599\u5eab",
+    # 原文：跨波次資料處理
+    tagline = "\u8de8\u6ce2\u6b21\u8cc7\u6599\u8655\u7406",
     version = meta$version, date = meta$date, package = "kitJoin",
     if (kit_is_cloud()) kit_cloud_banner(kit_cloud_banner_text()),
     # 分頁列：三組、不編號（kit_navgroups()）；下面是真的 Shiny 分頁，只是把它自己的分頁列藏起來，
@@ -44,14 +46,22 @@ kit_ui <- function(request) {
     shiny::tabsetPanel(
       id = "tabs",
       type = "hidden",
-      shiny::tabPanel("檔案上傳", value = "upload", mod_upload_ui("upload")),
-      shiny::tabPanel("遺漏值處理", value = "missing", mod_missing_ui("missing")),
-      shiny::tabPanel("橫向資料串接", value = "join", mod_join_ui("join")),
-      shiny::tabPanel("直向波次疊加", value = "stack", mod_stack_ui("stack")),
-      shiny::tabPanel("流失樣本", value = "attrition", mod_attrition_ui("attrition")),
-      shiny::tabPanel("kits 作答檔", value = "kitsdata", mod_kitsdata_ui("kitsdata")),
-      shiny::tabPanel("長/寬格式轉換", value = "reshape", mod_reshape_ui("reshape")),
-      shiny::tabPanel("檔案格式轉換", value = "convert", mod_convert_ui("convert"))
+      # 原文：檔案上傳
+      shiny::tabPanel("\u6a94\u6848\u4e0a\u50b3", value = "upload", mod_upload_ui("upload")),
+      # 原文：遺漏值處理
+      shiny::tabPanel("\u907a\u6f0f\u503c\u8655\u7406", value = "missing", mod_missing_ui("missing")),
+      # 原文：橫向資料串接
+      shiny::tabPanel("\u6a6b\u5411\u8cc7\u6599\u4e32\u63a5", value = "join", mod_join_ui("join")),
+      # 原文：直向波次疊加
+      shiny::tabPanel("\u76f4\u5411\u6ce2\u6b21\u758a\u52a0", value = "stack", mod_stack_ui("stack")),
+      # 原文：流失樣本
+      shiny::tabPanel("\u6d41\u5931\u6a23\u672c", value = "attrition", mod_attrition_ui("attrition")),
+      # 原文：kits 作答檔
+      shiny::tabPanel("kits \u4f5c\u7b54\u6a94", value = "kitsdata", mod_kitsdata_ui("kitsdata")),
+      # 原文：長/寬格式轉換
+      shiny::tabPanel("\u9577/\u5bec\u683c\u5f0f\u8f49\u63db", value = "reshape", mod_reshape_ui("reshape")),
+      # 原文：檔案格式轉換
+      shiny::tabPanel("\u6a94\u6848\u683c\u5f0f\u8f49\u63db", value = "convert", mod_convert_ui("convert"))
     ),
     if (kit_is_cloud()) kitjoin_cloud_footer()
   )

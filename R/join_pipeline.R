@@ -34,12 +34,15 @@ join_waves <- function(dfs, file_names, wave_labels, by_vars,
   if (!is.null(conflict)) {
     if (!keys_as_text) {
       kit_abort(
-        conflict, "無法直接比對。請勾選「ID 型別不一致時，自動轉成文字再比對」，",
-        "或回原檔把 ID 改成同一種格式。"
+        # 原文：無法直接比對。請勾選「ID 型別不一致時，自動轉成文字再比對」，
+        conflict, "\u7121\u6cd5\u76f4\u63a5\u6bd4\u5c0d\u3002\u8acb\u52fe\u9078\u300cID \u578b\u5225\u4e0d\u4e00\u81f4\u6642\uff0c\u81ea\u52d5\u8f49\u6210\u6587\u5b57\u518d\u6bd4\u5c0d\u300d\uff0c",
+        # 原文：或回原檔把 ID 改成同一種格式。
+        "\u6216\u56de\u539f\u6a94\u628a ID \u6539\u6210\u540c\u4e00\u7a2e\u683c\u5f0f\u3002"
       )
     }
     dfs <- keys_to_text(dfs, by_vars)
-    notes <- c(notes, paste0(conflict, "已自動把 ID 轉成文字再比對。"))
+    # 原文：已自動把 ID 轉成文字再比對。
+    notes <- c(notes, paste0(conflict, "\u5df2\u81ea\u52d5\u628a ID \u8f49\u6210\u6587\u5b57\u518d\u6bd4\u5c0d\u3002"))
   }
 
   check_join_size(dfs, by_vars, method, names_shown, confirm_large)
@@ -82,27 +85,34 @@ join_waves <- function(dfs, file_names, wave_labels, by_vars,
 check_join_inputs <- function(dfs, file_names, wave_labels, by_vars,
                               id_cols = rep(list(by_vars), length(dfs))) {
   if (length(dfs) < 2) {
-    kit_abort("需要至少 2 個檔案才能串接。請到「檔案上傳」再加入一個波次的檔案。")
+    # 原文：需要至少 2 個檔案才能串接。請到「檔案上傳」再加入一個波次的檔案。
+    kit_abort("\u9700\u8981\u81f3\u5c11 2 \u500b\u6a94\u6848\u624d\u80fd\u4e32\u63a5\u3002\u8acb\u5230\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u518d\u52a0\u5165\u4e00\u500b\u6ce2\u6b21\u7684\u6a94\u6848\u3002")
   }
   if (length(by_vars) == 0) {
-    kit_abort("請先選擇用來辨識同一個人的 ID 欄位。")
+    # 原文：請先選擇用來辨識同一個人的 ID 欄位。
+    kit_abort("\u8acb\u5148\u9078\u64c7\u7528\u4f86\u8fa8\u8b58\u540c\u4e00\u500b\u4eba\u7684 ID \u6b04\u4f4d\u3002")
   }
   per_file <- !all(purrr::map_lgl(id_cols, identical, by_vars))
   for (i in seq_along(dfs)) {
     if (length(id_cols[[i]]) != length(by_vars)) {
       kit_abort(
-        "每個檔案要選一樣多個 ID 欄：第 1 個檔案選了 ", length(by_vars), " 個，",
-        file_names[i], " 選了 ", length(id_cols[[i]]), " 個。"
+        # 原文：每個檔案要選一樣多個 ID 欄：第 1 個檔案選了  |  個，
+        "\u6bcf\u500b\u6a94\u6848\u8981\u9078\u4e00\u6a23\u591a\u500b ID \u6b04\uff1a\u7b2c 1 \u500b\u6a94\u6848\u9078\u4e86 ", length(by_vars), " \u500b\uff0c",
+        # 原文： 選了  |  個。
+        file_names[i], " \u9078\u4e86 ", length(id_cols[[i]]), " \u500b\u3002"
       )
     }
     missing_by <- setdiff(id_cols[[i]], names(dfs[[i]]))
     if (length(missing_by) > 0) {
       kit_abort(
-        file_names[i], " 沒有 ", paste(missing_by, collapse = "、"), " 欄位。",
+        # 原文： 沒有  | 、 |  欄位。
+        file_names[i], " \u6c92\u6709 ", paste(missing_by, collapse = "\u3001"), " \u6b04\u4f4d\u3002",
         if (per_file) {
-          "請重新選這個檔案的 ID 欄。"
+          # 原文：請重新選這個檔案的 ID 欄。
+          "\u8acb\u91cd\u65b0\u9078\u9019\u500b\u6a94\u6848\u7684 ID \u6b04\u3002"
         } else {
-          "請改選每個檔案都有的 ID 欄位；各檔 ID 欄名不同時，請勾選「各檔的 ID 欄名不同」分別指定。"
+          # 原文：請改選每個檔案都有的 ID 欄位；各檔 ID 欄名不同時，請勾選「各檔的 ID 欄名不同」分別指定。
+          "\u8acb\u6539\u9078\u6bcf\u500b\u6a94\u6848\u90fd\u6709\u7684 ID \u6b04\u4f4d\uff1b\u5404\u6a94 ID \u6b04\u540d\u4e0d\u540c\u6642\uff0c\u8acb\u52fe\u9078\u300c\u5404\u6a94\u7684 ID \u6b04\u540d\u4e0d\u540c\u300d\u5206\u5225\u6307\u5b9a\u3002"
         }
       )
     }
@@ -124,9 +134,12 @@ unify_id_names <- function(dfs, id_cols, by_vars, names_shown) {
     taken <- intersect(setdiff(names(df), own), by_vars)
     if (length(taken) > 0) {
       kit_abort(
-        names_shown[i], "已經有名為 ", paste(taken, collapse = "、"),
-        " 的欄，但它不是這個檔案的 ID，所以不能把 ", paste(own, collapse = "、"),
-        " 改成這個名稱。請把第 1 個檔案的 ID 欄改選成其他欄，或先在原檔改欄名。"
+        # 原文：已經有名為  | 、
+        names_shown[i], "\u5df2\u7d93\u6709\u540d\u70ba ", paste(taken, collapse = "\u3001"),
+        # 原文： 的欄，但它不是這個檔案的 ID，所以不能把  | 、
+        " \u7684\u6b04\uff0c\u4f46\u5b83\u4e0d\u662f\u9019\u500b\u6a94\u6848\u7684 ID\uff0c\u6240\u4ee5\u4e0d\u80fd\u628a ", paste(own, collapse = "\u3001"),
+        # 原文： 改成這個名稱。請把第 1 個檔案的 ID 欄改選成其他欄，或先在原檔改欄名。
+        " \u6539\u6210\u9019\u500b\u540d\u7a31\u3002\u8acb\u628a\u7b2c 1 \u500b\u6a94\u6848\u7684 ID \u6b04\u6539\u9078\u6210\u5176\u4ed6\u6b04\uff0c\u6216\u5148\u5728\u539f\u6a94\u6539\u6b04\u540d\u3002"
       )
     }
     names(df)[match(own, names(df))] <- by_vars
@@ -140,13 +153,18 @@ id_rename_note <- function(id_cols, by_vars, names_shown) {
   differs <- which(!purrr::map_lgl(id_cols, identical, by_vars))
   if (length(differs) == 0) return(character(0))
   paste0(
-    "各檔的 ID 已對應到 ", paste(by_vars, collapse = "＋"), "：",
+    # 原文：各檔的 ID 已對應到  | ＋ | ：
+    "\u5404\u6a94\u7684 ID \u5df2\u5c0d\u61c9\u5230 ", paste(by_vars, collapse = "\uff0b"), "\uff1a",
     paste0(
-      names_shown[differs], "的 ",
-      purrr::map_chr(id_cols[differs], paste, collapse = "＋"),
-      collapse = "、"
+      # 原文：的 
+      names_shown[differs], "\u7684 ",
+      # 原文：＋
+      purrr::map_chr(id_cols[differs], paste, collapse = "\uff0b"),
+      # 原文：、
+      collapse = "\u3001"
     ),
-    "。結果中的 ID 欄叫 ", paste(by_vars, collapse = "、"), "。"
+    # 原文：。結果中的 ID 欄叫  | 、 | 。
+    "\u3002\u7d50\u679c\u4e2d\u7684 ID \u6b04\u53eb ", paste(by_vars, collapse = "\u3001"), "\u3002"
   )
 }
 
@@ -198,18 +216,25 @@ check_join_size <- function(dfs, by_vars, method, names_shown, confirm_large) {
   biggest <- which.max(n_rows)
   times <- floor(estimate / n_rows[biggest])
   why <- paste0(
-    "預估串接結果有 ", format(estimate, scientific = FALSE, big.mark = ","), " 列，",
-    "是最大檔案（", names_shown[biggest], "，", kit_num(n_rows[biggest]), " 列）的 ",
-    kit_num(times), " 倍。",
-    "這通常表示 ID 欄選錯（例如選到出生年、權數），或 ID 大量重複：",
-    "同一個 ID 在兩個檔案各有多列時，會兩兩配對成很多列。"
+    # 原文：預估串接結果有  |  列，
+    "\u9810\u4f30\u4e32\u63a5\u7d50\u679c\u6709 ", format(estimate, scientific = FALSE, big.mark = ","), " \u5217\uff0c",
+    # 原文：是最大檔案（ | ， |  列）的 
+    "\u662f\u6700\u5927\u6a94\u6848\uff08", names_shown[biggest], "\uff0c", kit_num(n_rows[biggest]), " \u5217\uff09\u7684 ",
+    # 原文： 倍。
+    kit_num(times), " \u500d\u3002",
+    # 原文：這通常表示 ID 欄選錯（例如選到出生年、權數），或 ID 大量重複：
+    "\u9019\u901a\u5e38\u8868\u793a ID \u6b04\u9078\u932f\uff08\u4f8b\u5982\u9078\u5230\u51fa\u751f\u5e74\u3001\u6b0a\u6578\uff09\uff0c\u6216 ID \u5927\u91cf\u91cd\u8907\uff1a",
+    # 原文：同一個 ID 在兩個檔案各有多列時，會兩兩配對成很多列。
+    "\u540c\u4e00\u500b ID \u5728\u5169\u500b\u6a94\u6848\u5404\u6709\u591a\u5217\u6642\uff0c\u6703\u5169\u5169\u914d\u5c0d\u6210\u5f88\u591a\u5217\u3002"
   )
   if (estimate * ncol_out > KIT_JOIN_MAX_CELLS) {
-    kit_abort(why, "結果太大，無法產生。請改選每個人都不同的 ID 欄。")
+    # 原文：結果太大，無法產生。請改選每個人都不同的 ID 欄。
+    kit_abort(why, "\u7d50\u679c\u592a\u5927\uff0c\u7121\u6cd5\u7522\u751f\u3002\u8acb\u6539\u9078\u6bcf\u500b\u4eba\u90fd\u4e0d\u540c\u7684 ID \u6b04\u3002")
   }
   if (!confirm_large) {
     kit_abort(
-      why, "請先確認 ID 欄；確定沒問題再按「仍要執行」。",
+      # 原文：請先確認 ID 欄；確定沒問題再按「仍要執行」。
+      why, "\u8acb\u5148\u78ba\u8a8d ID \u6b04\uff1b\u78ba\u5b9a\u6c92\u554f\u984c\u518d\u6309\u300c\u4ecd\u8981\u57f7\u884c\u300d\u3002",
       class = "kit_join_too_large", data = list(estimate = estimate)
     )
   }
@@ -243,7 +268,8 @@ id_choices <- function(dfs, cols) {
   ratio <- id_uniqueness(dfs, cols)
   guessed <- cols %in% guess_id_cols(cols)
   ord <- order(!guessed, -floor(ratio * 1000), seq_along(cols))
-  shown <- paste0(cols, "（不重複 ", format_unique_pct(ratio), "）")
+  # 原文：（不重複  | ）
+  shown <- paste0(cols, "\uff08\u4e0d\u91cd\u8907 ", format_unique_pct(ratio), "\uff09")
   stats::setNames(cols[ord], shown[ord])
 }
 
@@ -267,12 +293,18 @@ id_check_table <- function(dfs, names_shown, by_vars,
   })
   m <- do.call(rbind, stats)
   tibble::tibble(
-    檔案 = names_shown,
-    ID欄 = purrr::map_chr(id_cols, paste, collapse = "＋"),
-    列數 = m[, 1],
-    不重複ID數 = m[, 2],
-    重複的ID數 = m[, 3],
-    ID空白列數 = m[, 4]
+    # 原文：檔案
+    "\u6a94\u6848" = names_shown,
+    # 原文：ID欄 | ＋
+    "ID\u6b04" = purrr::map_chr(id_cols, paste, collapse = "\uff0b"),
+    # 原文：列數
+    "\u5217\u6578" = m[, 1],
+    # 原文：不重複ID數
+    "\u4e0d\u91cd\u8907ID\u6578" = m[, 2],
+    # 原文：重複的ID數
+    "\u91cd\u8907\u7684ID\u6578" = m[, 3],
+    # 原文：ID空白列數
+    "ID\u7a7a\u767d\u5217\u6578" = m[, 4]
   )
 }
 
@@ -287,22 +319,27 @@ check_wave_labels <- function(
     purpose = c("join", "stack")) {
   purpose <- match.arg(purpose)
   why <- if (purpose == "join") {
-    "因為它會加在欄名後面（例如 score_t1），用來分辨各波的變項。"
+    # 原文：因為它會加在欄名後面（例如 score_t1），用來分辨各波的變項。
+    "\u56e0\u70ba\u5b83\u6703\u52a0\u5728\u6b04\u540d\u5f8c\u9762\uff08\u4f8b\u5982 score_t1\uff09\uff0c\u7528\u4f86\u5206\u8fa8\u5404\u6ce2\u7684\u8b8a\u9805\u3002"
   } else {
-    "因為它會填進 wave 欄，用來分辨每一列屬於哪一波。"
+    # 原文：因為它會填進 wave 欄，用來分辨每一列屬於哪一波。
+    "\u56e0\u70ba\u5b83\u6703\u586b\u9032 wave \u6b04\uff0c\u7528\u4f86\u5206\u8fa8\u6bcf\u4e00\u5217\u5c6c\u65bc\u54ea\u4e00\u6ce2\u3002"
   }
   empty <- which(!nzchar(trimws(wave_labels)))
   if (length(empty) > 0) {
     return(paste0(
-      "第 ", empty[1], " 個檔案（", file_names[empty[1]], "）沒有填波次名稱。",
-      "請到「檔案上傳」填寫，例如 t", empty[1], "；每個檔案都需要波次名稱，", why
+      # 原文：第  |  個檔案（ | ）沒有填波次名稱。
+      "\u7b2c ", empty[1], " \u500b\u6a94\u6848\uff08", file_names[empty[1]], "\uff09\u6c92\u6709\u586b\u6ce2\u6b21\u540d\u7a31\u3002",
+      # 原文：請到「檔案上傳」填寫，例如 t | ；每個檔案都需要波次名稱，
+      "\u8acb\u5230\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u586b\u5beb\uff0c\u4f8b\u5982 t", empty[1], "\uff1b\u6bcf\u500b\u6a94\u6848\u90fd\u9700\u8981\u6ce2\u6b21\u540d\u7a31\uff0c", why
     ))
   }
   normalized <- join_suffix(wave_labels)
   dup <- unique(wave_labels[duplicated(normalized)])
   if (length(dup) > 0) {
     return(paste0(
-      "波次名稱「", dup[1], "」重複了。請到「檔案上傳」把每個檔案的波次名稱改成不同的，",
+      # 原文：波次名稱「 | 」重複了。請到「檔案上傳」把每個檔案的波次名稱改成不同的，
+      "\u6ce2\u6b21\u540d\u7a31\u300c", dup[1], "\u300d\u91cd\u8907\u4e86\u3002\u8acb\u5230\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u628a\u6bcf\u500b\u6a94\u6848\u7684\u6ce2\u6b21\u540d\u7a31\u6539\u6210\u4e0d\u540c\u7684\uff0c",
       why
     ))
   }
@@ -311,9 +348,12 @@ check_wave_labels <- function(
   if (length(case_dup) > 0) {
     other <- wave_labels[match(tolower(normalized[case_dup[1]]), tolower(normalized))]
     return(paste0(
-      "波次名稱「", other, "」和「", wave_labels[case_dup[1]], "」只差在大小寫，",
-      "容易混淆，而且 SPSS 不分大小寫，匯出 SAV 時欄名會衝突。",
-      "請到「檔案上傳」改成明顯不同的名稱。"
+      # 原文：波次名稱「 | 」和「 | 」只差在大小寫，
+      "\u6ce2\u6b21\u540d\u7a31\u300c", other, "\u300d\u548c\u300c", wave_labels[case_dup[1]], "\u300d\u53ea\u5dee\u5728\u5927\u5c0f\u5beb\uff0c",
+      # 原文：容易混淆，而且 SPSS 不分大小寫，匯出 SAV 時欄名會衝突。
+      "\u5bb9\u6613\u6df7\u6dc6\uff0c\u800c\u4e14 SPSS \u4e0d\u5206\u5927\u5c0f\u5beb\uff0c\u532f\u51fa SAV \u6642\u6b04\u540d\u6703\u885d\u7a81\u3002",
+      # 原文：請到「檔案上傳」改成明顯不同的名稱。
+      "\u8acb\u5230\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u6539\u6210\u660e\u986f\u4e0d\u540c\u7684\u540d\u7a31\u3002"
     ))
   }
   NULL
@@ -342,9 +382,11 @@ apply_suffix <- function(df, suffix, by_vars) {
 #' @noRd
 key_kind <- function(x) {
   if (is.numeric(x)) {
-    "數字"
+    # 原文：數字
+    "\u6578\u5b57"
   } else if (is.character(x) || is.factor(x)) {
-    "文字"
+    # 原文：文字
+    "\u6587\u5b57"
   } else {
     class(x)[1]
   }
@@ -360,8 +402,10 @@ key_type_conflict <- function(dfs, by_vars, names_shown,
     if (length(unique(kinds)) > 1) {
       first <- which(kinds != kinds[1])[1]
       return(paste0(
-        names_shown[1], "的 ", id_cols[[1]][k], " 是", kinds[1], "，",
-        names_shown[first], "的 ", id_cols[[first]][k], " 是", kinds[first], "，"
+        # 原文：的  |  是 | ，
+        names_shown[1], "\u7684 ", id_cols[[1]][k], " \u662f", kinds[1], "\uff0c",
+        # 原文：的  |  是 | ，
+        names_shown[first], "\u7684 ", id_cols[[first]][k], " \u662f", kinds[first], "\uff0c"
       ))
     }
   }
@@ -412,8 +456,10 @@ dup_key_examples <- function(df, by_vars, n = 5) {
   shown <- utils::head(dups, n)
   values <- strsplit(names(shown), "\r", fixed = TRUE)
   vapply(seq_along(shown), function(i) {
-    pairs <- paste(by_vars, "=", values[[i]], collapse = "、")
-    paste0(pairs, "（", kit_num(shown[[i]]), " 次）")
+    # 原文：、
+    pairs <- paste(by_vars, "=", values[[i]], collapse = "\u3001")
+    # 原文：（ |  次）
+    paste0(pairs, "\uff08", kit_num(shown[[i]]), " \u6b21\uff09")
   }, character(1))
 }
 
@@ -476,26 +522,36 @@ join_plain_summary <- function(stats, names_shown, method, result) {
       later <- unique(unlist(sets[-1]))
       extra <- sum(!later %in% sets[[1]])
       paste0(
-        "以 ", first, "的 ", n(length(sets[[1]])), " 人為準，其中 ", n(stats$n_in_all),
-        " 人每個檔案都有資料；在某一波沒有資料的人，那一波的欄位是空白",
-        if (extra > 0) paste0("。另有 ", n(extra), " 人不在 ", first, "，依「向後追蹤樣本」沒有納入"),
-        "。"
+        # 原文：以  | 的  |  人為準，其中 
+        "\u4ee5 ", first, "\u7684 ", n(length(sets[[1]])), " \u4eba\u70ba\u6e96\uff0c\u5176\u4e2d ", n(stats$n_in_all),
+        # 原文： 人每個檔案都有資料；在某一波沒有資料的人，那一波的欄位是空白
+        " \u4eba\u6bcf\u500b\u6a94\u6848\u90fd\u6709\u8cc7\u6599\uff1b\u5728\u67d0\u4e00\u6ce2\u6c92\u6709\u8cc7\u6599\u7684\u4eba\uff0c\u90a3\u4e00\u6ce2\u7684\u6b04\u4f4d\u662f\u7a7a\u767d",
+        # 原文：。另有  |  人不在  | ，依「向後追蹤樣本」沒有納入
+        if (extra > 0) paste0("\u3002\u53e6\u6709 ", n(extra), " \u4eba\u4e0d\u5728 ", first, "\uff0c\u4f9d\u300c\u5411\u5f8c\u8ffd\u8e64\u6a23\u672c\u300d\u6c92\u6709\u7d0d\u5165"),
+        # 原文：。
+        "\u3002"
       )
     },
     inner_join = paste0(
-      "共有 ", n(stats$n_in_all), " 人在每個檔案都有資料，結果只保留這些人；",
-      "其他 ", n(stats$n_in_any - stats$n_in_all), " 人因為不是每個檔案都有而沒有納入。"
+      # 原文：共有  |  人在每個檔案都有資料，結果只保留這些人；
+      "\u5171\u6709 ", n(stats$n_in_all), " \u4eba\u5728\u6bcf\u500b\u6a94\u6848\u90fd\u6709\u8cc7\u6599\uff0c\u7d50\u679c\u53ea\u4fdd\u7559\u9019\u4e9b\u4eba\uff1b",
+      # 原文：其他  |  人因為不是每個檔案都有而沒有納入。
+      "\u5176\u4ed6 ", n(stats$n_in_any - stats$n_in_all), " \u4eba\u56e0\u70ba\u4e0d\u662f\u6bcf\u500b\u6a94\u6848\u90fd\u6709\u800c\u6c92\u6709\u7d0d\u5165\u3002"
     ),
     full_join = paste0(
-      "所有檔案合計出現過 ", n(stats$n_in_any), " 人，全部保留；其中 ", n(stats$n_in_all),
-      " 人每個檔案都有資料，其他人在缺席波次的欄位會是空白。"
+      # 原文：所有檔案合計出現過  |  人，全部保留；其中 
+      "\u6240\u6709\u6a94\u6848\u5408\u8a08\u51fa\u73fe\u904e ", n(stats$n_in_any), " \u4eba\uff0c\u5168\u90e8\u4fdd\u7559\uff1b\u5176\u4e2d ", n(stats$n_in_all),
+      # 原文： 人每個檔案都有資料，其他人在缺席波次的欄位會是空白。
+      " \u4eba\u6bcf\u500b\u6a94\u6848\u90fd\u6709\u8cc7\u6599\uff0c\u5176\u4ed6\u4eba\u5728\u7f3a\u5e2d\u6ce2\u6b21\u7684\u6b04\u4f4d\u6703\u662f\u7a7a\u767d\u3002"
     )
   )
   n_na <- sum(stats$n_na_key)
   c(
     out,
-    if (n_na > 0) paste0("有 ", n(n_na), " 列的 ID 是空白，無法比對，這些列不會和其他檔案配對。"),
-    if (stats$any_dup) "因為有 ID 重複（見上方提醒），列數會比人數多。"
+    # 原文：有  |  列的 ID 是空白，無法比對，這些列不會和其他檔案配對。
+    if (n_na > 0) paste0("\u6709 ", n(n_na), " \u5217\u7684 ID \u662f\u7a7a\u767d\uff0c\u7121\u6cd5\u6bd4\u5c0d\uff0c\u9019\u4e9b\u5217\u4e0d\u6703\u548c\u5176\u4ed6\u6a94\u6848\u914d\u5c0d\u3002"),
+    # 原文：因為有 ID 重複（見上方提醒），列數會比人數多。
+    if (stats$any_dup) "\u56e0\u70ba\u6709 ID \u91cd\u8907\uff08\u898b\u4e0a\u65b9\u63d0\u9192\uff09\uff0c\u5217\u6578\u6703\u6bd4\u4eba\u6578\u591a\u3002"
   )
 }
 
@@ -512,11 +568,16 @@ join_people_table <- function(stats, names_shown, method) {
     full_join = Reduce(union, sets)
   )
   tibble::tibble(
-    檔案 = names_shown,
-    人數 = lengths(sets),
-    結果中有資料 = purrr::map_int(sets, function(s) sum(kept %in% s)),
-    結果中這一波空白 = purrr::map_int(sets, function(s) sum(!kept %in% s)),
-    沒有納入 = purrr::map_int(sets, function(s) sum(!s %in% kept))
+    # 原文：檔案
+    "\u6a94\u6848" = names_shown,
+    # 原文：人數
+    "\u4eba\u6578" = lengths(sets),
+    # 原文：結果中有資料
+    "\u7d50\u679c\u4e2d\u6709\u8cc7\u6599" = purrr::map_int(sets, function(s) sum(kept %in% s)),
+    # 原文：結果中這一波空白
+    "\u7d50\u679c\u4e2d\u9019\u4e00\u6ce2\u7a7a\u767d" = purrr::map_int(sets, function(s) sum(!kept %in% s)),
+    # 原文：沒有納入
+    "\u6c92\u6709\u7d0d\u5165" = purrr::map_int(sets, function(s) sum(!s %in% kept))
   )
 }
 
@@ -526,10 +587,14 @@ dup_key_warnings <- function(stats, names_shown) {
   idx <- which(stats$n_dup > 0)
   vapply(idx, function(i) {
     paste0(
-      names_shown[i], "有 ", kit_num(stats$n_dup[i]), " 個 ID 出現不只一次",
-      "（例：", paste(stats$dup_examples[[i]], collapse = "；"), "），",
-      "所以這些人在結果中會佔多列，不再是「每人一列」。",
-      "請確認檔案是否重複匯出，或改選能唯一辨識每個人的欄位（例如再加上其他 ID 欄）。"
+      # 原文：有  |  個 ID 出現不只一次
+      names_shown[i], "\u6709 ", kit_num(stats$n_dup[i]), " \u500b ID \u51fa\u73fe\u4e0d\u53ea\u4e00\u6b21",
+      # 原文：（例： | ； | ），
+      "\uff08\u4f8b\uff1a", paste(stats$dup_examples[[i]], collapse = "\uff1b"), "\uff09\uff0c",
+      # 原文：所以這些人在結果中會佔多列，不再是「每人一列」。
+      "\u6240\u4ee5\u9019\u4e9b\u4eba\u5728\u7d50\u679c\u4e2d\u6703\u4f54\u591a\u5217\uff0c\u4e0d\u518d\u662f\u300c\u6bcf\u4eba\u4e00\u5217\u300d\u3002",
+      # 原文：請確認檔案是否重複匯出，或改選能唯一辨識每個人的欄位（例如再加上其他 ID 欄）。
+      "\u8acb\u78ba\u8a8d\u6a94\u6848\u662f\u5426\u91cd\u8907\u532f\u51fa\uff0c\u6216\u6539\u9078\u80fd\u552f\u4e00\u8fa8\u8b58\u6bcf\u500b\u4eba\u7684\u6b04\u4f4d\uff08\u4f8b\u5982\u518d\u52a0\u4e0a\u5176\u4ed6 ID \u6b04\uff09\u3002"
     )
   }, character(1))
 }
@@ -538,41 +603,66 @@ dup_key_warnings <- function(stats, names_shown) {
 #' @noRd
 join_audit_tables <- function(stats, steps, names_shown, method) {
   yes_no <- function(ok) {
-    ifelse(is.na(ok), "無法判斷（ID 有重複）", ifelse(ok, "符合", "不符"))
+    # 原文：無法判斷（ID 有重複） | 符合 | 不符
+    ifelse(is.na(ok), "\u7121\u6cd5\u5224\u65b7\uff08ID \u6709\u91cd\u8907\uff09", ifelse(ok, "\u7b26\u5408", "\u4e0d\u7b26"))
   }
   files <- tibble::tibble(
-    順序 = seq_along(names_shown),
-    檔案 = names_shown,
-    列數 = stats$n_rows,
-    欄位數 = stats$n_cols,
-    不重複ID數 = stats$n_unique,
-    重複ID數 = stats$n_dup,
-    ID空白列數 = stats$n_na_key
+    # 原文：順序
+    "\u9806\u5e8f" = seq_along(names_shown),
+    # 原文：檔案
+    "\u6a94\u6848" = names_shown,
+    # 原文：列數
+    "\u5217\u6578" = stats$n_rows,
+    # 原文：欄位數
+    "\u6b04\u4f4d\u6578" = stats$n_cols,
+    # 原文：不重複ID數
+    "\u4e0d\u91cd\u8907ID\u6578" = stats$n_unique,
+    # 原文：重複ID數
+    "\u91cd\u8907ID\u6578" = stats$n_dup,
+    # 原文：ID空白列數
+    "ID\u7a7a\u767d\u5217\u6578" = stats$n_na_key
   )
   step_tbl <- tibble::tibble(
-    步驟 = paste0(
-      "第 ", seq_along(steps), " 步：",
-      c(names_shown[1], rep("（前面的合併結果）", length(steps) - 1)),
-      " ＋ ", names_shown[-1]
+    # 原文：步驟
+    "\u6b65\u9a5f" = paste0(
+      # 原文：第  |  步：
+      "\u7b2c ", seq_along(steps), " \u6b65\uff1a",
+      # 原文：（前面的合併結果）
+      c(names_shown[1], rep("\uff08\u524d\u9762\u7684\u5408\u4f75\u7d50\u679c\uff09", length(steps) - 1)),
+      # 原文： ＋ 
+      " \uff0b ", names_shown[-1]
     ),
-    合併前列數 = purrr::map_int(steps, "n_left"),
-    加入檔案列數 = purrr::map_int(steps, "n_right"),
-    合併後列數 = purrr::map_int(steps, "n_out"),
-    預期欄位數 = purrr::map_int(steps, "ncol_expected"),
-    實際欄位數 = purrr::map_int(steps, "ncol_out"),
-    欄位數核對 = yes_no(purrr::map_int(steps, "ncol_expected") ==
+    # 原文：合併前列數
+    "\u5408\u4f75\u524d\u5217\u6578" = purrr::map_int(steps, "n_left"),
+    # 原文：加入檔案列數
+    "\u52a0\u5165\u6a94\u6848\u5217\u6578" = purrr::map_int(steps, "n_right"),
+    # 原文：合併後列數
+    "\u5408\u4f75\u5f8c\u5217\u6578" = purrr::map_int(steps, "n_out"),
+    # 原文：預期欄位數
+    "\u9810\u671f\u6b04\u4f4d\u6578" = purrr::map_int(steps, "ncol_expected"),
+    # 原文：實際欄位數
+    "\u5be6\u969b\u6b04\u4f4d\u6578" = purrr::map_int(steps, "ncol_out"),
+    # 原文：欄位數核對
+    "\u6b04\u4f4d\u6578\u6838\u5c0d" = yes_no(purrr::map_int(steps, "ncol_expected") ==
       purrr::map_int(steps, "ncol_out"))
   )
   rule <- switch(method,
-    left_join = "向後追蹤樣本：後面檔案的 ID 都不重複時，列數應等於第一個檔案的列數。",
-    inner_join = "全勤樣本：ID 都不重複時，列數應等於每個檔案都有的人數。",
-    full_join = "全樣本：ID 都不重複時，列數應等於出現過的總人數。"
+    # 原文：向後追蹤樣本：後面檔案的 ID 都不重複時，列數應等於第一個檔案的列數。
+    left_join = "\u5411\u5f8c\u8ffd\u8e64\u6a23\u672c\uff1a\u5f8c\u9762\u6a94\u6848\u7684 ID \u90fd\u4e0d\u91cd\u8907\u6642\uff0c\u5217\u6578\u61c9\u7b49\u65bc\u7b2c\u4e00\u500b\u6a94\u6848\u7684\u5217\u6578\u3002",
+    # 原文：全勤樣本：ID 都不重複時，列數應等於每個檔案都有的人數。
+    inner_join = "\u5168\u52e4\u6a23\u672c\uff1aID \u90fd\u4e0d\u91cd\u8907\u6642\uff0c\u5217\u6578\u61c9\u7b49\u65bc\u6bcf\u500b\u6a94\u6848\u90fd\u6709\u7684\u4eba\u6578\u3002",
+    # 原文：全樣本：ID 都不重複時，列數應等於出現過的總人數。
+    full_join = "\u5168\u6a23\u672c\uff1aID \u90fd\u4e0d\u91cd\u8907\u6642\uff0c\u5217\u6578\u61c9\u7b49\u65bc\u51fa\u73fe\u904e\u7684\u7e3d\u4eba\u6578\u3002"
   )
   checks <- tibble::tibble(
-    檢查項目 = c("列數", "欄位數"),
-    結果 = c(stats$nrow_out, stats$ncol_out),
-    預期 = c(stats$nrow_expected, stats$ncol_expected),
-    核對 = yes_no(c(stats$nrow_ok, stats$ncol_ok))
+    # 原文：檢查項目 | 列數 | 欄位數
+    "\u6aa2\u67e5\u9805\u76ee" = c("\u5217\u6578", "\u6b04\u4f4d\u6578"),
+    # 原文：結果
+    "\u7d50\u679c" = c(stats$nrow_out, stats$ncol_out),
+    # 原文：預期
+    "\u9810\u671f" = c(stats$nrow_expected, stats$ncol_expected),
+    # 原文：核對
+    "\u6838\u5c0d" = yes_no(c(stats$nrow_ok, stats$ncol_ok))
   )
   list(files = files, steps = step_tbl, checks = checks, rule = rule)
 }

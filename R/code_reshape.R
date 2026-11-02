@@ -71,8 +71,10 @@ code_wider <- function(args, data, data_name = "data_t1") {
     tidy = code_lines(
       "library(dplyr)",
       "library(tidyr)", "",
-      paste0("# ", data_name, "：「檔案上傳」讀進來的資料（讀檔方式見「檔案上傳」分頁的「用 R 怎麼做」）"),
-      "# 先確認 id_cols × names_from 沒有重複（有重複時 pivot_wider 會產生 list 欄）",
+      # 原文：：「檔案上傳」讀進來的資料（讀檔方式見「檔案上傳」分頁的「用 R 怎麼做」）
+      paste0("# ", data_name, "\uff1a\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u8b80\u9032\u4f86\u7684\u8cc7\u6599\uff08\u8b80\u6a94\u65b9\u5f0f\u898b\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u5206\u9801\u7684\u300c\u7528 R \u600e\u9ebc\u505a\u300d\uff09"),
+      # 原文：# 先確認 id_cols × names_from 沒有重複（有重複時 pivot_wider 會產生 list 欄）
+      "# \u5148\u78ba\u8a8d id_cols \u00d7 names_from \u6c92\u6709\u91cd\u8907\uff08\u6709\u91cd\u8907\u6642 pivot_wider \u6703\u7522\u751f list \u6b04\uff09",
       paste0(data_name, " |>"),
       "  count(",
       paste0("    ", strwrap(paste(key_cols, collapse = ", "), 70)),
@@ -81,7 +83,8 @@ code_wider <- function(args, data, data_name = "data_t1") {
       "",
       code_pivot_call("pivot_wider", arg_code, data_name, "wide"),
       "",
-      "dim(wide)   # 列數、欄數"
+      # 原文：dim(wide)   # 列數、欄數
+      "dim(wide)   # \u5217\u6578\u3001\u6b04\u6578"
     ),
     base = NULL
   )
@@ -98,20 +101,24 @@ code_longer <- function(args, data_name = "data_t1", col_names = NULL, labels = 
   zap <- pivot_longer_labels_code(labels, data_name)
   cols_code <- pivot_cols_code(args, col_names)
   note <- if (startsWith(cols_code, "!")) {
-    "# cols = !c(...)：括號裡的欄不轉，其餘全部轉"
+    # 原文：# cols = !c(...)：括號裡的欄不轉，其餘全部轉
+    "# cols = !c(...)\uff1a\u62ec\u865f\u88e1\u7684\u6b04\u4e0d\u8f49\uff0c\u5176\u9918\u5168\u90e8\u8f49"
   } else if (grepl("starts_with(", cols_code, fixed = TRUE)) {
     first <- sub('^[^"]*"([^"]*)".*$', "\\1", cols_code)
-    paste0("# starts_with(\"", first, "\")：欄名以 ", first, " 開頭的欄（不分大小寫）")
+    # 原文：\")：欄名以  |  開頭的欄（不分大小寫）
+    paste0("# starts_with(\"", first, "\")\uff1a\u6b04\u540d\u4ee5 ", first, " \u958b\u982d\u7684\u6b04\uff08\u4e0d\u5206\u5927\u5c0f\u5beb\uff09")
   }
   list(
     tidy = code_lines(
       if (!is.null(zap)) "library(dplyr)", "library(tidyr)", "",
-      paste0("# ", data_name, "：「檔案上傳」讀進來的資料（讀檔方式見「檔案上傳」分頁的「用 R 怎麼做」）"),
+      # 原文：：「檔案上傳」讀進來的資料（讀檔方式見「檔案上傳」分頁的「用 R 怎麼做」）
+      paste0("# ", data_name, "\uff1a\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u8b80\u9032\u4f86\u7684\u8cc7\u6599\uff08\u8b80\u6a94\u65b9\u5f0f\u898b\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u5206\u9801\u7684\u300c\u7528 R \u600e\u9ebc\u505a\u300d\uff09"),
       zap,
       note,
       paste0("long <- ", pivot_longer_code(args, data_name, cols_code)),
       "",
-      "dim(long)   # 列數、欄數"
+      # 原文：dim(long)   # 列數、欄數
+      "dim(long)   # \u5217\u6578\u3001\u6b04\u6578"
     ),
     base = NULL
   )

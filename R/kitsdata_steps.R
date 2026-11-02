@@ -10,8 +10,10 @@
 KITS_STEP1_MAIN <- c("cohort", "wave_m", "subj_id")
 KITS_STEP1_MORE <- c("sex", "age_m", "wave", "visit_id")
 KITS_STEP1_LABELS <- c(
-  cohort = "世代", wave_m = "波次（時間點）", subj_id = "孩子編號在哪一欄",
-  sex = "性別", age_m = "實際月齡", wave = "波次標籤", visit_id = "列次編號"
+  # 原文：世代 | 波次（時間點） | 孩子編號在哪一欄
+  cohort = "\u4e16\u4ee3", wave_m = "\u6ce2\u6b21\uff08\u6642\u9593\u9ede\uff09", subj_id = "\u5b69\u5b50\u7de8\u865f\u5728\u54ea\u4e00\u6b04",
+  # 原文：性別 | 實際月齡 | 波次標籤 | 列次編號
+  sex = "\u6027\u5225", age_m = "\u5be6\u969b\u6708\u9f61", wave = "\u6ce2\u6b21\u6a19\u7c64", visit_id = "\u5217\u6b21\u7de8\u865f"
 )
 
 # 每頁題目表的列數
@@ -71,8 +73,10 @@ kits_step1_spec <- function(dfs, file_names, cells) {
       list(type = "text", value = x)
   })
   if (any(!nzchar(coh))) {
-    problems <- c(problems, paste0("世代還沒填：", paste(file_names[!nzchar(coh)], collapse = "、"),
-                                   "（例如 M03；也可以選檔案裡的世代欄）。"))
+    # 原文：世代還沒填： | 、
+    problems <- c(problems, paste0("\u4e16\u4ee3\u9084\u6c92\u586b\uff1a", paste(file_names[!nzchar(coh)], collapse = "\u3001"),
+                                   # 原文：（例如 M03；也可以選檔案裡的世代欄）。
+                                   "\uff08\u4f8b\u5982 M03\uff1b\u4e5f\u53ef\u4ee5\u9078\u6a94\u6848\u88e1\u7684\u4e16\u4ee3\u6b04\uff09\u3002"))
   }
 
   map <- stats::setNames(as.list(rep("", nrow(KITS_MAP_ROWS))), KITS_MAP_ROWS$field)
@@ -85,7 +89,8 @@ kits_step1_spec <- function(dfs, file_names, cells) {
     col <- is_col(v)
     empty <- !nzchar(v)
     if (all(empty)) {
-      if (row$required) problems <- c(problems, paste0(label, "：每個檔案都要填。"))
+      # 原文：：每個檔案都要填。
+      if (row$required) problems <- c(problems, paste0(label, "\uff1a\u6bcf\u500b\u6a94\u6848\u90fd\u8981\u586b\u3002"))
       next
     }
     if (all(col | empty) && any(col)) {
@@ -94,23 +99,29 @@ kits_step1_spec <- function(dfs, file_names, cells) {
       } else if (row$per_file) {
         per_file[[field]] <- v
       } else {
-        problems <- c(problems, paste0(label, "：每個檔案要選同一個欄名。"))
+        # 原文：：每個檔案要選同一個欄名。
+        problems <- c(problems, paste0(label, "\uff1a\u6bcf\u500b\u6a94\u6848\u8981\u9078\u540c\u4e00\u500b\u6b04\u540d\u3002"))
       }
       if (any(empty) && (row$required || field == "subj_id")) {
-        problems <- c(problems, paste0(label, "還沒選：", paste(file_names[empty], collapse = "、"), "。"))
+        # 原文：還沒選： | 、 | 。
+        problems <- c(problems, paste0(label, "\u9084\u6c92\u9078\uff1a", paste(file_names[empty], collapse = "\u3001"), "\u3002"))
       }
     } else if (!any(col)) {
       if (!row$typed) {
-        problems <- c(problems, paste0(label, "要選檔案裡的一欄（「", v[!empty][1],
-                                       "」不是欄名）。"))
+        # 原文：要選檔案裡的一欄（「
+        problems <- c(problems, paste0(label, "\u8981\u9078\u6a94\u6848\u88e1\u7684\u4e00\u6b04\uff08\u300c", v[!empty][1],
+                                       # 原文：」不是欄名）。
+                                       "\u300d\u4e0d\u662f\u6b04\u540d\uff09\u3002"))
       } else if (any(empty)) {
-        problems <- c(problems, paste0(label, "還沒填：", paste(file_names[empty], collapse = "、"), "。"))
+        # 原文：還沒填： | 、 | 。
+        problems <- c(problems, paste0(label, "\u9084\u6c92\u586b\uff1a", paste(file_names[empty], collapse = "\u3001"), "\u3002"))
       } else {
         typed[[field]] <- v
       }
     } else {
       problems <- c(problems, paste0(
-        label, "：有的檔案選了欄、有的填了值。請每個檔案都選欄，或每個檔案都填值。"
+        # 原文：：有的檔案選了欄、有的填了值。請每個檔案都選欄，或每個檔案都填值。
+        label, "\uff1a\u6709\u7684\u6a94\u6848\u9078\u4e86\u6b04\u3001\u6709\u7684\u586b\u4e86\u503c\u3002\u8acb\u6bcf\u500b\u6a94\u6848\u90fd\u9078\u6b04\uff0c\u6216\u6bcf\u500b\u6a94\u6848\u90fd\u586b\u503c\u3002"
       ))
     }
   }
@@ -120,7 +131,8 @@ kits_step1_spec <- function(dfs, file_names, cells) {
 
 # 單位的短名稱（摘要用）
 kits_unit_short <- function(unit) {
-  c(month = "月", year = "年", index = "波次序號", other = "")[[unit %||% "month"]]
+  # 原文：月 | 年 | 波次序號
+  c(month = "\u6708", year = "\u5e74", index = "\u6ce2\u6b21\u5e8f\u865f", other = "")[[unit %||% "month"]]
 }
 
 #' 第 1 步收起來時的一行：「5 個檔案 · 世代 TDCYP · 2009、2011（年）· 孩子編號 w1_id 等 5 欄」
@@ -130,7 +142,8 @@ kits_unit_short <- function(unit) {
 #' @noRd
 kits_step1_summary <- function(cells, n_files, unit, spec = NULL) {
   uniq <- function(v) unique(v[nzchar(v)])
-  some <- function(v, k) paste0(paste(utils::head(v, k), collapse = "、"), if (length(v) > k) "…")
+  # 原文：、 | …
+  some <- function(v, k) paste0(paste(utils::head(v, k), collapse = "\u3001"), if (length(v) > k) "\u2026")
   coh <- uniq(trimws(cells$cohort))
   wave <- uniq(trimws(cells$wave_m))
   subj <- uniq(trimws(cells$subj_id))
@@ -138,12 +151,18 @@ kits_step1_summary <- function(cells, n_files, unit, spec = NULL) {
   coh_col <- !is.null(spec) && any(vapply(spec$cohort, function(x) x$type == "column", logical(1)))
   wave_col <- !is.null(spec) && (nzchar(spec$map$wave_m %||% "") || !is.null(spec$per_file$wave_m))
   paste0(
-    n_files, " 個檔案",
-    if (coh_col) paste0(" · 世代在 ", some(coh, 3), " 欄") else paste0(" · 世代 ", some(coh, 3)),
-    if (wave_col) paste0(" · 時間點在 ", some(wave, 3), " 欄") else paste0(" · ", some(wave, 6)),
-    if (nzchar(short)) paste0("（", short, "）"),
-    if (length(subj) == 1) paste0(" · 孩子編號 ", subj) else if (length(subj) > 1)
-      paste0(" · 孩子編號 ", subj[1], " 等 ", length(subj), " 欄")
+    # 原文： 個檔案
+    n_files, " \u500b\u6a94\u6848",
+    # 原文： · 世代在  |  欄 |  · 世代 
+    if (coh_col) paste0(" \u00b7 \u4e16\u4ee3\u5728 ", some(coh, 3), " \u6b04") else paste0(" \u00b7 \u4e16\u4ee3 ", some(coh, 3)),
+    # 原文： · 時間點在  |  欄 |  · 
+    if (wave_col) paste0(" \u00b7 \u6642\u9593\u9ede\u5728 ", some(wave, 3), " \u6b04") else paste0(" \u00b7 ", some(wave, 6)),
+    # 原文：（ | ）
+    if (nzchar(short)) paste0("\uff08", short, "\uff09"),
+    # 原文： · 孩子編號 
+    if (length(subj) == 1) paste0(" \u00b7 \u5b69\u5b50\u7de8\u865f ", subj) else if (length(subj) > 1)
+      # 原文： · 孩子編號  |  等  |  欄
+      paste0(" \u00b7 \u5b69\u5b50\u7de8\u865f ", subj[1], " \u7b49 ", length(subj), " \u6b04")
   )
 }
 
@@ -160,15 +179,21 @@ kits_step2_counts <- function(settings) {
   by_domain <- if (length(dom) > 0) table(factor(dom, levels = unique(dom))) else integer(0)
   n_items <- length(unique(out_id))
   n_groups <- if (nrow(inc) == 0) 0L else length(unique(kits_settings_stems(settings)[on]))
-  merged <- if (n_items != nrow(inc)) paste0(" → 合成 ", kit_num(n_items), " 題")
-  text <- if (nrow(inc) == 0) "還沒有挑題目" else paste0(
-    "挑出 ", kit_num(nrow(inc)), " 欄", merged,
+  # 原文： → 合成  |  題
+  merged <- if (n_items != nrow(inc)) paste0(" \u2192 \u5408\u6210 ", kit_num(n_items), " \u984c")
+  # 原文：還沒有挑題目
+  text <- if (nrow(inc) == 0) "\u9084\u6c92\u6709\u6311\u984c\u76ee" else paste0(
+    # 原文：挑出  |  欄
+    "\u6311\u51fa ", kit_num(nrow(inc)), " \u6b04", merged,
     if (length(by_domain) > 0) paste0(
-      "（", paste0(names(by_domain), " ", as.integer(by_domain), " 題", collapse = "、"), "）"
+      # 原文：（ |  題 | 、 | ）
+      "\uff08", paste0(names(by_domain), " ", as.integer(by_domain), " \u984c", collapse = "\u3001"), "\uff09"
     )
   )
-  pick_text <- if (nrow(inc) == 0) "還沒有挑題目" else paste0(
-    "挑出 ", kit_num(nrow(inc)), " 欄、", kit_num(n_groups), " 組", merged
+  # 原文：還沒有挑題目
+  pick_text <- if (nrow(inc) == 0) "\u9084\u6c92\u6709\u6311\u984c\u76ee" else paste0(
+    # 原文：挑出  |  欄、 |  組
+    "\u6311\u51fa ", kit_num(nrow(inc)), " \u6b04\u3001", kit_num(n_groups), " \u7d44", merged
   )
   list(n_cols = nrow(inc), n_groups = n_groups, n_items = n_items, by_domain = by_domain,
        text = text, pick_text = pick_text)
@@ -177,7 +202,8 @@ kits_step2_counts <- function(settings) {
 #' 用欄名挑：開頭是這些字的欄（可以寫好幾個，用頓號、逗號或空白隔開）
 #' @noRd
 kits_pick_cols <- function(cols, text) {
-  pre <- trimws(strsplit(text %||% "", "[、,，;；\\s]+")[[1]])
+  # 原文：[、,，;；\\s]+
+  pre <- trimws(strsplit(text %||% "", "[\u3001,\uff0c;\uff1b\\s]+")[[1]])
   pre <- pre[nzchar(pre)]
   if (length(pre) == 0) return(character(0))
   cols[Reduce(`|`, lapply(pre, function(p) startsWith(tolower(cols), tolower(p))))]
@@ -209,19 +235,27 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   n_cols <- sum((on$n_codes %||% 0) > 0) + length(side_codes)
   vals <- sort(unique(c(unlist(purrr::map(codes, function(x) x$value)),
                         unlist(purrr::map(side_codes, function(x) x$value)))))
-  val_txt <- paste(kits_id_text(utils::head(vals, 6)), collapse = "、")
-  if (length(vals) > 6) val_txt <- paste0(val_txt, "…")
+  # 原文：、
+  val_txt <- paste(kits_id_text(utils::head(vals, 6)), collapse = "\u3001")
+  # 原文：…
+  if (length(vals) > 6) val_txt <- paste0(val_txt, "\u2026")
   if (n_cells == 0) {
-    out$codes <- row("codes", "ok", if (na_applied) "遺漏值代碼已經用「遺漏值處理」改成 NA" else
-      "沒有看起來像遺漏值代碼的值")
+    # 原文：遺漏值代碼已經用「遺漏值處理」改成 NA
+    out$codes <- row("codes", "ok", if (na_applied) "\u907a\u6f0f\u503c\u4ee3\u78bc\u5df2\u7d93\u7528\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u6539\u6210 NA" else
+      # 原文：沒有看起來像遺漏值代碼的值
+      "\u6c92\u6709\u770b\u8d77\u4f86\u50cf\u907a\u6f0f\u503c\u4ee3\u78bc\u7684\u503c")
   } else if (identical(ack$codes, n_cells)) {
-    out$codes <- row("codes", "ok", paste0(n_cols, " 欄的 ", val_txt, " 照原樣當成分數（你選的）"))
+    # 原文： 欄的  |  照原樣當成分數（你選的）
+    out$codes <- row("codes", "ok", paste0(n_cols, " \u6b04\u7684 ", val_txt, " \u7167\u539f\u6a23\u7576\u6210\u5206\u6578\uff08\u4f60\u9078\u7684\uff09"))
   } else {
     out$codes <- row(
       "codes", "todo",
-      paste0(if (n_cols > 0) paste0(n_cols, " 欄有") else "有", "遺漏值代碼 ", val_txt,
-             "（共 ", kit_num(n_cells), " 格）"),
-      paste0("不處理的話，kits 會把 ", val_txt, " 當成分數。")
+      # 原文： 欄有 | 有 | 遺漏值代碼 
+      paste0(if (n_cols > 0) paste0(n_cols, " \u6b04\u6709") else "\u6709", "\u907a\u6f0f\u503c\u4ee3\u78bc ", val_txt,
+             # 原文：（共  |  格）
+             "\uff08\u5171 ", kit_num(n_cells), " \u683c\uff09"),
+      # 原文：不處理的話，kits 會把  |  當成分數。
+      paste0("\u4e0d\u8655\u7406\u7684\u8a71\uff0ckits \u6703\u628a ", val_txt, " \u7576\u6210\u5206\u6578\u3002")
     )
   }
 
@@ -231,61 +265,84 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   tops <- purrr::map_dbl(inc$score, function(s) if (all(is.na(s))) NA_real_ else max(s, na.rm = TRUE))
   if (!is.null(m) && !identical(ack$shift, m)) {
     out$shift <- row(
-      "shift", "todo", paste0(nrow(inc), " 欄的分數都從 ", kits_id_text(m), " 開始"),
-      paste0("kits 要從 0 開始。全部減 ", kits_id_text(m), " 之後是 0–",
-             kits_id_text(max(tops, na.rm = TRUE) - m), "。")
+      # 原文： 欄的分數都從  |  開始
+      "shift", "todo", paste0(nrow(inc), " \u6b04\u7684\u5206\u6578\u90fd\u5f9e ", kits_id_text(m), " \u958b\u59cb"),
+      # 原文：kits 要從 0 開始。全部減  |  之後是 0–
+      paste0("kits \u8981\u5f9e 0 \u958b\u59cb\u3002\u5168\u90e8\u6e1b ", kits_id_text(m), " \u4e4b\u5f8c\u662f 0\u2013",
+             # 原文：。
+             kits_id_text(max(tops, na.rm = TRUE) - m), "\u3002")
     )
   } else if (!is.null(m)) {
-    out$shift <- row("shift", "ok", paste0("分數從 ", kits_id_text(m), " 開始，不改（你選的）"))
+    # 原文：分數從  |  開始，不改（你選的）
+    out$shift <- row("shift", "ok", paste0("\u5206\u6578\u5f9e ", kits_id_text(m), " \u958b\u59cb\uff0c\u4e0d\u6539\uff08\u4f60\u9078\u7684\uff09"))
   } else if ((ack$shifted %||% 0) != 0) {
-    out$shift <- row("shift", "ok", paste0("分數全部減了 ", kits_id_text(ack$shifted),
-                                           "，現在從 0 開始"))
+    # 原文：分數全部減了 
+    out$shift <- row("shift", "ok", paste0("\u5206\u6578\u5168\u90e8\u6e1b\u4e86 ", kits_id_text(ack$shifted),
+                                           # 原文：，現在從 0 開始
+                                           "\uff0c\u73fe\u5728\u5f9e 0 \u958b\u59cb"))
   } else if (any(mins > 0, na.rm = TRUE)) {
     k <- sum(mins > 0, na.rm = TRUE)
-    out$shift <- row("shift", "note", paste0(k, " 欄沒有 0 分"),
-                     "最低分不一樣，不能一次全部減；需要的話在下面的題目表裡一題一題改。")
+    # 原文： 欄沒有 0 分
+    out$shift <- row("shift", "note", paste0(k, " \u6b04\u6c92\u6709 0 \u5206"),
+                     # 原文：最低分不一樣，不能一次全部減；需要的話在下面的題目表裡一題一題改。
+                     "\u6700\u4f4e\u5206\u4e0d\u4e00\u6a23\uff0c\u4e0d\u80fd\u4e00\u6b21\u5168\u90e8\u6e1b\uff1b\u9700\u8981\u7684\u8a71\u5728\u4e0b\u9762\u7684\u984c\u76ee\u8868\u88e1\u4e00\u984c\u4e00\u984c\u6539\u3002")
   } else {
-    out$shift <- row("shift", "ok", "分數都從 0 開始")
+    # 原文：分數都從 0 開始
+    out$shift <- row("shift", "ok", "\u5206\u6578\u90fd\u5f9e 0 \u958b\u59cb")
   }
 
   # 領域：還沒有領域的要設；還是預設組名的，要按一下才算決定（ack$dom_default 是當時的樣子）
   und <- kits_settings_undecided(settings)
   if (length(und) > 0) {
-    out$domain <- row("domain", "todo", paste0(length(und), " 欄還沒有領域"),
-                      "每一題都要有領域（例如 distress）。可以一次設好，或在題目表裡一題一題設。")
+    # 原文： 欄還沒有領域
+    out$domain <- row("domain", "todo", paste0(length(und), " \u6b04\u9084\u6c92\u6709\u9818\u57df"),
+                      # 原文：每一題都要有領域（例如 distress）。可以一次設好，或在題目表裡一題一題設。
+                      "\u6bcf\u4e00\u984c\u90fd\u8981\u6709\u9818\u57df\uff08\u4f8b\u5982 distress\uff09\u3002\u53ef\u4ee5\u4e00\u6b21\u8a2d\u597d\uff0c\u6216\u5728\u984c\u76ee\u8868\u88e1\u4e00\u984c\u4e00\u984c\u8a2d\u3002")
   }
   dd <- kits_domain_default_rows(inc)
   if (length(dd) > 0) {
     if (identical(ack$dom_default, kits_domain_default_key(inc))) {
-      out$dom_default <- row("dom_default", "ok", "領域用組名（你選的）")
+      # 原文：領域用組名（你選的）
+      out$dom_default <- row("dom_default", "ok", "\u9818\u57df\u7528\u7d44\u540d\uff08\u4f60\u9078\u7684\uff09")
     } else {
       out$dom_default <- row(
         "dom_default", "todo",
-        paste0("有 ", kit_num(length(dd)), " 欄的領域還是預設的組名（例如 ",
-               inc$domain[match(dd[1], inc$column)], "）"),
-        "kitsUI 會照領域分量尺。不改也能轉換。"
+        # 原文：有  |  欄的領域還是預設的組名（例如 
+        paste0("\u6709 ", kit_num(length(dd)), " \u6b04\u7684\u9818\u57df\u9084\u662f\u9810\u8a2d\u7684\u7d44\u540d\uff08\u4f8b\u5982 ",
+               # 原文：）
+               inc$domain[match(dd[1], inc$column)], "\uff09"),
+        # 原文：kitsUI 會照領域分量尺。不改也能轉換。
+        "kitsUI \u6703\u7167\u9818\u57df\u5206\u91cf\u5c3a\u3002\u4e0d\u6539\u4e5f\u80fd\u8f49\u63db\u3002"
       )
     }
   }
-  if (length(und) == 0 && length(dd) == 0) out$domain <- row("domain", "ok", "每一題都有領域")
+  # 原文：每一題都有領域
+  if (length(und) == 0 && length(dd) == 0) out$domain <- row("domain", "ok", "\u6bcf\u4e00\u984c\u90fd\u6709\u9818\u57df")
 
   # 計分有缺、小數、負分
   no_score <- purrr::map_lgl(inc$score, anyNA)
   if (any(no_score)) {
-    out$unscored <- row("unscored", "todo", paste0(sum(no_score), " 欄有原分數沒有計分"),
-                        "在下面的題目表裡補上計分（合併或還原）。")
+    # 原文： 欄有原分數沒有計分
+    out$unscored <- row("unscored", "todo", paste0(sum(no_score), " \u6b04\u6709\u539f\u5206\u6578\u6c92\u6709\u8a08\u5206"),
+                        # 原文：在下面的題目表裡補上計分（合併或還原）。
+                        "\u5728\u4e0b\u9762\u7684\u984c\u76ee\u8868\u88e1\u88dc\u4e0a\u8a08\u5206\uff08\u5408\u4f75\u6216\u9084\u539f\uff09\u3002")
   }
   frac <- purrr::map_lgl(inc$raw, function(r) any(r != round(r)))
   out$frac <- if (any(frac)) {
-    row("frac", "todo", paste0(sum(frac), " 欄的分數有小數（可能不是題目）"),
-        paste(utils::head(inc$column[frac], 5), collapse = "、"))
+    # 原文： 欄的分數有小數（可能不是題目）
+    row("frac", "todo", paste0(sum(frac), " \u6b04\u7684\u5206\u6578\u6709\u5c0f\u6578\uff08\u53ef\u80fd\u4e0d\u662f\u984c\u76ee\uff09"),
+        # 原文：、
+        paste(utils::head(inc$column[frac], 5), collapse = "\u3001"))
   } else {
-    row("frac", "ok", "分數都是整數")
+    # 原文：分數都是整數
+    row("frac", "ok", "\u5206\u6578\u90fd\u662f\u6574\u6578")
   }
   neg <- purrr::map_lgl(inc$score, function(s) any(s < 0, na.rm = TRUE))
   if (any(neg)) {
-    out$neg <- row("neg", "note", paste0(sum(neg), " 欄有負分"),
-                   "如果負數是遺漏值代碼，請先用「遺漏值處理」改成 NA。")
+    # 原文： 欄有負分
+    out$neg <- row("neg", "note", paste0(sum(neg), " \u6b04\u6709\u8ca0\u5206"),
+                   # 原文：如果負數是遺漏值代碼，請先用「遺漏值處理」改成 NA。
+                   "\u5982\u679c\u8ca0\u6578\u662f\u907a\u6f0f\u503c\u4ee3\u78bc\uff0c\u8acb\u5148\u7528\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u6539\u6210 NA\u3002")
   }
 
   # 各檔案之間有沒有共同的題號：kits 靠共同題把各波放到同一把尺上
@@ -293,23 +350,32 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   if (!is.null(common)) {
     if (common$n_shared == 0 && !isTRUE(ack$common)) {
       out$common <- row(
-        "common", "todo", paste0(common$n_files, " 個檔案之間沒有共同的題號"),
-        paste0("kits 要靠各波都有的題（同一個題號）把各波放到同一把尺上。現在每個檔案的題號都不一樣",
-               "（例如 ", paste(utils::head(common$examples, 3), collapse = "、"), "）。",
-               "如果它們是同一份量表，請回第 2 步「合成同一組題號」。")
+        # 原文： 個檔案之間沒有共同的題號
+        "common", "todo", paste0(common$n_files, " \u500b\u6a94\u6848\u4e4b\u9593\u6c92\u6709\u5171\u540c\u7684\u984c\u865f"),
+        # 原文：kits 要靠各波都有的題（同一個題號）把各波放到同一把尺上。現在每個檔案的題號都不一樣
+        paste0("kits \u8981\u9760\u5404\u6ce2\u90fd\u6709\u7684\u984c\uff08\u540c\u4e00\u500b\u984c\u865f\uff09\u628a\u5404\u6ce2\u653e\u5230\u540c\u4e00\u628a\u5c3a\u4e0a\u3002\u73fe\u5728\u6bcf\u500b\u6a94\u6848\u7684\u984c\u865f\u90fd\u4e0d\u4e00\u6a23",
+               # 原文：（例如  | 、 | ）。
+               "\uff08\u4f8b\u5982 ", paste(utils::head(common$examples, 3), collapse = "\u3001"), "\uff09\u3002",
+               # 原文：如果它們是同一份量表，請回第 2 步「合成同一組題號」。
+               "\u5982\u679c\u5b83\u5011\u662f\u540c\u4e00\u4efd\u91cf\u8868\uff0c\u8acb\u56de\u7b2c 2 \u6b65\u300c\u5408\u6210\u540c\u4e00\u7d44\u984c\u865f\u300d\u3002")
       )
     } else if (common$n_shared == 0) {
-      out$common <- row("common", "ok", "各檔案的題目不是同一份量表，不用共同題號（你選的）")
+      # 原文：各檔案的題目不是同一份量表，不用共同題號（你選的）
+      out$common <- row("common", "ok", "\u5404\u6a94\u6848\u7684\u984c\u76ee\u4e0d\u662f\u540c\u4e00\u4efd\u91cf\u8868\uff0c\u4e0d\u7528\u5171\u540c\u984c\u865f\uff08\u4f60\u9078\u7684\uff09")
     } else {
-      out$common <- row("common", "ok", paste0(common$n_shared, " 個題號在 2 個以上的檔案都有（可以連結）"))
+      # 原文： 個題號在 2 個以上的檔案都有（可以連結）
+      out$common <- row("common", "ok", paste0(common$n_shared, " \u500b\u984c\u865f\u5728 2 \u500b\u4ee5\u4e0a\u7684\u6a94\u6848\u90fd\u6709\uff08\u53ef\u4ee5\u9023\u7d50\uff09"))
     }
   }
 
   # 反向題（用了題目表時才看）
   if (isTRUE(reverse_used)) {
-    rev <- sum(!is.na(inc$source) & startsWith(inc$source, "題目表（原題"))
-    out$reverse <- row("reverse", "ok", if (rev > 0) paste0(rev, " 欄是反向題，用原題的領域") else
-      "沒有反向題")
+    # 原文：題目表（原題
+    rev <- sum(!is.na(inc$source) & startsWith(inc$source, "\u984c\u76ee\u8868\uff08\u539f\u984c"))
+    # 原文： 欄是反向題，用原題的領域
+    out$reverse <- row("reverse", "ok", if (rev > 0) paste0(rev, " \u6b04\u662f\u53cd\u5411\u984c\uff0c\u7528\u539f\u984c\u7684\u9818\u57df") else
+      # 原文：沒有反向題
+      "\u6c92\u6709\u53cd\u5411\u984c")
   }
   out
 }
@@ -343,7 +409,8 @@ kits_common_items <- function(settings, file_cols) {
 #' @noRd
 kits_merge_suggest <- function(groups) {
   if (nrow(groups) < 2) return(character(0))
-  tail <- sub(".*[_：:]", "", groups$label)
+  # 原文：.*[_：:]
+  tail <- sub(".*[_\uff1a:]", "", groups$label)
   key <- paste(groups$n, tail, sep = "|")
   key[!nzchar(tail)] <- NA
   tab <- table(key[!is.na(key)])
@@ -355,12 +422,16 @@ kits_merge_suggest <- function(groups) {
 #' @noRd
 kits_merge_groups <- function(settings, groups, stems, name) {
   name <- trimws(name %||% "")
-  if (length(stems) < 2) kit_abort("請至少選 2 組（例如每一波各一組）。")
-  if (!nzchar(name) || grepl("[[:space:]]", name)) kit_abort("請填題號的開頭，例如 bsrs（不要有空白）。")
+  # 原文：請至少選 2 組（例如每一波各一組）。
+  if (length(stems) < 2) kit_abort("\u8acb\u81f3\u5c11\u9078 2 \u7d44\uff08\u4f8b\u5982\u6bcf\u4e00\u6ce2\u5404\u4e00\u7d44\uff09\u3002")
+  # 原文：請填題號的開頭，例如 bsrs（不要有空白）。
+  if (!nzchar(name) || grepl("[[:space:]]", name)) kit_abort("\u8acb\u586b\u984c\u865f\u7684\u958b\u982d\uff0c\u4f8b\u5982 bsrs\uff08\u4e0d\u8981\u6709\u7a7a\u767d\uff09\u3002")
   g <- groups[match(stems, groups$stem), ]
   if (length(unique(g$n)) != 1) {
-    kit_abort(paste0("這幾組的題數不一樣（", paste0(g$stem, " ", g$n, " 題", collapse = "、"),
-                     "），不能一題對一題合成。"))
+    # 原文：這幾組的題數不一樣（ |  題 | 、
+    kit_abort(paste0("\u9019\u5e7e\u7d44\u7684\u984c\u6578\u4e0d\u4e00\u6a23\uff08", paste0(g$stem, " ", g$n, " \u984c", collapse = "\u3001"),
+                     # 原文：），不能一題對一題合成。
+                     "\uff09\uff0c\u4e0d\u80fd\u4e00\u984c\u5c0d\u4e00\u984c\u5408\u6210\u3002"))
   }
   if (is.null(settings[["item_id_out"]])) settings$item_id_out <- NA_character_
   for (cols in g$cols) {
@@ -374,23 +445,29 @@ kits_merge_groups <- function(settings, groups, stems, name) {
 kits_step3_summary <- function(checks) {
   ok <- purrr::keep(checks, function(x) x$state != "todo")
   pick <- intersect(c("codes", "shift", "domain", "dom_default"), names(ok))
-  if (length(pick) == 0) return("都沒問題")
-  paste(vapply(ok[pick], function(x) x$title, character(1)), collapse = " · ")
+  # 原文：都沒問題
+  if (length(pick) == 0) return("\u90fd\u6c92\u554f\u984c")
+  # 原文： · 
+  paste(vapply(ok[pick], function(x) x$title, character(1)), collapse = " \u00b7 ")
 }
 
 #' 逐題表的一格計分：「1→0 2→1 3→2」（沒改的寫「0 1 2」；種類太多寫「29 種（1–31）」）
 #' @noRd
 kits_score_line <- function(raw, score) {
   purrr::map2_chr(raw, score, function(r, s) {
-    if (length(r) == 0) return("（沒有作答）")
+    # 原文：（沒有作答）
+    if (length(r) == 0) return("\uff08\u6c92\u6709\u4f5c\u7b54\uff09")
     s <- s[seq_along(r)]
     changed <- is.na(s) | s != r
     if (length(r) > KITS_MAP_SHOW_MAX) {
-      return(paste0(length(r), " 種（", kits_num_text(min(r)), "–", kits_num_text(max(r)), "）",
-                    if (any(changed)) "，有改"))
+      # 原文： 種（ | – | ）
+      return(paste0(length(r), " \u7a2e\uff08", kits_num_text(min(r)), "\u2013", kits_num_text(max(r)), "\uff09",
+                    # 原文：，有改
+                    if (any(changed)) "\uff0c\u6709\u6539"))
     }
     if (!any(changed)) return(paste(kits_num_text(r), collapse = " "))
-    paste0(kits_num_text(r), "→", ifelse(is.na(s), "？", kits_num_text(s)), collapse = " ")
+    # 原文：→ | ？
+    paste0(kits_num_text(r), "\u2192", ifelse(is.na(s), "\uff1f", kits_num_text(s)), collapse = " ")
   })
 }
 
@@ -402,19 +479,27 @@ kits_item_flags <- function(settings) {
     list(settings$include, settings$domain, settings$raw, settings$score, codes),
     function(include, domain, raw, score, codes) {
       out <- character(0)
-      if (include && (is.na(domain) || !nzchar(domain))) out <- c(out, "沒有領域")
+      # 原文：沒有領域
+      if (include && (is.na(domain) || !nzchar(domain))) out <- c(out, "\u6c92\u6709\u9818\u57df")
       if (!is.null(codes) && nrow(codes) > 0) {
-        out <- c(out, paste0("代碼 ", paste(kits_id_text(codes$value), collapse = "、")))
+        # 原文：代碼  | 、
+        out <- c(out, paste0("\u4ee3\u78bc ", paste(kits_id_text(codes$value), collapse = "\u3001")))
       }
       sc <- score[!is.na(score)]
-      if (anyNA(score)) out <- c(out, "有原分數沒有計分")
+      # 原文：有原分數沒有計分
+      if (anyNA(score)) out <- c(out, "\u6709\u539f\u5206\u6578\u6c92\u6709\u8a08\u5206")
       if (length(sc) > 0) {
-        if (min(sc) > 0) out <- c(out, "沒有 0 分")
-        if (any(sc < 0)) out <- c(out, "有負分")
-        if (any(sc != round(sc))) out <- c(out, "有小數")
-        else if (!all(seq(min(sc), max(sc)) %in% sc)) out <- c(out, "分數有缺")
+        # 原文：沒有 0 分
+        if (min(sc) > 0) out <- c(out, "\u6c92\u6709 0 \u5206")
+        # 原文：有負分
+        if (any(sc < 0)) out <- c(out, "\u6709\u8ca0\u5206")
+        # 原文：有小數
+        if (any(sc != round(sc))) out <- c(out, "\u6709\u5c0f\u6578")
+        # 原文：分數有缺
+        else if (!all(seq(min(sc), max(sc)) %in% sc)) out <- c(out, "\u5206\u6578\u6709\u7f3a")
       }
-      paste(out, collapse = "、")
+      # 原文：、
+      paste(out, collapse = "\u3001")
     }
   )
 }
@@ -425,24 +510,29 @@ kits_item_flags <- function(settings) {
 #' @noRd
 kits_items_page_html <- function(id, rows, selected = character(0)) {
   if (nrow(rows) == 0) {
-    return(shiny::tags$p(class = "kit-hint", "沒有符合的欄。"))
+    # 原文：沒有符合的欄。
+    return(shiny::tags$p(class = "kit-hint", "\u6c92\u6709\u7b26\u5408\u7684\u6b04\u3002"))
   }
   esc <- function(x) htmltools::htmlEscape(x)
   att <- function(x) htmltools::htmlEscape(x, attribute = TRUE)
   out <- rows[["item_id_out"]] %||% rep(NA_character_, nrow(rows))
   name <- paste0(
     "<code>", esc(rows$column), "</code>",
-    ifelse(is.na(out), "", paste0(" <span class=\"kit-hint\">→ 題號 ", esc(out), "</span>"))
+    # 原文： <span class=\"kit-hint\">→ 題號 
+    ifelse(is.na(out), "", paste0(" <span class=\"kit-hint\">\u2192 \u984c\u865f ", esc(out), "</span>"))
   )
   is_default <- kits_domain_is_default(rows)
-  dom <- ifelse(is.na(rows$domain), "<span class=\"kit-muted\">（沒有）</span>", paste0(
-    esc(rows$domain), ifelse(is_default, " <span class=\"kit-muted\">（組名）</span>", "")
+  # 原文：<span class=\"kit-muted\">（沒有）</span>
+  dom <- ifelse(is.na(rows$domain), "<span class=\"kit-muted\">\uff08\u6c92\u6709\uff09</span>", paste0(
+    # 原文： <span class=\"kit-muted\">（組名）</span>
+    esc(rows$domain), ifelse(is_default, " <span class=\"kit-muted\">\uff08\u7d44\u540d\uff09</span>", "")
   ))
   tr <- paste0(
     "<tr", ifelse(rows$include, "", " class=\"kit-row-off\""), ">",
     "<td><input type=\"checkbox\" name=\"", att(id), "\" value=\"", att(rows$column), "\"",
     ifelse(rows$column %in% selected, " checked=\"checked\"", ""), "/></td>",
-    "<td>", name, ifelse(rows$include, "", " <span class=\"kit-muted\">（沒挑）</span>"), "</td>",
+    # 原文： <span class=\"kit-muted\">（沒挑）</span>
+    "<td>", name, ifelse(rows$include, "", " <span class=\"kit-muted\">\uff08\u6c92\u6311\uff09</span>"), "</td>",
     "<td>", dom, "</td>",
     "<td>", esc(kits_score_line(rows$raw, rows$score)), "</td>",
     "<td class=\"kit-flag\">", esc(kits_item_flags(rows)), "</td></tr>"
@@ -451,7 +541,8 @@ kits_items_page_html <- function(id, rows, selected = character(0)) {
     "<div id=\"", att(id), "\" class=\"form-group shiny-input-checkboxgroup shiny-input-container\"",
     " style=\"width: auto; max-width: 100%;\">",
     "<div class=\"shiny-options-group kit-table-scroll\"><table class=\"table kit-items\">",
-    "<thead><tr><th></th><th>欄位</th><th>領域</th><th>計分（原分數→計分）</th><th>提醒</th></tr></thead>",
+    # 原文：<thead><tr><th></th><th>欄位</th><th>領域</th><th>計分（原分數→計分）</th><th>提醒</th></tr></thead>
+    "<thead><tr><th></th><th>\u6b04\u4f4d</th><th>\u9818\u57df</th><th>\u8a08\u5206\uff08\u539f\u5206\u6578\u2192\u8a08\u5206\uff09</th><th>\u63d0\u9192</th></tr></thead>",
     "<tbody>", paste(tr, collapse = ""), "</tbody></table></div></div>"
   ))
 }
@@ -528,7 +619,8 @@ kits_item_groups <- function(settings, dfs) {
     n = lengths(idx),
     range = vapply(idx, function(i) {
       r <- unlist(s$raw[i])
-      paste0(kits_num_text(min(r)), "–", kits_num_text(max(r)))
+      # 原文：–
+      paste0(kits_num_text(min(r)), "\u2013", kits_num_text(max(r)))
     }, character(1)),
     label = vapply(idx, function(i) {
       lab <- labels[i][nzchar(labels[i])]
@@ -557,8 +649,10 @@ kits_groups_filter <- function(groups, text) {
 #' @noRd
 kits_group_cols_text <- function(cols) {
   if (length(cols) == 1) return(cols)
-  if (length(cols) == 2) return(paste0(cols[1], "、", cols[2], "（2 欄）"))
-  paste0(cols[1], " … ", cols[length(cols)], "（", length(cols), " 欄）")
+  # 原文：、 | （2 欄）
+  if (length(cols) == 2) return(paste0(cols[1], "\u3001", cols[2], "\uff082 \u6b04\uff09"))
+  # 原文： …  | （ |  欄）
+  paste0(cols[1], " \u2026 ", cols[length(cols)], "\uff08", length(cols), " \u6b04\uff09")
 }
 
 #' 像題目的欄：原分數是 0–20 的整數，至少 2 種、最多 11 種
@@ -585,7 +679,8 @@ kits_settings_stems <- function(settings, ids = settings$column) {
 # ── 第 3 步：預設領域＝組名 ────────────────────────────────────────────────
 
 # 預設領域的 source（「領域從哪裡來」）
-KITS_DOMAIN_DEFAULT <- "組名"
+# 原文：組名
+KITS_DOMAIN_DEFAULT <- "\u7d44\u540d"
 
 #' 組名當領域名稱：去掉結尾的 _ . -（w1d5_ → w1d5）
 #' @noRd

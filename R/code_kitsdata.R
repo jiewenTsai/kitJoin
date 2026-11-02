@@ -30,17 +30,23 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, text_fix = NULL) {
 
   code_lines(
     "library(dplyr)", "library(readr)", "library(tidyr)",
-    if (any(tolower(tools::file_ext(f$file)) == "sav")) "library(haven)   # 讀 SAV", "",
+    # 原文：library(haven)   # 讀 SAV
+    if (any(tolower(tools::file_ext(f$file)) == "sav")) "library(haven)   # \u8b80 SAV", "",
     code_kitsdata_helpers(labels = identical(spec$value_labels, "label")), "",
     grep("^data_.* <- read_", strsplit(code_read(f)$tidy, "\n")[[1]], value = TRUE),
     if (na_applied) {
-      c("# 「遺漏值處理」已經把遺漏值代碼改成 NA；",
-        "# 請先執行「遺漏值處理」的「用 R 怎麼做」裡的程式碼，再接著跑下面的程式")
+      # 原文：# 「遺漏值處理」已經把遺漏值代碼改成 NA；
+      c("# \u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u5df2\u7d93\u628a\u907a\u6f0f\u503c\u4ee3\u78bc\u6539\u6210 NA\uff1b",
+        # 原文：# 請先執行「遺漏值處理」的「用 R 怎麼做」裡的程式碼，再接著跑下面的程式
+        "# \u8acb\u5148\u57f7\u884c\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u7684\u300c\u7528 R \u600e\u9ebc\u505a\u300d\u88e1\u7684\u7a0b\u5f0f\u78bc\uff0c\u518d\u63a5\u8457\u8dd1\u4e0b\u9762\u7684\u7a0b\u5f0f")
     },
     "",
-    "# 題目表：「kits 作答檔」第 3 步下載的 kits_item_settings.csv（item_id、include、domain、",
-    "# map_raw_to_score = 計分對照，寫成「原分數=計分」；item_id_out = 輸出的題號）。",
-    "# include 是 TRUE/FALSE，其他欄都當文字讀",
+    # 原文：# 題目表：「kits 作答檔」第 3 步下載的 kits_item_settings.csv（item_id、include、domain、
+    "# \u984c\u76ee\u8868\uff1a\u300ckits \u4f5c\u7b54\u6a94\u300d\u7b2c 3 \u6b65\u4e0b\u8f09\u7684 kits_item_settings.csv\uff08item_id\u3001include\u3001domain\u3001",
+    # 原文：# map_raw_to_score = 計分對照，寫成「原分數=計分」；item_id_out = 輸出的題號）。
+    "# map_raw_to_score = \u8a08\u5206\u5c0d\u7167\uff0c\u5beb\u6210\u300c\u539f\u5206\u6578=\u8a08\u5206\u300d\uff1bitem_id_out = \u8f38\u51fa\u7684\u984c\u865f\uff09\u3002",
+    # 原文：# include 是 TRUE/FALSE，其他欄都當文字讀
+    "# include \u662f TRUE/FALSE\uff0c\u5176\u4ed6\u6b04\u90fd\u7576\u6587\u5b57\u8b80",
     paste0("item_settings <- read_csv(", r_str(KITS_SETTINGS_FILE),
            ", col_types = cols(include = \"l\", .default = \"c\"))"),
     "items <- item_settings$item_id[item_settings$include]",
@@ -48,13 +54,15 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, text_fix = NULL) {
     code_kitsdata_codes(spec$items),
     code_kitsdata_maps(f, spec$items),
     "",
-    "# 轉成長格式：一列一個孩子的一個波次的一題",
+    # 原文：# 轉成長格式：一列一個孩子的一個波次的一題
+    "# \u8f49\u6210\u9577\u683c\u5f0f\uff1a\u4e00\u5217\u4e00\u500b\u5b69\u5b50\u7684\u4e00\u500b\u6ce2\u6b21\u7684\u4e00\u984c",
     per_file_code(function(i) {
       code_kitsdata_long(f$obj[i], long[i], spec$cohort[[i]], kits_file_map(map, per_file, i),
                          purrr::map(typed, i), identical(spec$value_labels, "label"))
     }),
     "",
-    if (renamed) "# 合併各檔，接上領域；有 item_id_out 的題改成輸出的題號" else "# 合併各檔，接上領域",
+    # 原文：# 合併各檔，接上領域；有 item_id_out 的題改成輸出的題號 | # 合併各檔，接上領域
+    if (renamed) "# \u5408\u4f75\u5404\u6a94\uff0c\u63a5\u4e0a\u9818\u57df\uff1b\u6709 item_id_out \u7684\u984c\u6539\u6210\u8f38\u51fa\u7684\u984c\u865f" else "# \u5408\u4f75\u5404\u6a94\uff0c\u63a5\u4e0a\u9818\u57df",
     paste0("kits_long <- bind_rows(", paste(long, collapse = ", "), ") |>"),
     if (renamed) {
       c("  left_join(select(item_settings, item_id, item_id_out, domain), by = \"item_id\") |>",
@@ -65,11 +73,14 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, text_fix = NULL) {
     "",
     code_kitsdata_finish(map_out),
     "",
-    "# 檢查：同一列次同一題只能有一列（應該是 0 列）",
+    # 原文：# 檢查：同一列次同一題只能有一列（應該是 0 列）
+    "# \u6aa2\u67e5\uff1a\u540c\u4e00\u5217\u6b21\u540c\u4e00\u984c\u53ea\u80fd\u6709\u4e00\u5217\uff08\u61c9\u8a72\u662f 0 \u5217\uff09",
     "count(kits_long, visit_id, item_id) |> filter(n > 1)",
     "",
-    "# app 為了省記憶體，是一段一段（每 5,000 列寬資料）轉換、寫進 .csv.gz；結果和這裡相同",
-    'write_csv(kits_long, "kits_long.csv.gz")   # 副檔名 .gz 會自動壓縮'
+    # 原文：# app 為了省記憶體，是一段一段（每 5,000 列寬資料）轉換、寫進 .csv.gz；結果和這裡相同
+    "# app \u70ba\u4e86\u7701\u8a18\u61b6\u9ad4\uff0c\u662f\u4e00\u6bb5\u4e00\u6bb5\uff08\u6bcf 5,000 \u5217\u5bec\u8cc7\u6599\uff09\u8f49\u63db\u3001\u5beb\u9032 .csv.gz\uff1b\u7d50\u679c\u548c\u9019\u88e1\u76f8\u540c",
+    # 原文：write_csv(kits_long, "kits_long.csv.gz")   # 副檔名 .gz 會自動壓縮
+    'write_csv(kits_long, "kits_long.csv.gz")   # \u526f\u6a94\u540d .gz \u6703\u81ea\u52d5\u58d3\u7e2e'
   )
 }
 
@@ -94,7 +105,8 @@ code_kitsdata_text_fix <- function(f, text_fix) {
   })
   per_file <- per_file[!is.na(per_file)]
   if (length(per_file) == 0) return(NULL)
-  c("", "# 文字的題目欄：內容都是數字的轉成數字；有一般文字的，這個檔案不轉這一題", per_file)
+  # 原文：# 文字的題目欄：內容都是數字的轉成數字；有一般文字的，這個檔案不轉這一題
+  c("", "# \u6587\u5b57\u7684\u984c\u76ee\u6b04\uff1a\u5167\u5bb9\u90fd\u662f\u6578\u5b57\u7684\u8f49\u6210\u6578\u5b57\uff1b\u6709\u4e00\u822c\u6587\u5b57\u7684\uff0c\u9019\u500b\u6a94\u6848\u4e0d\u8f49\u9019\u4e00\u984c", per_file)
 }
 
 # 疑似遺漏值代碼：⑥ 不改，照原樣寫進作答檔；有的話加一段註解，說要先用「遺漏值處理」改成 NA
@@ -102,13 +114,18 @@ code_kitsdata_codes <- function(items) {
   codes <- purrr::map(items[["codes"]] %||% list(), function(x) (x %||% kits_no_codes())$value)
   vals <- sort(unique(unlist(codes)))
   if (length(vals) == 0) return(NULL)
-  shown <- paste(kits_id_text(utils::head(vals, 6)), collapse = "、")
+  # 原文：、
+  shown <- paste(kits_id_text(utils::head(vals, 6)), collapse = "\u3001")
   c(
     "",
-    paste0("# 注意：有 ", sum(lengths(codes) > 0), " 題有疑似遺漏值代碼（", shown,
-           if (length(vals) > 6) "…", "），"),
-    "# 這裡照原樣當成分數（計分對照不會動到它們）。如果它們是遺漏值，",
-    "# 請先執行「遺漏值處理」的程式碼把它們改成 NA，再跑下面的程式"
+    # 原文：# 注意：有  |  題有疑似遺漏值代碼（
+    paste0("# \u6ce8\u610f\uff1a\u6709 ", sum(lengths(codes) > 0), " \u984c\u6709\u7591\u4f3c\u907a\u6f0f\u503c\u4ee3\u78bc\uff08", shown,
+           # 原文：… | ），
+           if (length(vals) > 6) "\u2026", "\uff09\uff0c"),
+    # 原文：# 這裡照原樣當成分數（計分對照不會動到它們）。如果它們是遺漏值，
+    "# \u9019\u88e1\u7167\u539f\u6a23\u7576\u6210\u5206\u6578\uff08\u8a08\u5206\u5c0d\u7167\u4e0d\u6703\u52d5\u5230\u5b83\u5011\uff09\u3002\u5982\u679c\u5b83\u5011\u662f\u907a\u6f0f\u503c\uff0c",
+    # 原文：# 請先執行「遺漏值處理」的程式碼把它們改成 NA，再跑下面的程式
+    "# \u8acb\u5148\u57f7\u884c\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u7684\u7a0b\u5f0f\u78bc\u628a\u5b83\u5011\u6539\u6210 NA\uff0c\u518d\u8dd1\u4e0b\u9762\u7684\u7a0b\u5f0f"
   )
 }
 
@@ -130,7 +147,8 @@ code_kitsdata_maps <- function(f, items) {
     code_lines(paste0(obj, " <- ", obj, " |>"),
                paste0(lines, c(rep(" |>", length(lines) - 1), "")))
   }, character(1))
-  c("", "# 計分對照（原分數 → 計分；只列出有改的題）", per_file)
+  # 原文：# 計分對照（原分數 → 計分；只列出有改的題）
+  c("", "# \u8a08\u5206\u5c0d\u7167\uff08\u539f\u5206\u6578 \u2192 \u8a08\u5206\uff1b\u53ea\u5217\u51fa\u6709\u6539\u7684\u984c\uff09", per_file)
 }
 
 #' 一題計分對照的寫法：沒改時 NA；平移 x - 1、x + 2；反向 4 - x；其他 case_when()
@@ -230,7 +248,8 @@ code_kitsdata_call <- function(fun, parts) {
 # （和 kits_label_text() 相同）
 code_kitsdata_helpers <- function(labels = FALSE) {
   c(
-    "# 編號轉成文字：數字不寫成科學記號（100000 不會變成 1e+05），空白保持 NA",
+    # 原文：# 編號轉成文字：數字不寫成科學記號（100000 不會變成 1e+05），空白保持 NA
+    "# \u7de8\u865f\u8f49\u6210\u6587\u5b57\uff1a\u6578\u5b57\u4e0d\u5beb\u6210\u79d1\u5b78\u8a18\u865f\uff08100000 \u4e0d\u6703\u8b8a\u6210 1e+05\uff09\uff0c\u7a7a\u767d\u4fdd\u6301 NA",
     "as_id <- function(x) {",
     "  x <- as.vector(unclass(x))",
     "  if (!is.numeric(x)) return(as.character(x))",
@@ -240,7 +259,8 @@ code_kitsdata_helpers <- function(labels = FALSE) {
     "}",
     if (labels) {
       c(
-        "# 有值標籤的欄（世代、性別）用標籤；沒有標籤的值用代碼",
+        # 原文：# 有值標籤的欄（世代、性別）用標籤；沒有標籤的值用代碼
+        "# \u6709\u503c\u6a19\u7c64\u7684\u6b04\uff08\u4e16\u4ee3\u3001\u6027\u5225\uff09\u7528\u6a19\u7c64\uff1b\u6c92\u6709\u6a19\u7c64\u7684\u503c\u7528\u4ee3\u78bc",
         "as_label <- function(x) {",
         "  out <- as_id(x)",
         "  labels <- attr(x, \"labels\", exact = TRUE)",
@@ -281,7 +301,8 @@ code_kitsdata_finish <- function(map) {
     }
   }
   code_lines(
-    "# 固定 9 欄（名稱、順序、型別和 kits 相同）；沒有對應的欄寫成空白",
+    # 原文：# 固定 9 欄（名稱、順序、型別和 kits 相同）；沒有對應的欄寫成空白
+    "# \u56fa\u5b9a 9 \u6b04\uff08\u540d\u7a31\u3001\u9806\u5e8f\u3001\u578b\u5225\u548c kits \u76f8\u540c\uff09\uff1b\u6c92\u6709\u5c0d\u61c9\u7684\u6b04\u5beb\u6210\u7a7a\u767d",
     "kits_long <- kits_long |>",
     "  transmute(",
     paste0("    ", c(lines, line)),
@@ -302,5 +323,6 @@ code_kitsdata_typed <- function(typed) {
     }
     paste0(field, " = ", value)
   })
-  paste0("  mutate(", paste(parts, collapse = ", "), ") |>   # 自己填的值")
+  # 原文：) |>   # 自己填的值
+  paste0("  mutate(", paste(parts, collapse = ", "), ") |>   # \u81ea\u5df1\u586b\u7684\u503c")
 }
