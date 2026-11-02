@@ -1,3 +1,46 @@
+# kitJoin 0.8.0
+
+For ordinary psychology research data, not only KIT. KIT workflows keep their defaults; every new
+option is off unless chosen.
+
+## Reading and writing
+
+* ① reads Excel (`.xlsx`, `.xls`; the first sheet, with a notice when there are more) and Stata
+  (`.dta`). Adds `readxl` to Imports.
+* SPSS/Stata user-defined missing values (for example 99 = refused): ① "進階設定" has a new option to
+  keep them. They then survive join and stack, a downloaded SAV still marks them as missing in SPSS,
+  and ② can turn them into NA. Default unchanged: they are read as NA.
+* Every result can also be downloaded as DTA (Stata; column names made Stata-safe) and as a
+  codebook (one row per column: variable label, value labels, user-missing values, valid and missing
+  counts, distinct values, min, max).
+
+## ② Missing values
+
+* Codes can differ by column: one line per column, `age: 999` or `q1, q2: 8, 9` (`weight:` with no
+  code leaves that column alone). Listed columns use only their own codes, so a real age of 99 is no
+  longer turned into NA by a global 99.
+* "預設代碼": KIT (7777, 8888, 9995, 9996, 9999, as before) or general research data (empty; fill in
+  your own). The KIT/general defaults live in one place, `KIT_PRESETS` in `R/constants.R`.
+* ID guessing also recognises participant, subject, PROLIFIC_PID, record_id, worker_id and similar.
+
+## ③ Join
+
+* ID normalisation (進階設定): drop leading zeros (`001` = `1`) and/or ignore case (`a01` = `A01`).
+  Without it, the status box now warns when normalising would match more people (before, `1` and
+  `001` were silently two people).
+* Time-invariant columns (sex, birth date…): keep one column without a wave suffix, taking the
+  earliest wave with a value; the status box lists how many people differ between waves.
+
+## Pipeline log
+
+* Below all tabs, "流程紀錄" lists every run. Download one R script (reading the files, then each
+  tab's last run, in the order they ran) and a JSON log (every run, plus an MD5 fingerprint of each
+  input file).
+
+## Tests
+
+* The launcher test now checks kitDesign (>= 0.7.1) instead of bslib, which left Imports in 0.7.7.
+
 # kitJoin 0.7.7
 
 `R CMD check` passes on every platform (r-universe showed a WARNING and 2 NOTEs). Nothing changes on screen.

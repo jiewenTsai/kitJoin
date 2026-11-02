@@ -76,7 +76,8 @@ code_files <- function(
     cols = NULL,
     min_files = 1L,
     encodings = NULL,
-    types = NULL) {
+    types = NULL,
+    user_na = FALSE) {
   if (length(file_names) < min_files) {
     file_names <- c("wave1.csv", "wave2.sav")
     waves <- c("t1", "t2")
@@ -96,7 +97,8 @@ code_files <- function(
     obj = paste0("data_", seq_along(file_names)),
     cols = cols,
     encoding = encodings,
-    types = types
+    types = types,
+    user_na = isTRUE(user_na)
   )
 }
 
@@ -106,7 +108,8 @@ code_files_from <- function(files, min_files = 1L) {
   code_files(
     files$names(), files$labels(), purrr::map(files$data(), names),
     min_files = min_files, encodings = files$encodings(),
-    types = purrr::map(files$data(), code_col_types)
+    types = purrr::map(files$data(), code_col_types),
+    user_na = if (is.function(files$user_na)) isTRUE(files$user_na()) else FALSE
   )
 }
 
@@ -137,9 +140,19 @@ code_obj_notes <- function(f) {
 }
 
 code_read <- function(f) {
-  is_csv <- tolower(tools::file_ext(f$file)) == "csv"
+  ext <- tolower(tools::file_ext(f$file))
+  is_csv <- ext == "csv"
   is_big5 <- !is.na(f$encoding) & f$encoding == "BIG5"
   files <- vapply(f$file, r_str, character(1), USE.NAMES = FALSE)
+  user_na <- if (isTRUE(f$user_na)) ", user_na = TRUE" else ""
+  # 原文：   # user_na = TRUE：保留使用者自訂遺漏值
+  user_na_note <- if (isTRUE(f$user_na)) "   # user_na = TRUE\uff1a\u4fdd\u7559\u4f7f\u7528\u8005\u81ea\u8a02\u907a\u6f0f\u503c" else ""
+  sav_tidy <- paste0(
+    f$obj, " <- read_sav(", files,
+    ifelse(is_big5, ', encoding = "CP950"', ""), user_na, ")",
+    # 原文：   # 檔案沒有標明編碼，用 BIG5 讀
+    ifelse(is_big5, "   # \u6a94\u6848\u6c92\u6709\u6a19\u660e\u7de8\u78bc\uff0c\u7528 BIG5 \u8b80", user_na_note)
+  )
   tidy_lines <- ifelse(
     is_csv,
     paste0(
@@ -147,10 +160,12 @@ code_read <- function(f) {
       # 原文：, locale = locale(encoding = "CP950"))   # BIG5 編碼
       ifelse(is_big5, ', locale = locale(encoding = "CP950"))   # BIG5 \u7de8\u78bc', ")")
     ),
-    paste0(
-      f$obj, " <- read_sav(", files,
-      # 原文：, encoding = "CP950")   # 檔案沒有標明編碼，用 BIG5 讀
-      ifelse(is_big5, ', encoding = "CP950")   # \u6a94\u6848\u6c92\u6709\u6a19\u660e\u7de8\u78bc\uff0c\u7528 BIG5 \u8b80', ")")
+    ifelse(
+      ext %in% c("xlsx", "xls"),
+      paste0(f$obj, " <- readxl::read_excel(", files, ", sheet = 1, guess_max = 1e6)"),
+      ifelse(ext == "dta", paste0(f$obj, " <- read_dta(", files, ")",
+                                  if (isTRUE(f$user_na)) "" else " |> zap_missing()"),
+             sav_tidy)
     )
   )
   base_lines <- ifelse(
@@ -160,11 +175,24 @@ code_read <- function(f) {
       ifelse(is_big5, ', fileEncoding = "CP950"', ', fileEncoding = "UTF-8-BOM"'),
       ", check.names = FALSE, na.strings = c(\"\", \"NA\"), strip.white = TRUE)"
     ),
-    paste0(
-      f$obj, " <- haven::read_sav(", files,
-      ifelse(is_big5, ', encoding = "CP950"', ""),
-      # 原文：)   # base R 不能讀 SAV，借用 haven
-      ")   # base R \u4e0d\u80fd\u8b80 SAV\uff0c\u501f\u7528 haven"
+    ifelse(
+      ext %in% c("xlsx", "xls"),
+      paste0(f$obj, " <- as.data.frame(readxl::read_excel(", files, ", sheet = 1, guess_max = 1e6))",
+             # 原文：   # base R 不能讀 Excel，借用 readxl
+             "   # base R \u4e0d\u80fd\u8b80 Excel\uff0c\u501f\u7528 readxl"),
+      ifelse(
+        ext == "dta",
+        paste0(f$obj, " <- ", if (isTRUE(f$user_na)) "" else "haven::zap_missing(",
+               "haven::read_dta(", files, ")", if (isTRUE(f$user_na)) "" else ")",
+               # 原文：   # base R 不能讀 Stata，借用 haven
+               "   # base R \u4e0d\u80fd\u8b80 Stata\uff0c\u501f\u7528 haven"),
+        paste0(
+          f$obj, " <- haven::read_sav(", files,
+          ifelse(is_big5, ', encoding = "CP950"', ""), user_na,
+          # 原文：)   # base R 不能讀 SAV，借用 haven
+          ")   # base R \u4e0d\u80fd\u8b80 SAV\uff0c\u501f\u7528 haven"
+        )
+      )
     )
   )
   setwd_note <- c(
@@ -187,8 +215,8 @@ code_read <- function(f) {
     tidy = code_lines(
       # 原文：library(readr)   # 讀 CSV
       "library(readr)   # \u8b80 CSV",
-      # 原文：library(haven)   # 讀 SAV
-      "library(haven)   # \u8b80 SAV",
+      # 原文：library(haven)   # 讀 SAV、Stata
+      "library(haven)   # \u8b80 SAV\u3001Stata",
       "",
       setwd_note,
       obj_note,
@@ -210,13 +238,24 @@ code_read <- function(f) {
 }
 
 code_missing <- function(f, codes, exclude = character(0), match_text = TRUE,
-                         mode = "codes", keywords = character(0)) {
+                         mode = "codes", keywords = character(0),
+                         codes_by_col = list(), user_na = FALSE) {
   if (is.null(exclude)) exclude <- character(0)
-  if (identical(mode, "labels")) return(code_missing_labels(f, keywords, exclude))
-  if (length(codes) == 0) codes <- parse_na_codes(kit_na_codes_default())$codes
+  user_lines <- code_user_na(f, exclude, user_na)
+  if (identical(mode, "labels")) {
+    out <- code_missing_labels(f, keywords, exclude)
+    return(list(tidy = code_lines(user_lines$tidy, out$tidy),
+                base = code_lines(user_lines$base, out$base)))
+  }
+  if (length(codes) == 0 && length(codes_by_col) == 0 && !isTRUE(user_na)) {
+    codes <- parse_na_codes(kit_na_codes_default())$codes
+  }
+  by_col_lines <- code_by_col_codes(f, codes_by_col, exclude)
+  # 各欄自己的代碼另外處理：全域代碼不碰這些欄
+  global_exclude <- union(exclude, names(codes_by_col))
   # 各檔實際存在的排除欄位（欄位未知時直接使用）
   excl_of <- function(i) {
-    if (is.null(f$cols)) exclude else intersect(exclude, f$cols[[i]])
+    if (is.null(f$cols)) global_exclude else intersect(global_exclude, f$cols[[i]])
   }
 
   tidy_one <- function(i) {
@@ -278,21 +317,69 @@ code_missing <- function(f, codes, exclude = character(0), match_text = TRUE,
     }
   )
   # 原文：))   # 檢查：各欄 NA 數
+  # 原文：))   # 檢查：各欄 NA 數
   check <- paste0("colSums(is.na(", f$obj[1], "))   # \u6aa2\u67e5\uff1a\u5404\u6b04 NA \u6578")
+  has_global <- length(codes) > 0
 
   list(
     tidy = code_lines(
       "library(dplyr)", "",
-      header, "",
-      paste(vapply(idx, tidy_one, character(1)), collapse = "\n\n"), "",
+      user_lines$tidy,
+      if (has_global) c(header, "", paste(vapply(idx, tidy_one, character(1)), collapse = "\n\n"), ""),
+      by_col_lines$tidy,
       check
     ),
     base = code_lines(
-      header, "",
-      paste(vapply(idx, base_one, character(1)), collapse = "\n\n"), "",
+      user_lines$base,
+      if (has_global) c(header, "", paste(vapply(idx, base_one, character(1)), collapse = "\n\n"), ""),
+      by_col_lines$base,
       check
     )
   )
+}
+
+#' ② SPSS／Stata 的使用者自訂遺漏值改成 NA（haven::zap_missing()）
+#' @noRd
+code_user_na <- function(f, exclude, user_na) {
+  if (!isTRUE(user_na)) return(list(tidy = NULL, base = NULL))
+  # 原文：# SPSS／Stata 檔裡設成使用者自訂遺漏值的值（例如 99 = 拒答）改成 NA
+  note <- "# SPSS\uff0fStata \u6a94\u88e1\u8a2d\u6210\u4f7f\u7528\u8005\u81ea\u8a02\u907a\u6f0f\u503c\u7684\u503c\uff08\u4f8b\u5982 99 = \u62d2\u7b54\uff09\u6539\u6210 NA"
+  cols <- if (length(exclude) > 0) paste0(r_minus_cols(exclude)) else "everything()"
+  list(
+    tidy = c(note, paste0(f$obj, " <- mutate(", f$obj, ", across(", cols, ", haven::zap_missing))"), ""),
+    base = c(note, if (length(exclude) > 0) {
+      paste0("cols <- setdiff(names(", f$obj, "), ", r_str(exclude), ")\n",
+             f$obj, "[cols] <- lapply(", f$obj, "[cols], haven::zap_missing)")
+    } else {
+      paste0(f$obj, "[] <- lapply(", f$obj, ", haven::zap_missing)")
+    }, "")
+  )
+}
+
+#' ② 各欄自己的遺漏值代碼
+#' @noRd
+code_by_col_codes <- function(f, codes_by_col, exclude) {
+  codes_by_col <- codes_by_col[setdiff(names(codes_by_col), exclude)]
+  codes_by_col <- codes_by_col[lengths(codes_by_col) > 0]
+  if (length(codes_by_col) == 0) return(list(tidy = NULL, base = NULL))
+  # 原文：# 各欄自己的遺漏值代碼（這些欄不套用上面的 na_codes）
+  note <- "# \u5404\u6b04\u81ea\u5df1\u7684\u907a\u6f0f\u503c\u4ee3\u78bc\uff08\u9019\u4e9b\u6b04\u4e0d\u5957\u7528\u4e0a\u9762\u7684 na_codes\uff09"
+  has <- function(i, col) is.null(f$cols) || col %in% f$cols[[i]]
+  tidy <- unlist(lapply(seq_along(f$obj), function(i) {
+    cols <- Filter(function(col) has(i, col), names(codes_by_col))
+    if (length(cols) == 0) return(NULL)
+    paste0(f$obj[i], " <- mutate(", f$obj[i], ", ", paste(vapply(cols, function(col) {
+      paste0(r_col(col), " = replace(", r_col(col), ", ", r_col(col), " %in% ", r_num(codes_by_col[[col]]), ", NA)")
+    }, character(1)), collapse = ", "), ")")
+  }))
+  base <- unlist(lapply(seq_along(f$obj), function(i) {
+    cols <- Filter(function(col) has(i, col), names(codes_by_col))
+    vapply(cols, function(col) {
+      paste0(f$obj[i], "[[", r_str(col), "]][", f$obj[i], "[[", r_str(col), "]] %in% ",
+             r_num(codes_by_col[[col]]), "] <- NA")
+    }, character(1))
+  }))
+  list(tidy = c(note, tidy, ""), base = c(note, base, ""))
 }
 
 #' ② 依數值標籤：每一欄找出標籤含關鍵字、而且在選項範圍外的代碼，改成 NA
@@ -409,7 +496,8 @@ code_ids_to_text <- function(f, idx, cols_by_file, out_cols) {
   )
 }
 
-code_join <- function(f, by_vars, join_method, id_cols = NULL) {
+code_join <- function(f, by_vars, join_method, id_cols = NULL,
+                      id_normalize = character(0), constant_cols = character(0)) {
   if (length(by_vars) == 0) by_vars <- "id"
   if (length(join_method) == 0 || !join_method %in% KIT_JOIN_METHODS) {
     join_method <- "left_join"
@@ -419,8 +507,11 @@ code_join <- function(f, by_vars, join_method, id_cols = NULL) {
   }
   renames <- code_rename_ids(f, by_vars, id_cols)
   to_text <- code_ids_to_text(f, seq_along(f$obj), id_cols, by_vars)
+  normalize <- code_normalize_ids(f, by_vars, id_normalize)
+  if (!is.null(normalize)) to_text <- c(to_text, normalize)
   wide <- paste0("wide_", seq_along(f$obj))
   suffix <- join_suffix(f$wave)
+  constant <- code_constant_cols(setdiff(constant_cols, by_vars), suffix)
 
   tidy_rename <- paste0(
     wide, " <- rename_with(", f$obj, ", ~ paste0(.x, ", vapply(suffix, r_str, ""), "), ",
@@ -500,6 +591,7 @@ code_join <- function(f, by_vars, join_method, id_cols = NULL) {
       # 原文：# 2. 依序合併；na_matches = \"never\"：ID 空白的列不互相配對（和 app 一樣）
       "# 2. \u4f9d\u5e8f\u5408\u4f75\uff1bna_matches = \"never\"\uff1aID \u7a7a\u767d\u7684\u5217\u4e0d\u4e92\u76f8\u914d\u5c0d\uff08\u548c app \u4e00\u6a23\uff09",
       tidy_join, "",
+      constant$tidy,
       # 原文：dim(joined)   # 列數、欄數
       "dim(joined)   # \u5217\u6578\u3001\u6b04\u6578"
     ),
@@ -513,10 +605,57 @@ code_join <- function(f, by_vars, join_method, id_cols = NULL) {
       "# 2. \u4f9d\u5e8f\u5408\u4f75",
       merge_note,
       base_join, "",
+      constant$base,
       # 原文：dim(joined)   # 列數、欄數
       "dim(joined)   # \u5217\u6578\u3001\u6b04\u6578"
     )
   )
+}
+
+#' ID 比對前的標準化（去掉前導零、不分大小寫）；ID 先轉成文字
+#' @noRd
+code_normalize_ids <- function(f, by_vars, how) {
+  how <- intersect(how, c("zeros", "case"))
+  if (length(how) == 0) return(NULL)
+  lines <- unlist(lapply(f$obj, function(obj) {
+    vapply(by_vars, function(col) {
+      v <- paste0("as.character(", r_dollar(obj, col), ")")
+      if ("zeros" %in% how) v <- paste0("sub(\"^0+(?=[0-9A-Za-z])\", \"\", ", v, ", perl = TRUE)")
+      if ("case" %in% how) v <- paste0("toupper(", v, ")")
+      paste0(r_dollar(obj, col), " <- ", v)
+    }, character(1))
+  }))
+  # 原文：去掉前導零 | 不分大小寫（一律大寫）
+  what <- c(zeros = "\u53bb\u6389\u524d\u5c0e\u96f6", case = "\u4e0d\u5206\u5927\u5c0f\u5beb\uff08\u4e00\u5f8b\u5927\u5beb\uff09")
+  # 原文：# ID 比對前標準化： | 、
+  c(paste0("# ID \u6bd4\u5c0d\u524d\u6a19\u6e96\u5316\uff1a", paste(what[how], collapse = "\u3001")), lines, "")
+}
+
+#' 不分波次的欄位：合成一欄，取最早有值的那一波
+#' @noRd
+code_constant_cols <- function(cols, suffix) {
+  if (length(cols) == 0) return(list(tidy = NULL, base = NULL))
+  # 原文：# 3. 不分波次的欄位只留一欄：取最早有值的那一波（app 另外會列出各波值不一樣的人數）
+  note <- "# 3. \u4e0d\u5206\u6ce2\u6b21\u7684\u6b04\u4f4d\u53ea\u7559\u4e00\u6b04\uff1a\u53d6\u6700\u65e9\u6709\u503c\u7684\u90a3\u4e00\u6ce2\uff08app \u53e6\u5916\u6703\u5217\u51fa\u5404\u6ce2\u503c\u4e0d\u4e00\u6a23\u7684\u4eba\u6578\uff09"
+  tidy <- unlist(lapply(cols, function(col) {
+    wide <- paste0(col, suffix)
+    c(
+      paste0("joined <- mutate(joined, ", r_col(col), " = coalesce(",
+             paste(vapply(wide, r_col, ""), collapse = ", "), "), .keep = \"unused\")")
+    )
+  }))
+  base <- unlist(lapply(cols, function(col) {
+    wide <- paste0(col, suffix)
+    c(
+      paste0("joined[[", r_str(col), "]] <- joined[[", r_str(wide[1]), "]]"),
+      paste0("for (w in ", r_str(wide[-1]), ") {"),
+      paste0("  fill <- is.na(joined[[", r_str(col), "]])"),
+      paste0("  joined[[", r_str(col), "]][fill] <- joined[[w]][fill]"),
+      "}",
+      paste0("joined <- joined[, setdiff(names(joined), ", r_str(wide), ")]")
+    )
+  }))
+  list(tidy = c(note, tidy, ""), base = c(note, base, ""))
 }
 
 #' ④ 各波型別不同的同名欄：先都轉成文字（和 app 相同；有數值標籤的用標籤文字）

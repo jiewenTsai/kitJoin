@@ -71,8 +71,29 @@ mod_missing_ui <- function(id) {
         ns("codes"), "\u907a\u6f0f\u503c\u4ee3\u78bc\uff08\u4ee5\u9017\u865f\u5206\u9694\uff09",
         value = kit_na_codes_default(), width = "60%"
       ),
-      shiny::uiOutput(ns("codes_parsed"))
+      shiny::uiOutput(ns("codes_parsed")),
+      shiny::radioButtons(
+        # 原文：預設代碼
+        ns("preset"), "\u9810\u8a2d\u4ee3\u78bc",
+        choices = c(
+          # 原文：KIT 資料庫（7777、8888、9995、9996、9999）
+          "KIT \u8cc7\u6599\u5eab\uff087777\u30018888\u30019995\u30019996\u30019999\uff09" = "kit",
+          # 原文：一般研究資料：自己填（例如 -99、999）
+          "\u4e00\u822c\u7814\u7a76\u8cc7\u6599\uff1a\u81ea\u5df1\u586b\uff08\u4f8b\u5982 -99\u3001999\uff09" = "general"
+        ),
+        selected = "kit", inline = TRUE, width = "100%"
+      ),
+      shiny::textAreaInput(
+        ns("codes_by_col"),
+        # 原文：個別欄位自己的代碼（選填）：每行一個「欄位: 代碼」，列在這裡的欄只用自己的代碼
+        "\u500b\u5225\u6b04\u4f4d\u81ea\u5df1\u7684\u4ee3\u78bc\uff08\u9078\u586b\uff09\uff1a\u6bcf\u884c\u4e00\u500b\u300c\u6b04\u4f4d: \u4ee3\u78bc\u300d\uff0c\u5217\u5728\u9019\u88e1\u7684\u6b04\u53ea\u7528\u81ea\u5df1\u7684\u4ee3\u78bc",
+        value = "", rows = 3, width = "60%",
+        # 原文：age: 999\nq1, q2, q3: 8, 9\nweight:　（冒號後面空白＝這一欄不處理）
+        placeholder = "age: 999\nq1, q2, q3: 8, 9\nweight:\u3000\uff08\u5192\u865f\u5f8c\u9762\u7a7a\u767d\uff1d\u9019\u4e00\u6b04\u4e0d\u8655\u7406\uff09"
+      ),
+      shiny::uiOutput(ns("by_col_parsed"))
     ),
+    shiny::uiOutput(ns("user_na_ui")),
     shiny::conditionalPanel(
       "input.na_mode == 'labels'", ns = ns,
       shiny::textInput(
@@ -131,6 +152,63 @@ mod_missing_server <- function(id, files, goto = NULL) {
     if (!is.null(goto)) watch_goto_links(input, goto)
 
     codes <- shiny::reactive(parse_na_codes(input$codes))
+    all_file_cols <- shiny::reactive(unique(unlist(purrr::map(files$data(), names))))
+    by_col <- shiny::reactive(parse_na_codes_by_col(input$codes_by_col, all_file_cols()))
+    # 資料裡有 SPSS／Stata 使用者自訂遺漏值（上傳時勾了保留）
+    user_na_present <- shiny::reactive(has_user_na(files$data()))
+    user_na_on <- shiny::reactive(user_na_present() && !identical(input$user_na_to_na, FALSE))
+
+    # 預設代碼：KIT 資料庫或一般研究資料（只換代碼欄的內容，使用者還可以改）
+    shiny::observeEvent(input$preset, {
+      shiny::updateTextInput(session, "codes", value = kit_na_codes_default(input$preset))
+    }, ignoreInit = TRUE)
+
+    output$by_col_parsed <- shiny::renderUI({
+      p <- by_col()
+      msgs <- c(
+        if (length(p$map) > 0) {
+          # 原文：個別設定  |  欄：
+          paste0("\u500b\u5225\u8a2d\u5b9a ", kit_num(length(p$map)), " \u6b04\uff1a",
+                 paste(utils::head(vapply(names(p$map), function(v) {
+                   # 原文： →  | 不處理
+                   paste0(v, " \u2192 ", if (length(p$map[[v]]) == 0) "\u4e0d\u8655\u7406"
+                          # 原文：、
+                          else paste(num_to_text(p$map[[v]]), collapse = "\u3001"))
+                 # 原文：；
+                 }, character(1)), 5), collapse = "\uff1b"),
+                 # 原文：…
+                 if (length(p$map) > 5) "\u2026" else "")
+        }
+      )
+      warn <- c(
+        # 原文：看不懂這幾行（格式是「欄位: 代碼」）： | ；
+        if (length(p$invalid) > 0) paste0("\u770b\u4e0d\u61c2\u9019\u5e7e\u884c\uff08\u683c\u5f0f\u662f\u300c\u6b04\u4f4d: \u4ee3\u78bc\u300d\uff09\uff1a", paste(p$invalid, collapse = "\uff1b")),
+        # 原文：檔案裡沒有這些欄： | 、
+        if (length(p$unknown) > 0) paste0("\u6a94\u6848\u88e1\u6c92\u6709\u9019\u4e9b\u6b04\uff1a", paste(p$unknown, collapse = "\u3001"))
+      )
+      if (length(msgs) == 0 && length(warn) == 0) return(NULL)
+      shiny::tagList(
+        if (length(msgs) > 0) shiny::tags$small(class = "kit-hint", msgs),
+        if (length(warn) > 0) kit_callout(warn = TRUE, paste(warn, collapse = " "))
+      )
+    })
+
+    output$user_na_ui <- shiny::renderUI({
+      if (!user_na_present()) return(NULL)
+      shiny::tagList(
+        shiny::checkboxInput(
+          ns("user_na_to_na"),
+          # 原文：SPSS／Stata 檔裡設成「使用者自訂遺漏值」的值（例如 99 = 拒答）也轉成空白（NA）
+          "SPSS\uff0fStata \u6a94\u88e1\u8a2d\u6210\u300c\u4f7f\u7528\u8005\u81ea\u8a02\u907a\u6f0f\u503c\u300d\u7684\u503c\uff08\u4f8b\u5982 99 = \u62d2\u7b54\uff09\u4e5f\u8f49\u6210\u7a7a\u767d\uff08NA\uff09",
+          value = isTRUE(input$user_na_to_na %||% TRUE), width = "100%"
+        ),
+        shiny::tags$small(
+          class = "kit-hint",
+          # 原文：上傳時勾了保留使用者自訂遺漏值，這些值目前還是原來的代碼。不勾的話留著，匯出 SAV 時 SPSS 裡仍是遺漏值。
+          "\u4e0a\u50b3\u6642\u52fe\u4e86\u4fdd\u7559\u4f7f\u7528\u8005\u81ea\u8a02\u907a\u6f0f\u503c\uff0c\u9019\u4e9b\u503c\u76ee\u524d\u9084\u662f\u539f\u4f86\u7684\u4ee3\u78bc\u3002\u4e0d\u52fe\u7684\u8a71\u7559\u8457\uff0c\u532f\u51fa SAV \u6642 SPSS \u88e1\u4ecd\u662f\u907a\u6f0f\u503c\u3002"
+        )
+      )
+    })
     keywords <- shiny::reactive(
       parse_na_keywords(input$keywords %||% kit_na_label_keywords_default())
     )
@@ -214,7 +292,8 @@ mod_missing_server <- function(id, files, goto = NULL) {
         # 原文：輸入至少一個遺漏值標籤的關鍵字
         if (mode() == "labels" && length(keywords()) == 0) return("\u8f38\u5165\u81f3\u5c11\u4e00\u500b\u907a\u6f0f\u503c\u6a19\u7c64\u7684\u95dc\u9375\u5b57")
         # 原文：輸入至少一個遺漏值代碼
-        if (mode() == "codes" && length(codes()$codes) == 0) return("\u8f38\u5165\u81f3\u5c11\u4e00\u500b\u907a\u6f0f\u503c\u4ee3\u78bc")
+        if (mode() == "codes" && length(codes()$codes) == 0 && length(by_col()$map) == 0 &&
+              !user_na_on()) return("\u8f38\u5165\u81f3\u5c11\u4e00\u500b\u907a\u6f0f\u503c\u4ee3\u78bc")
         character(0)
       }),
       ready_link = function() {
@@ -258,6 +337,11 @@ mod_missing_server <- function(id, files, goto = NULL) {
         # 原文：請先到「檔案上傳」加入檔案。
         if (length(dfs) == 0) kit_abort("\u8acb\u5148\u5230\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u52a0\u5165\u6a94\u6848\u3002")
         exclude <- input$exclude_cols %||% character(0)
+        user <- NULL
+        if (user_na_on()) {
+          user <- purrr::map(dfs, replace_user_na, exclude = exclude)
+          dfs <- purrr::map(user, "data")
+        }
         converted <- if (mode() == "labels") {
           if (length(keywords()) == 0) {
             # 原文：請至少輸入一個遺漏值標籤的關鍵字，例如 遺漏。
@@ -266,12 +350,13 @@ mod_missing_server <- function(id, files, goto = NULL) {
           purrr::map(dfs, replace_na_by_labels, keywords = keywords(), exclude = exclude)
         } else {
           # 原文：請至少輸入一個遺漏值代碼，例如 9999。
-          if (length(codes()$codes) == 0) kit_abort("\u8acb\u81f3\u5c11\u8f38\u5165\u4e00\u500b\u907a\u6f0f\u503c\u4ee3\u78bc\uff0c\u4f8b\u5982 9999\u3002")
+          if (length(codes()$codes) == 0 && length(by_col()$map) == 0 && !user_na_on()) kit_abort("\u8acb\u81f3\u5c11\u8f38\u5165\u4e00\u500b\u907a\u6f0f\u503c\u4ee3\u78bc\uff0c\u4f8b\u5982 9999\u3002")
           purrr::map(
             dfs, replace_na_codes,
             codes = codes()$codes,
             exclude = exclude,
-            match_text = isTRUE(input$match_text)
+            match_text = isTRUE(input$match_text),
+            codes_by_col = by_col()$map
           )
         }
         list(
@@ -280,6 +365,7 @@ mod_missing_server <- function(id, files, goto = NULL) {
           data = purrr::map(converted, "data"),
           detail = purrr::map(converted, "detail"),
           summary = na_summary_table(files$names(), dfs, converted),
+          user_na = if (!is.null(user)) purrr::map(user, "detail"),
           settings = current_settings()
         )
       },
@@ -288,13 +374,19 @@ mod_missing_server <- function(id, files, goto = NULL) {
           # 原文：合計
           if (is.null(d)) 0L else as.integer(sum(d[["\u5408\u8a08"]]))
         }))
+        n_user <- sum(purrr::map_int(res$user_na %||% list(), function(d) {
+          # 原文：合計
+          if (is.null(d)) 0L else as.integer(sum(d[["\u5408\u8a08"]]))
+        }))
         kit_done_status(
           # 原文：轉換完成： |  個檔案共替換  |  格為 NA。
           paste0("\u8f49\u63db\u5b8c\u6210\uff1a", kit_num(length(res$data)), " \u500b\u6a94\u6848\u5171\u66ff\u63db ", kit_num(n_cells), " \u683c\u70ba NA\u3002"),
           # 原文：後面的分頁會使用處理後的資料。
-          notes = if (isTRUE(input$use_downstream)) "\u5f8c\u9762\u7684\u5206\u9801\u6703\u4f7f\u7528\u8655\u7406\u5f8c\u7684\u8cc7\u6599\u3002"
+          # 原文：另外，SPSS／Stata 使用者自訂遺漏值轉了  |  格（不在上面的格數裡）。
+          notes = c(if (n_user > 0) paste0("\u53e6\u5916\uff0cSPSS\uff0fStata \u4f7f\u7528\u8005\u81ea\u8a02\u907a\u6f0f\u503c\u8f49\u4e86 ", kit_num(n_user), " \u683c\uff08\u4e0d\u5728\u4e0a\u9762\u7684\u683c\u6578\u88e1\uff09\u3002"),
+                    if (isTRUE(input$use_downstream)) "\u5f8c\u9762\u7684\u5206\u9801\u6703\u4f7f\u7528\u8655\u7406\u5f8c\u7684\u8cc7\u6599\u3002"
           # 原文：後面的分頁仍使用原始資料（上方選項沒有勾選）。
-          else "\u5f8c\u9762\u7684\u5206\u9801\u4ecd\u4f7f\u7528\u539f\u59cb\u8cc7\u6599\uff08\u4e0a\u65b9\u9078\u9805\u6c92\u6709\u52fe\u9078\uff09\u3002"
+          else "\u5f8c\u9762\u7684\u5206\u9801\u4ecd\u4f7f\u7528\u539f\u59cb\u8cc7\u6599\uff08\u4e0a\u65b9\u9078\u9805\u6c92\u6709\u52fe\u9078\uff09\u3002")
         )
       },
       # 原文：轉換
@@ -334,14 +426,17 @@ mod_missing_server <- function(id, files, goto = NULL) {
           )
         )
       },
-      code = function() {
+      # page_code：同一個函式也交給 app 的流程紀錄（pipeline_log_server()）
+      code = page_code <- function() {
         code_missing(
           code_files_from(files),
           codes()$codes,
           input$exclude_cols,
           isTRUE(input$match_text),
           mode = mode(),
-          keywords = keywords()
+          keywords = keywords(),
+          codes_by_col = by_col()$map,
+          user_na = user_na_on()
         )
       },
       code_note = KIT_CODE_NOTE_JOIN
@@ -446,7 +541,9 @@ mod_missing_server <- function(id, files, goto = NULL) {
         codes = if (mode() == "codes") codes()$codes,
         match_text = if (mode() == "codes") isTRUE(input$match_text),
         keywords = if (mode() == "labels") keywords(),
-        exclude = sort(input$exclude_cols %||% character(0))
+        exclude = sort(input$exclude_cols %||% character(0)),
+        by_col = if (mode() == "codes") by_col()$map,
+        user_na = user_na_on()
       )
     }
     same_settings <- function(a, b) {
@@ -461,7 +558,7 @@ mod_missing_server <- function(id, files, goto = NULL) {
     shiny::observeEvent(
       list(
         input$na_mode, input$codes, input$keywords, input$exclude_cols,
-        input$match_text, all_cols()
+        input$match_text, all_cols(), input$codes_by_col, input$user_na_to_na
       ),
       {
         res <- result()
@@ -536,6 +633,8 @@ mod_missing_server <- function(id, files, goto = NULL) {
     })
 
     list(
+      result = tab$result,
+      code = page_code,
       data = shiny::reactive(
         if (use_processed()) result()$data else files$data()
       ),

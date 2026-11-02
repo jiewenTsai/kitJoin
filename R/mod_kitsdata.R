@@ -1224,7 +1224,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
           )
         )
       },
-      code = function() {
+      # page_code：同一個函式也交給 app 的流程紀錄（pipeline_log_server()）
+      code = page_code <- function() {
         text_fix <- kits_text_fix(dfs(), items()$column)
         list(tidy = code_kitsdata(
           code_files_from(files), spec(), na_applied = identical(working$source(), "na"),
@@ -1248,7 +1249,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     ))
 
     # 這一頁的狀態（步驟分頁打 ✓ 用）
-    list(state = tab$state)
+    list(state = tab$state, result = tab$result, code = page_code)
   })
 }
 

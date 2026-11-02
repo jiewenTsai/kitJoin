@@ -77,6 +77,29 @@ mod_join_ui <- function(id) {
         # 原文：ID 型別不一致時（例如一波是數字、一波是文字），自動轉成文字再比對
         "ID \u578b\u5225\u4e0d\u4e00\u81f4\u6642\uff08\u4f8b\u5982\u4e00\u6ce2\u662f\u6578\u5b57\u3001\u4e00\u6ce2\u662f\u6587\u5b57\uff09\uff0c\u81ea\u52d5\u8f49\u6210\u6587\u5b57\u518d\u6bd4\u5c0d",
         value = TRUE, width = "100%"
+      ),
+      shiny::checkboxGroupInput(
+        # 原文：ID 比對前先標準化（編號寫法不一致時）
+        ns("id_normalize"), "ID \u6bd4\u5c0d\u524d\u5148\u6a19\u6e96\u5316\uff08\u7de8\u865f\u5beb\u6cd5\u4e0d\u4e00\u81f4\u6642\uff09",
+        choices = c(
+          # 原文：ID 比對時去掉前導零（001 和 1 當成同一人）
+          "ID \u6bd4\u5c0d\u6642\u53bb\u6389\u524d\u5c0e\u96f6\uff08001 \u548c 1 \u7576\u6210\u540c\u4e00\u4eba\uff09" = "zeros",
+          # 原文：ID 比對時不分大小寫（a01 和 A01 當成同一人）
+          "ID \u6bd4\u5c0d\u6642\u4e0d\u5206\u5927\u5c0f\u5beb\uff08a01 \u548c A01 \u7576\u6210\u540c\u4e00\u4eba\uff09" = "case"
+        ),
+        width = "100%"
+      ),
+      shiny::selectizeInput(
+        # 原文：不分波次的欄位（性別、出生日期…）：只留一欄、不加後綴
+        ns("constant_cols"), "\u4e0d\u5206\u6ce2\u6b21\u7684\u6b04\u4f4d\uff08\u6027\u5225\u3001\u51fa\u751f\u65e5\u671f\u2026\uff09\uff1a\u53ea\u7559\u4e00\u6b04\u3001\u4e0d\u52a0\u5f8c\u7db4",
+        choices = NULL, multiple = TRUE, width = "100%",
+        # 原文：不選就每一波都留，例如 gender_t1、gender_t2
+        options = list(create = FALSE, placeholder = "\u4e0d\u9078\u5c31\u6bcf\u4e00\u6ce2\u90fd\u7559\uff0c\u4f8b\u5982 gender_t1\u3001gender_t2")
+      ),
+      shiny::tags$small(
+        class = "kit-hint",
+        # 原文：選了的欄位取最早有值的那一波；各波的值不一樣時，完成後會列出幾個人不一樣。
+        "\u9078\u4e86\u7684\u6b04\u4f4d\u53d6\u6700\u65e9\u6709\u503c\u7684\u90a3\u4e00\u6ce2\uff1b\u5404\u6ce2\u7684\u503c\u4e0d\u4e00\u6a23\u6642\uff0c\u5b8c\u6210\u5f8c\u6703\u5217\u51fa\u5e7e\u500b\u4eba\u4e0d\u4e00\u6a23\u3002"
       )
     ),
     result = TRUE
@@ -114,6 +137,16 @@ mod_join_server <- function(id, files, working, goto) {
         "by_vars",
         choices = choices,
         selected = selected
+      )
+    }, ignoreNULL = FALSE)
+
+    # 不分波次的欄位：任何一個檔案有的非 ID 欄
+    shiny::observeEvent(list(files$data(), id_spec()$by_vars), {
+      dfs <- files$data()
+      cols <- setdiff(unique(unlist(purrr::map(dfs, names))), id_spec()$by_vars)
+      shiny::updateSelectizeInput(
+        session, "constant_cols", choices = cols,
+        selected = intersect(input$constant_cols %||% character(0), cols)
       )
     }, ignoreNULL = FALSE)
 
@@ -245,7 +278,8 @@ mod_join_server <- function(id, files, working, goto) {
         )
       },
       stale_on = function() {
-        list(working$data(), files$labels(), id_spec(), input$method, input$keys_as_text)
+        list(working$data(), files$labels(), id_spec(), input$method, input$keys_as_text,
+             input$id_normalize, input$constant_cols)
       },
       # 原文：正在串接資料…
       progress = "\u6b63\u5728\u4e32\u63a5\u8cc7\u6599\u2026",
@@ -254,7 +288,9 @@ mod_join_server <- function(id, files, working, goto) {
         out <- join_waves(
           working$data(), files$names(), files$labels(), spec$by_vars,
           method = input$method, keys_as_text = isTRUE(input$keys_as_text),
-          confirm_large = confirm_large, id_cols = spec$id_cols
+          confirm_large = confirm_large, id_cols = spec$id_cols,
+          id_normalize = input$id_normalize %||% character(0),
+          constant_cols = input$constant_cols %||% character(0)
         )
         out$by_vars <- spec$by_vars
         out
@@ -315,9 +351,12 @@ mod_join_server <- function(id, files, working, goto) {
           )
         )
       },
-      code = function() {
+      # page_code：同一個函式也交給 app 的流程紀錄（pipeline_log_server()）
+      code = page_code <- function() {
         spec <- id_spec()
-        code_join(code_files_from(files, 2L), spec$by_vars, input$method, id_cols = spec$id_cols)
+        code_join(code_files_from(files, 2L), spec$by_vars, input$method, id_cols = spec$id_cols,
+                  id_normalize = input$id_normalize %||% character(0),
+                  constant_cols = input$constant_cols %||% character(0))
       },
       code_note = KIT_CODE_NOTE_JOIN
     )
@@ -364,7 +403,7 @@ mod_join_server <- function(id, files, working, goto) {
     )
 
     # 這一頁的狀態（步驟分頁打 ✓ 用）
-    list(state = tab$state)
+    list(state = tab$state, result = tab$result, code = page_code)
   })
 }
 

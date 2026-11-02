@@ -63,6 +63,8 @@ kit_ui <- function(request) {
       # 原文：檔案格式轉換
       shiny::tabPanel("\u6a94\u6848\u683c\u5f0f\u8f49\u63db", value = "convert", mod_convert_ui("convert"))
     ),
+    # 流程紀錄：所有分頁下面，有步驟執行過才出現
+    pipeline_log_ui("log"),
     if (kit_is_cloud()) kitjoin_cloud_footer()
   )
 }
@@ -91,6 +93,13 @@ kit_server <- function(input, output, session) {
   reshape <- mod_reshape_server("reshape", files, working, goto)
   # ⑧ 和其他分頁無關：不收 files / working
   convert <- mod_convert_server("convert")
+
+  pipeline_log_server("log", files, list(
+    # 原文：遺漏值處理 | 橫向資料串接 | 直向波次疊加
+    "\u907a\u6f0f\u503c\u8655\u7406" = working, "\u6a6b\u5411\u8cc7\u6599\u4e32\u63a5" = join, "\u76f4\u5411\u6ce2\u6b21\u758a\u52a0" = stack,
+    # 原文：流失樣本 | kits 作答檔 | 長/寬格式轉換
+    "\u6d41\u5931\u6a23\u672c" = attrition, "kits \u4f5c\u7b54\u6a94" = kitsdata, "\u9577/\u5bec\u683c\u5f0f\u8f49\u63db" = reshape
+  ))
 
   tab_states <- shiny::reactive(kitjoin_tab_states(
     n_files = length(files$keys()),

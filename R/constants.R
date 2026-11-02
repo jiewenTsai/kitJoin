@@ -5,6 +5,18 @@ KIT_PREVIEW_COLS <- 20L
 KIT_PREVIEW_ROWS <- 10L
 KIT_RESHAPE_PREVIEW_ROWS <- 20L   # 長/寬格式轉換
 
+# 預設值：KIT 資料庫和一般研究資料不同的地方集中在這裡
+# - na_codes：「遺漏值處理」的預設代碼（KIT 用 7777、8888、9995、9996、9999；一般資料沒有預設，自己填）
+# - id_names：猜 ID 欄時另外認得的欄名（Qualtrics、Prolific、REDCap、實驗室常用的）
+# kits 作答檔（⑥）是 KIT 專用的輸出，它的規則（世代代碼、7777 以上當成代碼、錨題領域）留在 kitsdata_pipeline.R
+KIT_PRESETS <- list(
+  kit = list(na_codes = "7777, 8888, 9995, 9996, 9999"),
+  general = list(
+    na_codes = "",
+    id_names = "^(participant|participant_?id|subject|subject_?id|subj|respondent|prolific_?pid|record_?id|worker_?id|ppt)$"
+  )
+)
+
 # 單檔上傳上限（MB）
 KIT_UPLOAD_MB <- 500
 

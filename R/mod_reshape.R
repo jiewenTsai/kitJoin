@@ -546,7 +546,8 @@ mod_reshape_server <- function(id, files, working, goto) {
           }
         )
       },
-      code = function() {
+      # page_code：同一個函式也交給 app 的流程紀錄（pipeline_log_server()）
+      code = page_code <- function() {
         p <- picked()
         obj <- p$obj %||% "data_t1"
         if (identical(input$direction, "longer")) {
@@ -616,7 +617,7 @@ mod_reshape_server <- function(id, files, working, goto) {
     }, striped = TRUE, spacing = "s")
 
     # 這一頁的狀態（步驟分頁打 ✓ 用）
-    list(state = tab$state)
+    list(state = tab$state, result = tab$result, code = page_code)
   })
 }
 

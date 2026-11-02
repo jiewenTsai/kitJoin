@@ -38,7 +38,7 @@ mod_upload_ui <- function(id) {
         # 原文：加入檔案（可一次選多個）
         "\u52a0\u5165\u6a94\u6848\uff08\u53ef\u4e00\u6b21\u9078\u591a\u500b\uff09",
         multiple = TRUE,
-        accept = c(".csv", ".sav", ".zsav"),
+        accept = c(".csv", ".sav", ".zsav", ".xlsx", ".xls", ".dta"),
         # 原文：選擇檔案…
         buttonLabel = "\u9078\u64c7\u6a94\u6848\u2026",
         # 原文：尚未選擇檔案
@@ -49,8 +49,8 @@ mod_upload_ui <- function(id) {
     shiny::tags$small(
       class = "kit-hint",
       sprintf(
-        # 原文：支援 CSV 與 SPSS（.sav）。單檔上限 %d MB。Excel 檔請先另存為「CSV UTF-8」。
-        "\u652f\u63f4 CSV \u8207 SPSS\uff08.sav\uff09\u3002\u55ae\u6a94\u4e0a\u9650 %d MB\u3002Excel \u6a94\u8acb\u5148\u53e6\u5b58\u70ba\u300cCSV UTF-8\u300d\u3002",
+        # 原文：支援 CSV、Excel（.xlsx，讀第 1 個工作表）、SPSS（.sav）與 Stata（.dta）。單檔上限 %d MB。
+        "\u652f\u63f4 CSV\u3001Excel\uff08.xlsx\uff0c\u8b80\u7b2c 1 \u500b\u5de5\u4f5c\u8868\uff09\u3001SPSS\uff08.sav\uff09\u8207 Stata\uff08.dta\uff09\u3002\u55ae\u6a94\u4e0a\u9650 %d MB\u3002",
         kit_max_upload_mb()
       )
     ),
@@ -73,6 +73,19 @@ mod_upload_ui <- function(id) {
         class = "kit-hint",
         # 原文：只影響 SAV 檔。改了以後，請把檔案移除再重新加入才會套用。
         "\u53ea\u5f71\u97ff SAV \u6a94\u3002\u6539\u4e86\u4ee5\u5f8c\uff0c\u8acb\u628a\u6a94\u6848\u79fb\u9664\u518d\u91cd\u65b0\u52a0\u5165\u624d\u6703\u5957\u7528\u3002"
+      ),
+      shiny::checkboxInput(
+        ns("user_na"),
+        # 原文：保留 SPSS／Stata 的使用者自訂遺漏值（例如 99 = 拒答）：讀進來時不先變成空白
+        "\u4fdd\u7559 SPSS\uff0fStata \u7684\u4f7f\u7528\u8005\u81ea\u8a02\u907a\u6f0f\u503c\uff08\u4f8b\u5982 99 = \u62d2\u7b54\uff09\uff1a\u8b80\u9032\u4f86\u6642\u4e0d\u5148\u8b8a\u6210\u7a7a\u767d",
+        value = FALSE, width = "100%"
+      ),
+      shiny::tags$small(
+        class = "kit-hint",
+        # 原文：勾了以後原來的代碼和遺漏值設定都留著：到「遺漏值處理」再決定要不要轉成空白；
+        "\u52fe\u4e86\u4ee5\u5f8c\u539f\u4f86\u7684\u4ee3\u78bc\u548c\u907a\u6f0f\u503c\u8a2d\u5b9a\u90fd\u7559\u8457\uff1a\u5230\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u518d\u6c7a\u5b9a\u8981\u4e0d\u8981\u8f49\u6210\u7a7a\u767d\uff1b",
+        # 原文：直接下載 SAV 時，SPSS 裡也還是使用者自訂遺漏值。改了以後，請把檔案移除再重新加入。
+        "\u76f4\u63a5\u4e0b\u8f09 SAV \u6642\uff0cSPSS \u88e1\u4e5f\u9084\u662f\u4f7f\u7528\u8005\u81ea\u8a02\u907a\u6f0f\u503c\u3002\u6539\u4e86\u4ee5\u5f8c\uff0c\u8acb\u628a\u6a94\u6848\u79fb\u9664\u518d\u91cd\u65b0\u52a0\u5165\u3002"
       )
     ),
     shiny::uiOutput(ns("status")),
@@ -147,7 +160,8 @@ mod_upload_server <- function(id, goto) {
         read <- tryCatch({
           out <- read_data_file(
             uploads$datapath[i], name,
-            sav_encoding = input$sav_encoding %||% "auto"
+            sav_encoding = input$sav_encoding %||% "auto",
+            user_na = isTRUE(input$user_na)
           )
           check_not_empty(out$data, name)
           out
@@ -180,6 +194,15 @@ mod_upload_server <- function(id, goto) {
             ),
             type = "warning",
             duration = KIT_NOTIFY_ERROR_SECONDS
+          )
+        }
+        if (length(read$sheets) > 1) {
+          shiny::showNotification(
+            # 原文： 有  |  個工作表，只讀了第 1 個（
+            paste0(name, " \u6709 ", length(read$sheets), " \u500b\u5de5\u4f5c\u8868\uff0c\u53ea\u8b80\u4e86\u7b2c 1 \u500b\uff08", read$sheets[1],
+                   # 原文：）。要用其他工作表，請在 Excel 把它移到最前面再加入。
+                   "\uff09\u3002\u8981\u7528\u5176\u4ed6\u5de5\u4f5c\u8868\uff0c\u8acb\u5728 Excel \u628a\u5b83\u79fb\u5230\u6700\u524d\u9762\u518d\u52a0\u5165\u3002"),
+            type = "warning", duration = KIT_NOTIFY_ERROR_SECONDS
           )
         }
         n_added <<- n_added + 1L
@@ -436,7 +459,9 @@ mod_upload_server <- function(id, goto) {
       names = shiny::reactive(purrr::map_chr(records(), "name")),
       labels = current_labels,
       data = shiny::reactive(purrr::map(records(), "data")),
-      encodings = shiny::reactive(purrr::map_chr(records(), "encoding"))
+      encodings = shiny::reactive(purrr::map_chr(records(), "encoding")),
+      # 讀檔時保留了 SPSS／Stata 的使用者自訂遺漏值（「用 R 怎麼做」的讀檔程式碼跟著寫）
+      user_na = shiny::reactive(isTRUE(input$user_na))
     )
 
     output$code <- shiny::renderUI(

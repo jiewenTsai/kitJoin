@@ -100,7 +100,7 @@ mod_stack_server <- function(id, files, working, goto) {
           )
         )
       },
-      code = function() code_stack(code_files_from(files, 2L)),
+      code = page_code <- function() code_stack(code_files_from(files, 2L)),
       code_note = KIT_CODE_NOTE_JOIN
     )
     result <- tab$result
@@ -140,7 +140,7 @@ mod_stack_server <- function(id, files, working, goto) {
     )
 
     # 這一頁的狀態（步驟分頁打 ✓ 用）
-    list(state = tab$state)
+    list(state = tab$state, result = tab$result, code = page_code)
   })
 }
 

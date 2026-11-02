@@ -287,7 +287,8 @@ mod_attrition_server <- function(id, files, working, goto) {
           shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
         )
       },
-      code = function() {
+      # page_code：同一個函式也交給 app 的流程紀錄（pipeline_log_server()）
+      code = page_code <- function() {
         f <- code_files_from(files, 2L)
         uploaded <- length(files$keys()) >= 2
         pos <- picked()$pos
@@ -326,7 +327,7 @@ mod_attrition_server <- function(id, files, working, goto) {
     }, striped = TRUE, spacing = "s")
 
     # 這一頁的狀態（步驟分頁打 ✓ 用）
-    list(state = tab$state)
+    list(state = tab$state, result = tab$result, code = page_code)
   })
 }
 

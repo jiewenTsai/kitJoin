@@ -158,6 +158,8 @@ kit_download_server <- function(session, output, data_fn, filename_fn, run_label
         class = "kit-downloads",
         # 原文：下載 CSV | 下載 CSV.GZ | 下載 SAV
         disabled("\u4e0b\u8f09 CSV"), disabled("\u4e0b\u8f09 CSV.GZ"), disabled("\u4e0b\u8f09 SAV"),
+        # 原文：下載 DTA（Stata） | 下載 codebook
+        disabled("\u4e0b\u8f09 DTA\uff08Stata\uff09"), disabled("\u4e0b\u8f09 codebook"),
         shiny::tags$small(
           class = "kit-hint",
           # 原文：先按上方「 | 」，才能下載結果。
@@ -190,12 +192,22 @@ kit_download_server <- function(session, output, data_fn, filename_fn, run_label
       button("download_csvgz", "\u4e0b\u8f09 CSV.GZ", "csv.gz", write_kit_csv_gz, kit_btn_class("secondary")),
       # 原文：下載 SAV（SPSS）
       button("download_sav", "\u4e0b\u8f09 SAV\uff08SPSS\uff09", "sav", write_sav_notify, kit_btn_class("secondary")),
+      # 原文：下載 DTA（Stata）
+      button("download_dta", "\u4e0b\u8f09 DTA\uff08Stata\uff09", "dta", write_kit_dta, kit_btn_class("secondary")),
+      kit_download_button(
+        # 原文：下載 codebook
+        session, "download_codebook", "\u4e0b\u8f09 codebook",
+        sub("\\.csv$", "_codebook.csv", filename_fn("csv")),
+        function(file) write_kit_csv(codebook_table(df), file), kit_btn_class("secondary")
+      ),
       shiny::tags$small(
         class = "kit-hint",
         # 原文：CSV 的遺漏值為空白儲存格，可直接用 Excel 開啟。
         "CSV \u7684\u907a\u6f0f\u503c\u70ba\u7a7a\u767d\u5132\u5b58\u683c\uff0c\u53ef\u76f4\u63a5\u7528 Excel \u958b\u555f\u3002",
         # 原文：CSV.GZ 是壓縮過的 CSV，檔案較小，可直接上傳 kitsUI；Excel 不能直接開。
         "CSV.GZ \u662f\u58d3\u7e2e\u904e\u7684 CSV\uff0c\u6a94\u6848\u8f03\u5c0f\uff0c\u53ef\u76f4\u63a5\u4e0a\u50b3 kitsUI\uff1bExcel \u4e0d\u80fd\u76f4\u63a5\u958b\u3002",
+        # 原文：codebook 是資料字典：每個欄位一列，有變項標籤、數值標籤、遺漏值設定與有效筆數（CSV，Excel 可以開）。
+        "codebook \u662f\u8cc7\u6599\u5b57\u5178\uff1a\u6bcf\u500b\u6b04\u4f4d\u4e00\u5217\uff0c\u6709\u8b8a\u9805\u6a19\u7c64\u3001\u6578\u503c\u6a19\u7c64\u3001\u907a\u6f0f\u503c\u8a2d\u5b9a\u8207\u6709\u6548\u7b46\u6578\uff08CSV\uff0cExcel \u53ef\u4ee5\u958b\uff09\u3002",
         if (length(renamed) > 0) {
           paste0(
             # 原文：匯出 SAV 時，有  |  個欄名不符合 SPSS 規則，會自動改名：

@@ -1,11 +1,16 @@
-test_that("不支援的格式給白話錯誤（Excel 附另存說明）", {
+test_that("不支援的格式給白話錯誤", {
+  path <- withr::local_tempfile(fileext = ".txt")
+  writeLines("x", path)
+  expect_error(read_data_file(path, "data.txt"), "目前只支援", class = "kit_user_error")
+})
+
+test_that("損壞的 Excel、Stata 檔給白話錯誤", {
   path <- withr::local_tempfile(fileext = ".xlsx")
   writeLines("x", path)
-  expect_error(
-    read_data_file(path, "data.xlsx"),
-    "CSV UTF-8",
-    class = "kit_user_error"
-  )
+  expect_error(read_data_file(path, "data.xlsx"), "不是 Excel 檔", class = "kit_user_error")
+  path2 <- withr::local_tempfile(fileext = ".dta")
+  writeLines("x", path2)
+  expect_error(read_data_file(path2, "data.dta"), "不是 Stata 檔", class = "kit_user_error")
 })
 
 test_that("損壞的 SAV 給白話錯誤", {

@@ -38,10 +38,11 @@ test_that("沒裝的、版本太舊的要裝；夠新的不動（舊的 bslib �
   expect_identical(todo$why[2], "沒有安裝")
 })
 
-test_that("這個 app 自己的 DESCRIPTION 讀得出 bslib (>= 0.11.0)", {
+test_that("這個 app 自己的 DESCRIPTION 讀得出 kitDesign (>= 0.7.1)", {
   env <- launcher()
   desc <- testthat::test_path("..", "..", "DESCRIPTION")
   req <- env$read_requirements(desc)
-  expect_identical(req$min[req$pkg == "bslib"], "0.11.0")
+  # 0.7.7 起 bslib 不在 Imports（kitDesign 自己需要 bslib 0.11.0）
+  expect_identical(req$min[req$pkg == "kitDesign"], "0.7.1")
   expect_false(any(req$pkg %in% c("R", "stats", "utils", "tools")))
 })

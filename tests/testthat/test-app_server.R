@@ -384,3 +384,25 @@ test_that("③④ 有結果後重新執行 ②：結果清掉，預覽列數說�
     }
   })
 })
+
+test_that("流程紀錄記下每一頁的執行；串接的新選項、DTA 與 codebook 下載都在", {
+  dir <- withr::local_tempdir()
+  w1 <- write_wave(dir, "w1.csv", data.frame(pid = c("001", "002"), sex = c(1, 2), score = 1:2))
+  w2 <- write_wave(dir, "w2.csv", data.frame(pid = c("1", "2"), sex = c(1, 2), score = 3:4))
+
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = upload_df(c(w1, w2)))
+    expect_null(output[["log-log"]])
+    session$setInputs(
+      `join-by_vars` = "pid", `join-method` = "inner_join", `join-keys_as_text` = TRUE,
+      `join-id_normalize` = "zeros", `join-constant_cols` = "sex"
+    )
+    session$setInputs(`join-run` = 1)
+    expect_match(output[["join-status"]]$html, "前導零")
+    expect_match(output[["join-downloads"]]$html, "download_dta")
+    expect_match(output[["join-downloads"]]$html, "download_codebook")
+    expect_match(output[["log-log"]]$html, "1 個步驟")
+    session$setInputs(`stack-run` = 1)
+    expect_match(output[["log-log"]]$html, "2 個步驟")
+  })
+})

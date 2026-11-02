@@ -16,20 +16,44 @@ KIT_JOIN_MAX_CELLS <- 2e8
 #' @param id_cols 各檔自己的 ID 欄名（list，每個檔案一個字元向量，依序對應 by_vars）；
 #'   NULL 表示每個檔案都用 by_vars。各檔欄名不同時（w1_id、w2_id、w3id）
 #'   先改名成 by_vars 再比對。
+#' @param id_normalize ID 比對前的標準化（可複選）："zeros" 去掉前導零（001 和 1 是同一人）、
+#'   "case" 不分大小寫；有選時 ID 一律先轉成文字。不選時，標準化後能多配到人就提醒。
+#' @param constant_cols 不分波次的欄位（性別、生日…）：不加後綴，只留一欄，
+#'   取最早有值的那一波；各波的值不一樣時提醒
 #' @return list(result, audit, summary, people, warnings, notes)：summary 是狀態框裡的重點
 #'   （幾句話），people 是「各檔案的人數」小表
 #' @noRd
 join_waves <- function(dfs, file_names, wave_labels, by_vars,
                        method = "left_join", keys_as_text = TRUE,
-                       confirm_large = FALSE, id_cols = NULL) {
+                       confirm_large = FALSE, id_cols = NULL,
+                       id_normalize = character(0), constant_cols = character(0)) {
   method <- match.arg(method, unname(KIT_JOIN_METHODS))
   id_cols <- id_cols %||% rep(list(by_vars), length(dfs))
   check_join_inputs(dfs, file_names, wave_labels, by_vars, id_cols)
   names_shown <- file_display_name(wave_labels, file_names)
+  id_normalize <- intersect(id_normalize, c("zeros", "case"))
+  constant_cols <- setdiff(constant_cols, by_vars)
 
   notes <- id_rename_note(id_cols, by_vars, names_shown)
+  warnings <- character(0)
   dfs <- unify_id_names(dfs, id_cols, by_vars, names_shown)
   dfs <- clean_keys(dfs, by_vars)
+  if (length(id_normalize) > 0) {
+    dfs <- normalize_keys(dfs, by_vars, id_normalize)
+    notes <- c(notes, id_normalize_note(id_normalize))
+  } else {
+    gain <- id_normalize_gain(dfs, by_vars)
+    if (gain > 0) {
+      warnings <- c(warnings, paste0(
+        # 原文：有  |  個 ID 只差在前導零或大小寫（例如 1 和 001、a01 和 A01），
+        "\u6709 ", kit_num(gain), " \u500b ID \u53ea\u5dee\u5728\u524d\u5c0e\u96f6\u6216\u5927\u5c0f\u5beb\uff08\u4f8b\u5982 1 \u548c 001\u3001a01 \u548c A01\uff09\uff0c",
+        # 原文：照現在的設定會當成不同的人。如果是同一個人，到「進階設定」勾「ID 比對時去掉前導零」
+        "\u7167\u73fe\u5728\u7684\u8a2d\u5b9a\u6703\u7576\u6210\u4e0d\u540c\u7684\u4eba\u3002\u5982\u679c\u662f\u540c\u4e00\u500b\u4eba\uff0c\u5230\u300c\u9032\u968e\u8a2d\u5b9a\u300d\u52fe\u300cID \u6bd4\u5c0d\u6642\u53bb\u6389\u524d\u5c0e\u96f6\u300d",
+        # 原文：或「ID 比對時不分大小寫」再執行。
+        "\u6216\u300cID \u6bd4\u5c0d\u6642\u4e0d\u5206\u5927\u5c0f\u5beb\u300d\u518d\u57f7\u884c\u3002"
+      ))
+    }
+  }
   conflict <- key_type_conflict(dfs, by_vars, names_shown, id_cols)
   if (!is.null(conflict)) {
     if (!keys_as_text) {
@@ -70,14 +94,126 @@ join_waves <- function(dfs, file_names, wave_labels, by_vars,
   }
 
   stats <- join_stats(dfs, by_vars, method, result)
+  summary <- join_plain_summary(stats, names_shown, method, result)
+  # 核對（逐步合併的欄數）照加後綴的結果算；不分波次的欄位最後才合成一欄
+  if (length(constant_cols) > 0) {
+    merged <- merge_constant_cols(result, constant_cols, join_suffix(wave_labels), by_vars)
+    result <- merged$result
+    notes <- c(notes, merged$note)
+    warnings <- c(warnings, merged$warnings)
+  }
   list(
     result = result,
     audit = join_audit_tables(stats, steps, names_shown, method),
-    summary = join_plain_summary(stats, names_shown, method, result),
+    summary = summary,
     people = join_people_table(stats, names_shown, method),
-    warnings = dup_key_warnings(stats, names_shown),
+    warnings = c(dup_key_warnings(stats, names_shown), warnings),
     notes = notes
   )
+}
+
+#' ID 標準化：去掉前導零（"001" → "1"，"000" → "0"）、不分大小寫（一律大寫）
+#' @noRd
+normalize_id_text <- function(x, how) {
+  v <- as.vector(unclass(x))
+  if ("zeros" %in% how) v <- sub("^0+(?=[0-9A-Za-z])", "", v, perl = TRUE)
+  if ("case" %in% how) v <- toupper(v)
+  attributes(v) <- attributes(x)
+  v
+}
+
+#' 各檔的 ID 欄先轉成文字，再標準化
+#' @noRd
+normalize_keys <- function(dfs, by_vars, how) {
+  if (length(how) == 0) return(dfs)
+  purrr::map(keys_to_text(dfs, by_vars), function(df) {
+    for (col in by_vars) df[[col]] <- normalize_id_text(df[[col]], how)
+    df
+  })
+}
+
+#' 標準化說明（狀態框的附註）
+#' @noRd
+id_normalize_note <- function(how) {
+  # 原文：去掉前導零（001 和 1 當成同一人） | 不分大小寫（a01 和 A01 當成同一人）
+  what <- c(zeros = "\u53bb\u6389\u524d\u5c0e\u96f6\uff08001 \u548c 1 \u7576\u6210\u540c\u4e00\u4eba\uff09", case = "\u4e0d\u5206\u5927\u5c0f\u5beb\uff08a01 \u548c A01 \u7576\u6210\u540c\u4e00\u4eba\uff09")
+  paste0(
+    # 原文：ID 比對前已 | 、
+    "ID \u6bd4\u5c0d\u524d\u5df2", paste(what[how], collapse = "\u3001"),
+    # 原文：；結果裡的 ID 是標準化後的寫法
+    "\uff1b\u7d50\u679c\u88e1\u7684 ID \u662f\u6a19\u6e96\u5316\u5f8c\u7684\u5beb\u6cd5",
+    # 原文：（英文字母都是大寫） | 。
+    if ("case" %in% how) "\uff08\u82f1\u6587\u5b57\u6bcd\u90fd\u662f\u5927\u5beb\uff09", "\u3002"
+  )
+}
+
+#' 去掉前導零、不分大小寫以後，第 2 個以後的檔案能多配到第 1 個檔案幾個 ID
+#' @noRd
+id_normalize_gain <- function(dfs, by_vars) {
+  matched <- function(d) {
+    keys <- lapply(d, key_strings, by_vars = by_vars)
+    first <- unique(keys[[1]][!is.na(keys[[1]])])
+    sum(vapply(keys[-1], function(k) sum(unique(k[!is.na(k)]) %in% first), integer(1)))
+  }
+  tryCatch(
+    matched(normalize_keys(dfs, by_vars, c("zeros", "case"))) - matched(keys_to_text(dfs, by_vars)),
+    error = function(e) 0L
+  )
+}
+
+#' 不分波次的欄位合成一欄：取最早有值的那一波，放在 ID 欄後面；各波值不同時提醒
+#'
+#' @param suffixes 各波的欄名後綴（"_t1"…）
+#' @return list(result, note, warnings)
+#' @noRd
+merge_constant_cols <- function(df, cols, suffixes, by_vars) {
+  done <- character(0)
+  warnings <- character(0)
+  for (col in cols) {
+    wide <- paste0(col, suffixes)
+    wide <- wide[wide %in% names(df)]
+    if (length(wide) == 0 || col %in% setdiff(names(df), wide)) next
+    vals <- df[wide]
+    as_text <- !all(vapply(vals, is.numeric, logical(1)))
+    out <- vals[[1]]
+    if (as_text) out <- num_to_text(unclass(out)) else out <- as.vector(unclass(out))
+    for (w in wide[-1]) {
+      v <- if (as_text) num_to_text(unclass(vals[[w]])) else as.vector(unclass(vals[[w]]))
+      fill <- is.na(out) & !is.na(v)
+      out[fill] <- v[fill]
+    }
+    # 各波的值不一樣的人數（只算有值的波）
+    txt <- vapply(vals, function(v) num_to_text(unclass(v)), character(nrow(df)))
+    if (is.null(dim(txt))) txt <- matrix(txt, nrow = nrow(df))
+    differ <- apply(txt, 1, function(r) length(unique(r[!is.na(r)])) > 1)
+    if (any(differ)) {
+      warnings <- c(warnings, paste0(
+        # 原文：：有  |  人各波的值不一樣，結果取最早有值的那一波。
+        col, "\uff1a\u6709 ", kit_num(sum(differ)), " \u4eba\u5404\u6ce2\u7684\u503c\u4e0d\u4e00\u6a23\uff0c\u7d50\u679c\u53d6\u6700\u65e9\u6709\u503c\u7684\u90a3\u4e00\u6ce2\u3002"
+      ))
+    }
+    first <- vals[[1]]
+    if (!as_text && haven::is.labelled(first)) {
+      out <- haven::labelled(out, labels = attr(first, "labels", exact = TRUE))
+    }
+    attr(out, "label") <- attr(first, "label", exact = TRUE)
+    df[[col]] <- out
+    df <- df[, setdiff(names(df), wide), drop = FALSE]
+    done <- c(done, col)
+  }
+  if (length(done) > 0) {
+    keep <- intersect(by_vars, names(df))
+    df <- df[, c(keep, done, setdiff(names(df), c(keep, done))), drop = FALSE]
+  }
+  note <- if (length(done) > 0) {
+    paste0(
+      # 原文：不分波次的欄位只留一欄、不加後綴，取最早有值的那一波：
+      "\u4e0d\u5206\u6ce2\u6b21\u7684\u6b04\u4f4d\u53ea\u7559\u4e00\u6b04\u3001\u4e0d\u52a0\u5f8c\u7db4\uff0c\u53d6\u6700\u65e9\u6709\u503c\u7684\u90a3\u4e00\u6ce2\uff1a",
+      # 原文：、 | 。
+      paste(done, collapse = "\u3001"), "\u3002"
+    )
+  }
+  list(result = df, note = note, warnings = warnings)
 }
 
 #' 串接前檢查：檔案數、ID 欄位、波次名稱

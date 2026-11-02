@@ -10,18 +10,35 @@
 #' @param name 原始檔名（用來判斷副檔名）
 #' @param sav_encoding SAV 的編碼："auto"（依檔案標示，亂碼時改用 BIG5）、
 #'   "file"（只依檔案標示）或 "CP950"（一律用 BIG5）
+#' @param user_na SAV／DTA 的使用者自訂遺漏值（例如 99 = 拒答）：FALSE（預設）讀進來就是空白（NA）；
+#'   TRUE 保留原來的值與遺漏值設定（haven 的 labelled_spss），到「遺漏值處理」再決定要不要轉成空白，
+#'   匯出 SAV 時也會留著
 #' @return list(data, encoding, n_problems)；encoding 為 "UTF-8"、"BIG5"、
-#'   "Latin1"（可能是亂碼）或 NA（SAV 依檔案標示讀取）
+#'   "Latin1"（可能是亂碼）或 NA（SAV、Excel、Stata 依檔案標示讀取）
 #' @noRd
-read_data_file <- function(path, name, sav_encoding = "auto") {
+read_data_file <- function(path, name, sav_encoding = "auto", user_na = FALSE) {
   ext <- tolower(tools::file_ext(name))
   if (ext == "csv") {
     return(read_csv_auto(path))
   }
+  if (ext %in% c("xlsx", "xls")) {
+    return(read_excel_first(path, name))
+  }
+  if (ext == "dta") {
+    data <- tryCatch(
+      haven::read_dta(path),
+      error = function(e) {
+        # 原文：無法讀取  | ：檔案可能已損壞，或不是 Stata 檔。請用 Stata 開啟確認後重新存檔再上傳。
+        kit_abort("\u7121\u6cd5\u8b80\u53d6 ", name, "\uff1a\u6a94\u6848\u53ef\u80fd\u5df2\u640d\u58de\uff0c\u6216\u4e0d\u662f Stata \u6a94\u3002\u8acb\u7528 Stata \u958b\u555f\u78ba\u8a8d\u5f8c\u91cd\u65b0\u5b58\u6a94\u518d\u4e0a\u50b3\u3002")
+      }
+    )
+    if (!isTRUE(user_na)) data <- haven::zap_missing(data)
+    return(list(data = kit_fix_utf8_df(data), encoding = NA_character_, n_problems = 0L))
+  }
   if (ext %in% c("sav", "zsav")) {
     read_sav_as <- function(encoding) {
       tryCatch(
-        haven::read_sav(path, encoding = encoding),
+        haven::read_sav(path, encoding = encoding, user_na = isTRUE(user_na)),
         error = function(e) {
           kit_abort(
             # 原文：無法讀取  | ：檔案可能已損壞，或不是 SPSS 檔。
@@ -40,7 +57,8 @@ read_data_file <- function(path, name, sav_encoding = "auto") {
       data <- read_sav_as(NULL)
       if (!identical(sav_encoding, "file") &&
             looks_like_big5_mojibake(sav_text_sample(data))) {
-        alt <- tryCatch(haven::read_sav(path, encoding = "CP950"), error = function(e) NULL)
+        alt <- tryCatch(haven::read_sav(path, encoding = "CP950", user_na = isTRUE(user_na)),
+                        error = function(e) NULL)
         if (!is.null(alt) && looks_like_chinese(sav_text_sample(alt))) {
           data <- alt
           encoding <- "BIG5"
@@ -54,16 +72,109 @@ read_data_file <- function(path, name, sav_encoding = "auto") {
     ))
   }
   kit_abort(
-    # 原文：無法讀取  | ：目前只支援 CSV 與 SPSS（.sav）檔。
-    "\u7121\u6cd5\u8b80\u53d6 ", name, "\uff1a\u76ee\u524d\u53ea\u652f\u63f4 CSV \u8207 SPSS\uff08.sav\uff09\u6a94\u3002",
-    if (ext %in% c("xlsx", "xls")) {
-      # 原文：Excel 檔請先在 Excel 用「另存新檔 → CSV UTF-8（逗號分隔）」存成 CSV 再上傳。
-      "Excel \u6a94\u8acb\u5148\u5728 Excel \u7528\u300c\u53e6\u5b58\u65b0\u6a94 \u2192 CSV UTF-8\uff08\u9017\u865f\u5206\u9694\uff09\u300d\u5b58\u6210 CSV \u518d\u4e0a\u50b3\u3002"
-    } else if (ext == "gz") {
+    # 原文：無法讀取  | ：目前只支援 CSV、Excel（.xlsx）、SPSS（.sav）與 Stata（.dta）檔。
+    "\u7121\u6cd5\u8b80\u53d6 ", name, "\uff1a\u76ee\u524d\u53ea\u652f\u63f4 CSV\u3001Excel\uff08.xlsx\uff09\u3001SPSS\uff08.sav\uff09\u8207 Stata\uff08.dta\uff09\u6a94\u3002",
+    if (ext == "gz") {
       # 原文：壓縮過的 CSV（.csv.gz）請先到「檔案格式轉換」解壓縮成 .csv 再上傳。
       "\u58d3\u7e2e\u904e\u7684 CSV\uff08.csv.gz\uff09\u8acb\u5148\u5230\u300c\u6a94\u6848\u683c\u5f0f\u8f49\u63db\u300d\u89e3\u58d3\u7e2e\u6210 .csv \u518d\u4e0a\u50b3\u3002"
     }
   )
+}
+
+#' 讀 Excel 的第 1 個工作表（欄位型別以全部列判斷）
+#'
+#' 有好幾個工作表時只讀第 1 個，提醒使用者；第 1 列當欄名。
+#' @noRd
+read_excel_first <- function(path, name) {
+  sheets <- tryCatch(readxl::excel_sheets(path), error = function(e) {
+    # 原文：無法讀取  | ：檔案可能已損壞，或不是 Excel 檔。請用 Excel 開啟確認後重新存檔再上傳。
+    kit_abort("\u7121\u6cd5\u8b80\u53d6 ", name, "\uff1a\u6a94\u6848\u53ef\u80fd\u5df2\u640d\u58de\uff0c\u6216\u4e0d\u662f Excel \u6a94\u3002\u8acb\u7528 Excel \u958b\u555f\u78ba\u8a8d\u5f8c\u91cd\u65b0\u5b58\u6a94\u518d\u4e0a\u50b3\u3002")
+  })
+  data <- readxl::read_excel(path, sheet = 1, guess_max = 1e6, .name_repair = "unique_quiet")
+  list(
+    data = kit_fix_utf8_df(data),
+    encoding = NA_character_,
+    n_problems = 0L,
+    sheets = sheets
+  )
+}
+
+#' 匯出 Stata（.dta）：變項標籤、數值標籤、使用者自訂遺漏值都留著
+#'
+#' Stata 的欄名只能有英文字母、數字、底線，最多 32 個字元；不合的自動改名（和 SAV 一樣的規則再截短）。
+#' @noRd
+write_kit_dta <- function(df, file) {
+  df <- kit_fix_utf8_df(df)
+  names(df) <- dta_safe_names(names(df))
+  # Stata 的數值標籤只能掛在整數上；文字欄的數值標籤拿掉
+  for (col in names(df)) {
+    x <- df[[col]]
+    if (is.character(x) && !is.null(attr(x, "labels", exact = TRUE))) df[[col]] <- haven::zap_labels(x)
+  }
+  haven::write_dta(df, file, version = 15)
+  invisible(file)
+}
+
+#' Codebook（資料字典）：每個欄位一列
+#'
+#' 欄位、變項標籤、型別、數值標籤（「1 = 是；2 = 否」）、使用者自訂遺漏值、有效筆數、遺漏筆數、
+#' 不同的值有幾個、最小值、最大值。串接、疊加後的標籤都留著，所以可以拿來核對各波的設定。
+#' @noRd
+codebook_table <- function(df) {
+  rows <- lapply(names(df), function(col) {
+    x <- df[[col]]
+    labels <- attr(x, "labels", exact = TRUE)
+    na_values <- attr(x, "na_values", exact = TRUE)
+    na_range <- attr(x, "na_range", exact = TRUE)
+    raw <- if (haven::is.labelled(x)) as.vector(unclass(x)) else x
+    missing <- is.na(x)
+    num <- is.numeric(raw) && !inherits(x, c("Date", "POSIXt"))
+    # 原文：日期
+    type <- if (inherits(x, c("Date", "POSIXt"))) "\u65e5\u671f"
+            # 原文：數字 | 是非 | 文字
+            else if (num) "\u6578\u5b57" else if (is.logical(raw)) "\u662f\u975e" else "\u6587\u5b57"
+    tibble::tibble(
+      # 原文：欄位
+      "\u6b04\u4f4d" = col,
+      # 原文：變項標籤
+      "\u8b8a\u9805\u6a19\u7c64" = as.character(attr(x, "label", exact = TRUE) %||% ""),
+      # 原文：型別
+      "\u578b\u5225" = type,
+      # 原文：數值標籤
+      "\u6578\u503c\u6a19\u7c64" = if (length(labels) > 0) {
+        # 原文：；
+        paste(paste(num_to_text(unclass(labels)), "=", names(labels)), collapse = "\uff1b")
+      } else "",
+      # 原文：使用者自訂遺漏值
+      "\u4f7f\u7528\u8005\u81ea\u8a02\u907a\u6f0f\u503c" = paste(c(
+        # 原文：、
+        if (length(na_values) > 0) paste(num_to_text(na_values), collapse = "\u3001"),
+        # 原文：～
+        if (length(na_range) == 2) paste0(num_to_text(na_range[1]), "\uff5e", num_to_text(na_range[2]))
+      # 原文：、
+      ), collapse = "\u3001"),
+      # 原文：有效筆數
+      "\u6709\u6548\u7b46\u6578" = sum(!missing),
+      # 原文：遺漏筆數
+      "\u907a\u6f0f\u7b46\u6578" = sum(missing),
+      # 原文：不同的值
+      "\u4e0d\u540c\u7684\u503c" = length(unique(raw[!missing])),
+      # 原文：最小值
+      "\u6700\u5c0f\u503c" = if (num && any(!missing)) num_to_text(min(raw[!missing])) else "",
+      # 原文：最大值
+      "\u6700\u5927\u503c" = if (num && any(!missing)) num_to_text(max(raw[!missing])) else ""
+    )
+  })
+  dplyr::bind_rows(rows)
+}
+
+#' Stata 合法的欄名：英文字母或底線開頭，只有英數字與底線，最多 32 字元，不重複
+#' @noRd
+dta_safe_names <- function(cols) {
+  new <- gsub("[^A-Za-z0-9_]", "_", cols)
+  new <- ifelse(grepl("^[A-Za-z_]", new), new, paste0("v_", new))
+  new <- substr(new, 1, 32)
+  make.unique(new, sep = "_")
 }
 
 #' 空檔、只有表頭的檔給白話錯誤（① 上傳用；不要默默變成 0 列的資料）

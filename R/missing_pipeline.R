@@ -1,6 +1,11 @@
 #' 預設遺漏值代碼（以函式提供：套件模式下 load_backend 只匯入函式）
+#'
+#' @param preset "kit"（KIT 資料庫的代碼，預設）或 "general"（一般研究資料：沒有預設，自己填）；
+#'   代碼放在 constants.R 的 KIT_PRESETS
 #' @noRd
-kit_na_codes_default <- function() "7777, 8888, 9995, 9996, 9999"
+kit_na_codes_default <- function(preset = "kit") {
+  KIT_PRESETS[[preset]]$na_codes %||% KIT_PRESETS$kit$na_codes
+}
 
 #' 解析遺漏值代碼字串（半形／全形逗號、頓號、分號或空白分隔）
 #' @return list(codes = 數值向量, invalid = 無法解析的片段)
@@ -23,12 +28,14 @@ parse_na_codes <- function(text) {
 #' - 小寫字母後接大寫 ID / Id：studentID、childId
 #' - 常見縮寫：sid、pid、uid、hhid、stuid、caseid…
 #' - 中文：編號、學號、序號、流水號、識別碼
+#' - 一般研究資料常見的：participant、subject、PROLIFIC_PID、record_id…（KIT_PRESETS$general$id_names）
 #' 不會抓到 idea_score、valid、paid。
 #' @noRd
 guess_id_cols <- function(cols) {
   hit <- grepl("(^|[^A-Za-z])id(no)?($|[^A-Za-z])", cols, ignore.case = TRUE) |
     grepl("[a-z](ID|Id)$", cols) |
     grepl("^(s|p|u|c|hh|stu|subj|child|case|resp)id$", cols, ignore.case = TRUE) |
+    grepl(KIT_PRESETS$general$id_names, cols, ignore.case = TRUE) |
     # 原文：編號|學號|序號|流水號|識別碼
     grepl("\u7de8\u865f|\u5b78\u865f|\u5e8f\u865f|\u6d41\u6c34\u865f|\u8b58\u5225\u78bc", cols)
   cols[hit]
@@ -205,32 +212,34 @@ count_code_cells <- function(
 #' SAV 標籤欄會一併移除對應代碼的數值標籤。
 #'
 #' @param df 資料框
-#' @param codes 遺漏值代碼（數值向量）
+#' @param codes 遺漏值代碼（數值向量）：沒有列在 codes_by_col 的欄都用這一組
 #' @param exclude 不處理的欄位
 #' @param match_text 文字欄是否也比對（去除前後空白後完全相同）
+#' @param codes_by_col 各欄自己的代碼（具名 list：欄名 → 數值向量）；列在這裡的欄只用自己的代碼，
+#'   不套用 codes（給空的向量就是這一欄不處理）
 #' @return list(data, detail)；detail 每列一個有替換的欄位，各代碼筆數與合計
 #' @noRd
 replace_na_codes <- function(
     df,
     codes,
     exclude = character(),
-    match_text = FALSE) {
-  code_text <- format(
-    codes,
-    scientific = FALSE,
-    trim = TRUE,
-    drop0trailing = TRUE
-  )
+    match_text = FALSE,
+    codes_by_col = list()) {
+  as_code_text <- function(x) format(x, scientific = FALSE, trim = TRUE, drop0trailing = TRUE)
   target_cols <- setdiff(names(df), exclude)
   rows <- list()
+  all_codes <- character(0)
 
   for (col in target_cols) {
     x <- df[[col]]
+    col_codes <- if (col %in% names(codes_by_col)) codes_by_col[[col]] else codes
+    if (length(col_codes) == 0) next
+    code_text <- as_code_text(col_codes)
     if (is.numeric(x)) {
       val <- as.numeric(unclass(x))
-      hit <- !is.na(val) & val %in% codes
+      hit <- !is.na(val) & val %in% col_codes
       matched <- val[hit]
-      counts <- vapply(codes, function(cd) sum(matched == cd), integer(1))
+      counts <- vapply(col_codes, function(cd) sum(matched == cd), integer(1))
     } else if (match_text && is.character(x)) {
       val <- trimws(x)
       hit <- !is.na(val) & val %in% code_text
@@ -241,7 +250,7 @@ replace_na_codes <- function(
     }
     # 代碼的數值標籤一律移除（資料裡沒有這個代碼也一樣）
     old_labels <- attr(x, "labels", exact = TRUE)
-    x <- drop_value_labels(x, if (is.numeric(x)) codes else code_text)
+    x <- drop_value_labels(x, if (is.numeric(x)) col_codes else code_text)
     if (!any(hit)) {
       if (!identical(attr(x, "labels", exact = TRUE), old_labels)) df[[col]] <- x
       next
@@ -249,18 +258,98 @@ replace_na_codes <- function(
 
     x[hit] <- NA
     df[[col]] <- x
-    # 原文：合計
-    rows[[col]] <- c(stats::setNames(counts, code_text), "\u5408\u8a08" = sum(hit))
+    rows[[col]] <- stats::setNames(as.integer(counts), code_text)
+    all_codes <- union(all_codes, code_text)
   }
 
   detail <- if (length(rows) == 0) {
     NULL
   } else {
-    tibble::as_tibble(as.data.frame(do.call(rbind, rows), check.names = FALSE),
-                      # 原文：欄位
-                      rownames = "\u6b04\u4f4d")
+    # 各欄的代碼可能不同：沒有的代碼填 0；全域代碼排前面
+    shown <- c(intersect(as_code_text(codes), all_codes), setdiff(all_codes, as_code_text(codes)))
+    m <- t(vapply(rows, function(r) {
+      out <- stats::setNames(integer(length(shown)), shown)
+      out[names(r)] <- r
+      out
+    }, integer(length(shown))))
+    if (length(shown) == 1) m <- matrix(m, ncol = 1, dimnames = list(names(rows), shown))
+    tibble::as_tibble(
+      # 原文：合計
+      as.data.frame(cbind(m, "\u5408\u8a08" = rowSums(m)), check.names = FALSE),
+      # 原文：欄位
+      rownames = "\u6b04\u4f4d"
+    )
   }
   list(data = df, detail = detail)
+}
+
+#' 各欄自己的遺漏值代碼：每行「欄位: 代碼」，冒號、等號或 Tab 分隔
+#'
+#' 「q1, q2: 8, 9」可以一次設好幾欄；「age:」（沒有代碼）表示這一欄不處理。
+#' 從 Excel 複製兩欄（欄位、代碼）貼上也可以。
+#' @param cols 資料裡有的欄（NULL 不檢查）
+#' @return list(map = 具名 list（欄名 → 數值向量）, invalid = 看不懂的行, unknown = 資料裡沒有的欄)
+#' @noRd
+parse_na_codes_by_col <- function(text, cols = NULL) {
+  lines <- trimws(strsplit(text %||% "", "\r?\n")[[1]])
+  lines <- lines[nzchar(lines)]
+  map <- list()
+  invalid <- character(0)
+  for (line in lines) {
+    # 原文：[:：=\t]
+    parts <- strsplit(line, "[:\uff1a=\t]", perl = TRUE)[[1]]
+    if (length(parts) < 1 || length(parts) > 2) {
+      invalid <- c(invalid, line)
+      next
+    }
+    # 原文：[,，、;；]+
+    vars <- trimws(strsplit(parts[1], "[,\uff0c\u3001;\uff1b]+")[[1]])
+    vars <- vars[nzchar(vars)]
+    parsed <- parse_na_codes(if (length(parts) == 2) parts[2] else "")
+    if (length(vars) == 0 || length(parsed$invalid) > 0) {
+      invalid <- c(invalid, line)
+      next
+    }
+    for (v in vars) map[[v]] <- parsed$codes
+  }
+  unknown <- if (is.null(cols)) character(0) else setdiff(names(map), cols)
+  list(map = map, invalid = invalid, unknown = unknown)
+}
+
+#' SPSS 使用者自訂遺漏值（user-missing）改成 NA
+#'
+#' 只有讀檔時勾了「保留 SPSS 使用者自訂遺漏值」才會有（haven 的 labelled_spss）；
+#' 改完拿掉 na_values／na_range，數值標籤保留。
+#' @return list(data, detail)；detail：欄位、轉換的代碼、合計
+#' @noRd
+replace_user_na <- function(df, exclude = character(0)) {
+  rows <- list()
+  for (col in setdiff(names(df), exclude)) {
+    x <- df[[col]]
+    if (!inherits(x, "haven_labelled_spss")) next
+    user <- is.na(x) & !is.na(unclass(x))
+    vals <- unique(as.vector(unclass(x))[user])
+    df[[col]] <- haven::zap_missing(x)
+    if (any(user)) {
+      rows[[col]] <- tibble::tibble(
+        # 原文：欄位
+        "\u6b04\u4f4d" = col,
+        # 原文：轉換的代碼 | 、
+        "\u8f49\u63db\u7684\u4ee3\u78bc" = paste(num_to_text(sort(vals)), collapse = "\u3001"),
+        # 原文：合計
+        "\u5408\u8a08" = sum(user)
+      )
+    }
+  }
+  list(data = df, detail = if (length(rows) == 0) NULL else dplyr::bind_rows(rows))
+}
+
+#' 資料裡有沒有 SPSS 使用者自訂遺漏值（labelled_spss 欄）
+#' @noRd
+has_user_na <- function(dfs) {
+  any(purrr::map_lgl(dfs, function(df) {
+    any(vapply(df, inherits, logical(1), what = "haven_labelled_spss"))
+  }))
 }
 
 #' 依數值標籤把各欄的遺漏值代碼改為 NA（每欄只轉換自己標成遺漏的值）
