@@ -19,20 +19,30 @@ KITS_STEP1_LABELS <- c(
 # 每頁題目表的列數
 KITS_ITEMS_PAGE <- 25L
 
-#' 第 1 步每一格的預設值：猜得到的欄名（世代不猜）
+#' 第 1 步每一格的預設值：猜得到的欄名，或檔名裡的世代、時間點
+#'
+#' 世代：檔名裡的 M03、B85，或檔案裡的世代欄（cohort）；時間點：wave_m 欄、數字的波次欄
+#' （wave、time）、檔名裡的第二個 M12 或 W2、T3，或「檔案上傳」頁是數字的波次名稱。
+#' 只有一個檔案、又猜不到世代與時間點時（單一世代、單一波次的研究），世代填 S1、時間點填 0
+#' （只用來組列次編號），attr(, "single") 是 TRUE。
 #' @return 具名 list：欄 → 每個檔案一個值（猜不到是 ""）
 #' @noRd
 kits_step1_guess <- function(dfs, file_names = NULL, wave_labels = NULL) {
   n <- length(dfs)
   each <- kits_guess_per_file(dfs)
   common <- kits_guess_map(unique(unlist(purrr::map(dfs, names))))
-  # 世代：檔名裡像 M03、B85 的代碼（KIT 的 kit_M03_M12.csv → M03）；猜不到是空白
-  coh <- if (is.null(file_names)) rep("", n) else {
-    hit <- regmatches(file_names, regexpr("(?<![A-Za-z0-9])[MB][0-9]{2}(?![0-9])", file_names, perl = TRUE))
-    out_c <- rep("", n)
-    has <- grepl("(?<![A-Za-z0-9])[MB][0-9]{2}(?![0-9])", file_names, perl = TRUE)
-    out_c[has] <- hit
-    out_c
+  coh_re <- "(?<![A-Za-z0-9])[MB][0-9]{2}(?![0-9])"
+  # 世代：檔名裡像 M03、B85 的代碼（KIT 的 kit_M03_M12.csv → M03）；沒有時找世代欄
+  coh <- rep("", n)
+  if (!is.null(file_names)) {
+    has <- grepl(coh_re, file_names, perl = TRUE)
+    coh[has] <- regmatches(file_names, regexpr(coh_re, file_names, perl = TRUE))
+  }
+  for (i in seq_len(n)) {
+    if (nzchar(coh[i])) next
+    # 原文：^(cohort|世代)$
+    hit <- names(dfs[[i]])[grepl("^(cohort|\u4e16\u4ee3)$", names(dfs[[i]]), ignore.case = TRUE)]
+    if (length(hit) > 0) coh[i] <- hit[[1]]
   }
   out <- list(cohort = coh)
   for (field in c(KITS_STEP1_MAIN[-1], KITS_STEP1_MORE)) {
@@ -41,12 +51,37 @@ kits_step1_guess <- function(dfs, file_names = NULL, wave_labels = NULL) {
       vapply(dfs, function(df) if (nzchar(g) && g %in% names(df)) g else "", character(1))
     }
   }
+  # 時間點：數字的波次欄（wave、time…）
+  for (i in seq_len(n)) {
+    if (nzchar(out$wave_m[i])) next
+    cols <- names(dfs[[i]])
+    cand <- c(out$wave[i], cols[grepl("^(time|timepoint|occasion|wave_?no)$", cols, ignore.case = TRUE)])
+    cand <- cand[nzchar(cand) & cand %in% cols]
+    num <- cand[vapply(cand, function(x) is.numeric(dfs[[i]][[x]]), logical(1))]
+    if (length(num) > 0) out$wave_m[i] <- num[[1]]
+  }
   # 時間點：沒有 wave_m 欄時，用「檔案上傳」頁的波次名稱（是數字的話，例如 2009）
   if (!is.null(wave_labels) && length(wave_labels) == n) {
     num <- !is.na(suppressWarnings(as.numeric(wave_labels)))
     fill <- !nzchar(out$wave_m) & num
     out$wave_m[fill] <- wave_labels[fill]
   }
+  # 時間點：檔名裡世代以外的 M12、W2、T3（kit_M03_M12.csv → 12）
+  if (!is.null(file_names)) {
+    for (i in seq_len(n)) {
+      if (nzchar(out$wave_m[i])) next
+      name <- sub(coh_re, "", file_names[i], perl = TRUE)
+      tok <- regmatches(name, gregexpr("(?<![A-Za-z0-9])[MWTmwt][0-9]{1,3}(?![0-9])", name, perl = TRUE))[[1]]
+      if (length(tok) > 0) out$wave_m[i] <- kits_id_text(as.numeric(substring(utils::tail(tok, 1), 2)))
+    }
+  }
+  # 單一世代、單一波次：世代與時間點只用來組列次編號，先填好
+  single <- n == 1 && !nzchar(out$cohort) && !nzchar(out$wave_m) && !nzchar(out$wave)
+  if (single) {
+    out$cohort <- "S1"
+    out$wave_m <- "0"
+  }
+  attr(out, "single") <- single
   out
 }
 

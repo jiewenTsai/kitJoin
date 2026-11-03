@@ -1,3 +1,28 @@
+# kitJoin 0.9.0
+
+⑥ (kits response file) now accepts data that is not "one file per wave". Nothing changes for KIT
+files that already are.
+
+* **Data source.** ⑥ can use only some of the uploaded files (checkboxes at the top), or the result
+  of ④ (stack) as one file.
+* **Merged wide multi-wave files** (`soc01_t1`, `soc01_t2`…, also `w1q1`, `lana01_M12`): ⑥ detects
+  the wave suffix or prefix and offers "轉成一列一個波次". The wave tag goes to `wave_label` and its
+  number to `wave_m`; items lose the wave tag (`soc01`). Before, these files produced a silently
+  wrong response file (each wave a separate item, all in one time point). Without the conversion,
+  the build now warns about items that differ only by a wave tag.
+* **Long files with a text wave column** (`W1`, `t2`): one click takes the number as `wave_m`. The
+  error for a non-numeric `wave_m` now points to this (or to "波次標籤") instead of "自己填".
+* **Single cohort, single wave**: with one file and no cohort or wave information, step 1 fills
+  cohort `S1` and time point `0` (used only to build `visit_id`) and says so.
+* Better step-1 guesses: a `cohort` column, a numeric `wave`/`time` column as `wave_m`, the second
+  `M12` or a `W2`/`T3` in the file name as `wave_m`, and general ID names (participant, subject,
+  child…).
+* A 9, 98, 99 sitting above a small scale (for example 1–4 plus 9) is now a suspected missing code,
+  like 99 on a 1–5 scale already was: it is listed in the step-3 check and the conversion warning,
+  and +/− and reverse scoring no longer touch it (before, −1 turned it into a score of 8).
+* "用 R 怎麼做" includes the file selection, the ④ source and the conversions above, and gives the
+  same response file as the app.
+
 # kitJoin 0.8.0
 
 For ordinary psychology research data, not only KIT. KIT workflows keep their defaults; every new

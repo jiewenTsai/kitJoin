@@ -33,8 +33,10 @@ mod_kitsdata_ui <- function(id) {
         " ", kit_kitsui_link("\u958b\u555f kitsUI", kind = "secondary", class = "btn-sm")
       ),
       note = paste0(
-        # 原文：只要一個波次或一個領域時，請在「檔案上傳」只上傳那一個檔案。
-        "\u53ea\u8981\u4e00\u500b\u6ce2\u6b21\u6216\u4e00\u500b\u9818\u57df\u6642\uff0c\u8acb\u5728\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u53ea\u4e0a\u50b3\u90a3\u4e00\u500b\u6a94\u6848\u3002",
+        # 原文：上傳了好幾個檔案、只要其中幾個時，在這一頁上面勾要轉的檔案。
+        "\u4e0a\u50b3\u4e86\u597d\u5e7e\u500b\u6a94\u6848\u3001\u53ea\u8981\u5176\u4e2d\u5e7e\u500b\u6642\uff0c\u5728\u9019\u4e00\u9801\u4e0a\u9762\u52fe\u8981\u8f49\u7684\u6a94\u6848\u3002",
+        # 原文：已經合併好的多波寬檔（soc01_t1、soc01_t2…）、長檔、只有一次施測的資料也可以，這一頁會提示要怎麼做。
+        "\u5df2\u7d93\u5408\u4f75\u597d\u7684\u591a\u6ce2\u5bec\u6a94\uff08soc01_t1\u3001soc01_t2\u2026\uff09\u3001\u9577\u6a94\u3001\u53ea\u6709\u4e00\u6b21\u65bd\u6e2c\u7684\u8cc7\u6599\u4e5f\u53ef\u4ee5\uff0c\u9019\u4e00\u9801\u6703\u63d0\u793a\u8981\u600e\u9ebc\u505a\u3002",
         # 原文：沒有作答的題不會放進作答檔。
         "\u6c92\u6709\u4f5c\u7b54\u7684\u984c\u4e0d\u6703\u653e\u9032\u4f5c\u7b54\u6a94\u3002"
       ),
@@ -56,6 +58,8 @@ mod_kitsdata_ui <- function(id) {
       )
     ),
     shiny::uiOutput(ns("source_note")),
+    shiny::uiOutput(ns("source_ui")),
+    shiny::uiOutput(ns("shape_ui")),
     shiny::conditionalPanel(
       "output.has_files == 'yes'", ns = ns,
 
@@ -69,6 +73,7 @@ mod_kitsdata_ui <- function(id) {
                         # 原文：每一格可以選檔案裡的一欄，也可以直接打字填一個值（例如 2009）。
                         "\u6bcf\u4e00\u683c\u53ef\u4ee5\u9078\u6a94\u6848\u88e1\u7684\u4e00\u6b04\uff0c\u4e5f\u53ef\u4ee5\u76f4\u63a5\u6253\u5b57\u586b\u4e00\u500b\u503c\uff08\u4f8b\u5982 2009\uff09\u3002"),
           shiny::uiOutput(ns("files_table")),
+          shiny::uiOutput(ns("single_note")),
           # 原文：第一列的世代套用到每一列
           shiny::actionLink(ns("fill_cohort"), "\u7b2c\u4e00\u5217\u7684\u4e16\u4ee3\u5957\u7528\u5230\u6bcf\u4e00\u5217"),
           shiny::tags$div(
@@ -293,13 +298,163 @@ kitsdata_bulk_tools <- function(ns) {
 #' @param working mod_missing_server() 的回傳值
 #' @param goto function(tab) 切換分頁（到「遺漏值處理」）
 #' @param na_codes NULL 或 reactive：「遺漏值處理」的代碼清單（只用來找疑似遺漏值代碼）
+#' @param stack NULL 或 mod_stack_server() 的回傳值（可以改用 ④ 疊加的結果）
 #' @noRd
-mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
+mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
     codes_2 <- shiny::reactive(if (is.null(na_codes)) NULL else na_codes())
-    dfs <- shiny::reactive(working$data())
-    has_files <- shiny::reactive(length(files$keys()) > 0)
+
+    # 資料來源 ----
+    # 上傳的檔案（或 ② 處理後的版本；可以只用其中幾個），或 ④ 疊加的結果；
+    # 再套用這一頁的整理（多波寬檔轉成一列一個波次、波次欄取出數字）。
+    # 下面每一步都只看 data_src()：keys（整理過的檔案 key 會加上整理的種類，第 1 步的格子才會重新猜）、
+    # names、labels、dfs，以及 tf（每個檔案的整理，給「用 R 怎麼做」）
+    stack_res <- shiny::reactive(if (is.null(stack)) NULL else stack$result())
+    use_stack <- shiny::reactive(identical(input$source, "stack") && !is.null(stack_res()))
+    skip <- shiny::reactiveVal(character(0))   # 沒有勾的上傳檔案
+    shiny::observeEvent(input$use_files, {
+      skip(setdiff(files$keys(), input$use_files %||% character(0)))
+    }, ignoreNULL = FALSE, ignoreInit = TRUE)
+    base <- shiny::reactive({
+      if (use_stack()) {
+        # 原文：④ 疊加的結果
+        return(list(keys = "stack", names = "\u2463 \u758a\u52a0\u7684\u7d50\u679c", labels = "",
+                    dfs = list(stack_res()$result)))
+      }
+      keys <- files$keys()
+      on <- !keys %in% skip()
+      list(keys = keys[on], names = files$names()[on], labels = files$labels()[on],
+           dfs = working$data()[on], idx = which(on))
+    })
+    tf_on <- shiny::reactiveVal(list())   # key → "pivot" 或 "wave_num"
+    shiny::observeEvent(input$tf, {
+      t <- input$tf
+      on <- tf_on()
+      on[[t$key]] <- if (identical(t$kind, "off")) NULL else t$kind
+      tf_on(on)
+      if (identical(t$kind, "pivot")) {
+        det <- detect()[[match(t$key, base()$keys)]]$pivot
+        unit <- if (identical(tolower(det$token %||% ""), "m")) "month" else "index"
+        shiny::updateSelectInput(session, "wave_unit", selected = unit)
+      }
+    })
+    detect <- shiny::reactive(lapply(base()$dfs, function(df) list(
+      pivot = kits_detect_wave_suffix(names(df)), wave_num = kits_detect_wave_text(df)
+    )))
+    data_src <- shiny::reactive({
+      b <- base()
+      d <- detect()
+      on <- tf_on()
+      tf <- purrr::map2(b$keys, d, function(key, det) {
+        kind <- on[[key]]
+        if (is.null(kind) || is.null(det[[kind]])) return(NULL)
+        dt <- det[[kind]]
+        list(kind = kind, det = dt)
+      })
+      for (i in seq_along(tf)) {
+        t <- tf[[i]]
+        if (is.null(t)) next
+        if (t$kind == "pivot") tf[[i]]$det$zap_cols <- kits_wave_zap_cols(b$dfs[[i]], t$det)
+        b$dfs[[i]] <- kits_source_apply(b$dfs[[i]], t$kind, t$det)
+        b$keys[i] <- paste0(b$keys[i], "__", t$kind)
+      }
+      b$tf <- tf
+      b
+    })
+    src_keys <- shiny::reactive(data_src()$keys)
+    src_names <- shiny::reactive(data_src()$names)
+    dfs <- shiny::reactive(data_src()$dfs)
+    has_files <- shiny::reactive(length(src_keys()) > 0)
+    output$source_ui <- shiny::renderUI({
+      keys <- files$keys()
+      if (length(keys) == 0) return(NULL)
+      has_stack <- !is.null(stack_res())
+      shiny::tagList(
+        if (has_stack) shiny::radioButtons(
+          # 原文：資料來源
+          ns("source"), "\u8cc7\u6599\u4f86\u6e90",
+          # 原文：上傳的檔案 | ④ 直向波次疊加的結果（一個檔案）
+          choices = c("\u4e0a\u50b3\u7684\u6a94\u6848" = "files", "\u2463 \u76f4\u5411\u6ce2\u6b21\u758a\u52a0\u7684\u7d50\u679c\uff08\u4e00\u500b\u6a94\u6848\uff09" = "stack"),
+          selected = shiny::isolate(input$source) %||% "files", inline = TRUE
+        ),
+        if (length(keys) > 1 && !use_stack()) shiny::checkboxGroupInput(
+          # 原文：要轉的檔案
+          ns("use_files"), "\u8981\u8f49\u7684\u6a94\u6848", choiceNames = files$names(), choiceValues = keys,
+          selected = setdiff(keys, shiny::isolate(skip())), inline = TRUE
+        ),
+        if (length(keys) > 1 && !use_stack() && all(keys %in% skip())) shiny::tags$div(
+          class = "kit-callout kit-callout-warn",
+          # 原文：請至少勾一個檔案。
+          "\u8acb\u81f3\u5c11\u52fe\u4e00\u500b\u6a94\u6848\u3002"
+        )
+      )
+    })
+    # 多波寬檔、文字的波次欄：提醒，按一下就整理（再按一下還原）
+    output$shape_ui <- shiny::renderUI({
+      b <- base()
+      d <- detect()
+      on <- tf_on()
+      if (length(b$keys) == 0) return(NULL)
+      tf_btn <- function(key, kind, label, cls = "btn-sm btn-default") {
+        shiny::tags$button(
+          type = "button", class = paste("btn", cls),
+          onclick = sprintf("Shiny.setInputValue('%s', {key: %s, kind: '%s'}, {priority: 'event'})",
+                            ns("tf"), jsonlite::toJSON(key, auto_unbox = TRUE), kind),
+          label
+        )
+      }
+      out <- purrr::pmap(list(b$keys, b$names, d, b$dfs), function(key, name, det, df) {
+        kind <- on[[key]]
+        if (!is.null(kind) && !is.null(det[[kind]])) {
+          applied <- kits_source_apply(df, kind, det[[kind]])
+          return(shiny::tags$div(
+            class = "kit-callout",
+            shiny::tags$strong(name), "\uff1a",
+            if (kind == "pivot") paste0(
+              # 原文：已轉成一列一個孩子的一個波次（ |  → 
+              "\u5df2\u8f49\u6210\u4e00\u5217\u4e00\u500b\u5b69\u5b50\u7684\u4e00\u500b\u6ce2\u6b21\uff08", kit_dims(nrow(df), ncol(df)), " \u2192 ",
+              # 原文：）；波次記號在  |  欄，時間點在  |  欄。
+              kit_dims(nrow(applied), ncol(applied)), "\uff09\uff1b\u6ce2\u6b21\u8a18\u865f\u5728 ", det$pivot$label_col, " \u6b04\uff0c\u6642\u9593\u9ede\u5728 ", det$pivot$wave_col, " \u6b04\u3002"
+            ) else paste0(
+              # 原文：已從  |  欄取出數字，放在 wave_m 欄（ | 、 | ）。
+              "\u5df2\u5f9e ", det$wave_num$col, " \u6b04\u53d6\u51fa\u6578\u5b57\uff0c\u653e\u5728 wave_m \u6b04\uff08", paste(det$wave_num$examples, collapse = "\u3001"), "\uff09\u3002"
+            ),
+            " ",
+            # 原文：還原
+            tf_btn(key, "off", "\u9084\u539f", "btn-link btn-sm")
+          ))
+        }
+        if (!is.null(det$pivot)) {
+          p <- det$pivot
+          return(shiny::tags$div(
+            class = "kit-callout kit-callout-warn",
+            shiny::tags$strong(name),
+            # 原文：像是多波寬檔：同一題各波次一欄（ | 、 | …，
+            paste0("\u50cf\u662f\u591a\u6ce2\u5bec\u6a94\uff1a\u540c\u4e00\u984c\u5404\u6ce2\u6b21\u4e00\u6b04\uff08", paste(utils::head(p$cols, 2), collapse = "\u3001"), "\u2026\uff0c",
+                   # 原文：  個波次、 |  題）。這一頁要的是一列一個孩子的一個波次，不轉的話同一題各波次會被當成不同的題。
+                   length(p$waves), " \u500b\u6ce2\u6b21\u3001", p$n_stems, " \u984c\uff09\u3002\u9019\u4e00\u9801\u8981\u7684\u662f\u4e00\u5217\u4e00\u500b\u5b69\u5b50\u7684\u4e00\u500b\u6ce2\u6b21\uff0c\u4e0d\u8f49\u7684\u8a71\u540c\u4e00\u984c\u5404\u6ce2\u6b21\u6703\u88ab\u7576\u6210\u4e0d\u540c\u7684\u984c\u3002"),
+            " ",
+            # 原文：轉成一列一個波次
+            tf_btn(key, "pivot", "\u8f49\u6210\u4e00\u5217\u4e00\u500b\u6ce2\u6b21")
+          ))
+        }
+        if (!is.null(det$wave_num)) {
+          w <- det$wave_num
+          return(shiny::tags$div(
+            class = "kit-callout kit-callout-warn",
+            shiny::tags$strong(name),
+            # 原文：的波次欄  |  是文字，時間點（wave_m）要是數字。可以取出裡面的數字（ | 、 | ）。
+            paste0("\u7684\u6ce2\u6b21\u6b04 ", w$col, " \u662f\u6587\u5b57\uff0c\u6642\u9593\u9ede\uff08wave_m\uff09\u8981\u662f\u6578\u5b57\u3002\u53ef\u4ee5\u53d6\u51fa\u88e1\u9762\u7684\u6578\u5b57\uff08", paste(w$examples, collapse = "\u3001"), "\uff09\u3002"),
+            " ",
+            # 原文：取出數字當時間點
+            tf_btn(key, "wave_num", "\u53d6\u51fa\u6578\u5b57\u7576\u6642\u9593\u9ede")
+          ))
+        }
+        NULL
+      })
+      shiny::tagList(purrr::compact(out))
+    })
 
     # 步驟：現在打開哪一步（0 = 都收起來，轉換完成時），第 1、2 步按過「對，下一步」沒有
     open <- shiny::reactiveVal(1L)
@@ -308,12 +463,18 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     output$has_files <- shiny::renderText(if (has_files()) "yes" else "no")
     shiny::outputOptions(output, "open", suspendWhenHidden = FALSE)
     shiny::outputOptions(output, "has_files", suspendWhenHidden = FALSE)
-    # 換了檔案：從第 1 步重來
-    shiny::observeEvent(files$keys(), {
+    # 換了檔案（或資料來源、整理）：從第 1 步重來
+    last_keys <- shiny::reactiveVal(NULL)
+    shiny::observe({
+      k <- src_keys()
+      if (identical(k, shiny::isolate(last_keys()))) return()
+      first <- is.null(shiny::isolate(last_keys()))
+      last_keys(k)
+      if (first) return()
       ok$s1 <- FALSE
       ok$s2 <- FALSE
       open(1L)
-    }, ignoreInit = TRUE)
+    })
     # 「改」連結在標頭裡，標頭重畫時連結也重畫（值從 0 開始）：只有真的按了（> 0）才打開
     clicked <- function(x) isTRUE(x > 0)
     shiny::observeEvent(input$edit1, if (clicked(input$edit1)) open(1L))
@@ -321,7 +482,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     shiny::observeEvent(input$edit3, if (clicked(input$edit3) && ok$s1 && ok$s2) open(3L))
 
     output$source_note <- shiny::renderUI({
-      if (!has_files()) {
+      if (length(files$keys()) == 0) {
         return(shiny::tags$div(
           class = "kit-callout kit-callout-warn",
           # 原文：請先到「檔案上傳」加入寬格式的資料檔（一個或多個）。
@@ -352,10 +513,10 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     all_cols <- shiny::reactive(unique(unlist(purrr::map(dfs(), names))))
 
     # 第 1 步 ----
-    guess <- shiny::reactive(kits_step1_guess(dfs(), files$names(), files$labels()))
+    guess <- shiny::reactive(kits_step1_guess(dfs(), src_names(), data_src()$labels))
     cell_id <- function(field, key) paste0("cell_", field, "_", key)
     cells <- shiny::reactive({
-      keys <- files$keys()
+      keys <- src_keys()
       g <- guess()
       fields <- c(KITS_STEP1_MAIN, KITS_STEP1_MORE)
       stats::setNames(purrr::map(fields, function(field) {
@@ -365,7 +526,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         })
       }), fields)
     })
-    step1 <- shiny::reactive(kits_step1_spec(dfs(), files$names(), cells()))
+    step1 <- shiny::reactive(kits_step1_spec(dfs(), src_names(), cells()))
 
     # 一格：選檔案裡的一欄，或打字填一個值
     cell_input <- function(field, key, df, k, width = "11rem", fname = "") {
@@ -397,8 +558,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
                      `data-label` = KITS_STEP1_LABELS[[field]], box)
     }
     file_rows <- function(fields) {
-      keys <- files$keys()
-      purrr::pmap(list(keys, files$names(), dfs(), seq_along(keys)), function(key, name, df, k) {
+      keys <- src_keys()
+      purrr::pmap(list(keys, src_names(), dfs(), seq_along(keys)), function(key, name, df, k) {
         shiny::tags$tr(
           shiny::tags$td(shiny::tags$strong(name), shiny::tags$br(),
                          shiny::tags$small(class = "kit-hint", kit_dims(nrow(df), ncol(df)))),
@@ -423,6 +584,17 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     output$files_table <- shiny::renderUI({
       if (!has_files()) return(NULL)
       file_table(KITS_STEP1_MAIN)
+    })
+    # 單一世代、單一波次：世代與時間點先填好了
+    output$single_note <- shiny::renderUI({
+      if (!isTRUE(attr(guess(), "single"))) return(NULL)
+      shiny::tags$small(
+        class = "kit-hint",
+        # 原文：只有一個檔案、檔案裡沒有世代與波次：世代先填 S1、時間點先填 0。
+        "\u53ea\u6709\u4e00\u500b\u6a94\u6848\u3001\u6a94\u6848\u88e1\u6c92\u6709\u4e16\u4ee3\u8207\u6ce2\u6b21\uff1a\u4e16\u4ee3\u5148\u586b S1\u3001\u6642\u9593\u9ede\u5148\u586b 0\u3002",
+        # 原文：kitsUI 要這兩欄，這裡只用來組列次編號；只有一次施測的研究不用改，要改也可以。
+        "kitsUI \u8981\u9019\u5169\u6b04\uff0c\u9019\u88e1\u53ea\u7528\u4f86\u7d44\u5217\u6b21\u7de8\u865f\uff1b\u53ea\u6709\u4e00\u6b21\u65bd\u6e2c\u7684\u7814\u7a76\u4e0d\u7528\u6539\uff0c\u8981\u6539\u4e5f\u53ef\u4ee5\u3002"
+      )
     })
     output$more_table <- shiny::renderUI({
       if (!has_files()) return(NULL)
@@ -467,7 +639,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         shiny::showNotification("\u7b2c\u4e00\u5217\u7684\u4e16\u4ee3\u9084\u6c92\u6709\u586b\u3002", type = "warning")
         return()
       }
-      keys <- files$keys()
+      keys <- src_keys()
       for (k in seq_along(keys)[-1]) {
         shiny::updateSelectizeInput(session, cell_id("cohort", keys[k]),
                                     choices = c("", names(dfs()[[k]]), v), selected = v)
@@ -774,7 +946,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       cnt <- counts()
       s <- settings()
       rename <- kits_item_rename(items())
-      clash <- kits_rename_problems(dfs(), files$names(), items(), rename)
+      clash <- kits_rename_problems(dfs(), src_names(), items(), rename)
       up_line <- if (inherits(up, "error")) {
         # 原文：題目表讀不進來
         kit_check("todo", "\u984c\u76ee\u8868\u8b80\u4e0d\u9032\u4f86", conditionMessage(up))
@@ -803,7 +975,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       shiny::tagList(
         if (!is.null(up_line)) kit_checklist(up_line),
         kit_problems(clash, bullets = FALSE),
-        kitsdata_mixed_note(candidates()$mixed, files$names())
+        kitsdata_mixed_note(candidates()$mixed, src_names())
       )
     })
     output$items_list <- shiny::renderUI({
@@ -1083,7 +1255,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
     output$head1 <- shiny::renderUI(head_ui(
       # 原文：每個檔案是哪個世代、哪個波次
       1, "\u6bcf\u500b\u6a94\u6848\u662f\u54ea\u500b\u4e16\u4ee3\u3001\u54ea\u500b\u6ce2\u6b21",
-      kits_step1_summary(cells(), length(files$keys()), wave_unit(), step1())
+      kits_step1_summary(cells(), length(src_keys()), wave_unit(), step1())
     ))
     # 原文：哪些欄是題目
     output$head2 <- shiny::renderUI(head_ui(2, "\u54ea\u4e9b\u6b04\u662f\u984c\u76ee", counts()$pick_text))
@@ -1137,7 +1309,7 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
         problems <- step1()$problems
         # 原文：第 1 步還有問題：
         if (length(problems) > 0) return(kit_status("error", "\u7b2c 1 \u6b65\u9084\u6709\u554f\u984c\uff1a", warnings = problems))
-        out <- kits_build(dfs(), files$names(), spec())
+        out <- kits_build(dfs(), src_names(), spec())
         if (length(out$problems) > 0) {
           return(kit_status(
             "error",
@@ -1227,9 +1399,25 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL) {
       # page_code：同一個函式也交給 app 的流程紀錄（pipeline_log_server()）
       code = page_code <- function() {
         text_fix <- kits_text_fix(dfs(), items()$column)
+        s <- data_src()
+        if (use_stack()) {
+          f <- list(file = "stacked", wave = "stacked", obj = "stacked")
+          # 原文：# 先執行「直向波次疊加」的「用 R 怎麼做」，得到 stacked
+          read_lines <- "# \u5148\u57f7\u884c\u300c\u76f4\u5411\u6ce2\u6b21\u758a\u52a0\u300d\u7684\u300c\u7528 R \u600e\u9ebc\u505a\u300d\uff0c\u5f97\u5230 stacked"
+        } else {
+          f <- code_files_from(files)
+          if (length(s$idx) > 0 && length(s$idx) < length(f$file)) {
+            for (k in c("file", "wave", "cols", "encoding", "types")) {
+              if (!is.null(f[[k]])) f[[k]] <- f[[k]][s$idx]
+            }
+            f$obj <- paste0("data_", seq_along(f$file))
+          }
+          read_lines <- NULL
+        }
         list(tidy = code_kitsdata(
-          code_files_from(files), spec(), na_applied = identical(working$source(), "na"),
-          text_fix = text_fix
+          f, spec(), na_applied = identical(working$source(), "na"),
+          text_fix = text_fix, read_lines = read_lines,
+          source_lines = code_kitsdata_source(f$obj, s$tf)
         ), base = NULL)
       },
       code_note = KIT_CODE_NOTE_JOIN

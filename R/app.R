@@ -88,7 +88,8 @@ kit_server <- function(input, output, session) {
     # 打字時不要每個字都重算（約 1 秒）：停 0.8 秒再更新
     na_codes = shiny::debounce(shiny::reactive(
       parse_na_codes(input[["missing-codes"]] %||% kit_na_codes_default())$codes
-    ), 800)
+    ), 800),
+    stack = stack
   )
   reshape <- mod_reshape_server("reshape", files, working, goto)
   # ⑧ 和其他分頁無關：不收 files / working

@@ -9,9 +9,12 @@
 #' @param spec kits_spec()
 #' @param na_applied TRUE 時資料已經過「遺漏值處理」（加一行註解）
 #' @param text_fix NULL 或 kits_text_fix()：文字的題目欄（轉成數字、或這個檔案不轉）
+#' @param read_lines NULL（讀上傳的檔案）或取代讀檔的幾行（例如用 ④ 疊加的結果）
+#' @param source_lines NULL 或 code_kitsdata_source()：讀檔後的整理（多波寬檔轉成一列一個波次…）
 #' @return 字串
 #' @noRd
-code_kitsdata <- function(f, spec, na_applied = FALSE, text_fix = NULL) {
+code_kitsdata <- function(f, spec, na_applied = FALSE, text_fix = NULL, read_lines = NULL,
+                          source_lines = NULL) {
   # 自己填的值：每個檔案先 mutate() 成一欄（欄名就是 kits 的欄名），後面當成那一欄
   typed <- spec$typed %||% list()
   per_file <- spec$per_file %||% list()
@@ -33,7 +36,8 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, text_fix = NULL) {
     # 原文：library(haven)   # 讀 SAV
     if (any(tolower(tools::file_ext(f$file)) == "sav")) "library(haven)   # \u8b80 SAV", "",
     code_kitsdata_helpers(labels = identical(spec$value_labels, "label")), "",
-    grep("^data_.* <- read_", strsplit(code_read(f)$tidy, "\n")[[1]], value = TRUE),
+    read_lines %||% grep("^data_.* <- read_", strsplit(code_read(f)$tidy, "\n")[[1]], value = TRUE),
+    source_lines,
     if (na_applied) {
       # 原文：# 「遺漏值處理」已經把遺漏值代碼改成 NA；
       c("# \u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u5df2\u7d93\u628a\u907a\u6f0f\u503c\u4ee3\u78bc\u6539\u6210 NA\uff1b",

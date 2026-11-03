@@ -109,6 +109,11 @@ kits_guess_map <- function(cols) {
     if (length(hit) == 0) "" else hit[[1]]
   }
   ids <- setdiff(kits_guess_id(cols), cols[tolower(cols) == "visit_id"])
+  # 一般研究的編號欄名（participant、subject、PROLIFIC_PID…，以及 child、case）
+  if (length(ids) == 0) {
+    ids <- cols[grepl(KIT_PRESETS$general$id_names, cols, ignore.case = TRUE) |
+                  grepl("^(child|kid|case)(_?(id|no))?$", cols, ignore.case = TRUE)]
+  }
   subj <- intersect(c("subj_id", "release_id"), cols)
   list(
     visit_id = first("^visit_id$"),
@@ -439,6 +444,22 @@ kits_separated_codes <- function(vals) {
   sort(out)
 }
 
+#' 小量尺上、和分數隔開的 9、99、98 這類值（例如 1–4 分的題裡有 9）：疑似遺漏值代碼
+#'
+#' 分數最高不超過 7、最大的空隙之上只有 9 開頭的整數（9、98、99、999），而且離最高分至少 3。
+#' @noRd
+kits_small_scale_codes <- function(vals) {
+  vals <- sort(unique(vals[is.finite(vals)]))
+  if (length(vals) < 3) return(numeric(0))
+  cut <- which.max(diff(vals))
+  body <- vals[seq_len(cut)]
+  upper <- vals[-seq_len(cut)]
+  ok <- length(body) >= 2 && max(body) <= 7 && length(upper) <= 3 &&
+    all(upper == round(upper)) && all(grepl("^9+[0-9]?$", kits_id_text(upper))) &&
+    min(upper) >= max(body) + 3
+  if (ok) upper else numeric(0)
+}
+
 #' 一欄（所有檔案合起來）的遺漏值代碼與原因
 #'
 #' @param vals 觀察到的值（不含 NA）
@@ -463,6 +484,9 @@ kits_value_codes <- function(vals, labels = NULL, na_codes = NULL) {
   sep <- kits_separated_codes(vals[is.na(why)])
   # 原文：和分數分開
   why[is.na(why) & vals %in% sep] <- "\u548c\u5206\u6578\u5206\u958b"
+  small <- kits_small_scale_codes(vals[is.na(why)])
+  # 原文：和分數分開
+  why[is.na(why) & vals %in% small] <- "\u548c\u5206\u6578\u5206\u958b"
   keep <- !is.na(why)
   tibble::tibble(value = vals[keep], why = why[keep])
 }
@@ -1215,6 +1239,9 @@ kits_prepare <- function(dfs, file_names, spec, pivot_args = NULL) {
   notes <- c(notes, fixed$notes)
   warnings <- c(warnings, fixed$warnings)
 
+  # 多波寬檔沒有轉成一列一個波次：同一題各波次會變成不同的題
+  warnings <- c(warnings, kits_wave_suffix_warning(dfs, file_names, items))
+
   # 疑似遺漏值代碼（題目，以及性別、wave_m、age_m）：不改，照原樣輸出；提醒先到 ② 處理
   spec$items <- kits_items_with_codes(dfs, spec$items, spec$na_codes)
   warnings <- c(warnings, kits_codes_warning(dfs, spec$items))
@@ -1384,8 +1411,16 @@ kits_number_problems <- function(dfs, file_names, map, per_file = list()) {
         paste(utils::head(bad, 3), collapse = "\u300d\u300c"), "\u300d\uff09"
       )
       if (field == "wave_m") {
-        # 原文：。時間點要是數字，請回原檔改，或改用「自己填」。
-        problems <- c(problems, paste0(msg, "\u3002\u6642\u9593\u9ede\u8981\u662f\u6578\u5b57\uff0c\u8acb\u56de\u539f\u6a94\u6539\uff0c\u6216\u6539\u7528\u300c\u81ea\u5df1\u586b\u300d\u3002"))
+        num_in <- all(grepl("^[^0-9]*[0-9]+(\\.[0-9]+)?[^0-9]*$", bad))
+        problems <- c(problems, paste0(msg, if (num_in) {
+          # 原文：。時間點要是數字：請在這一頁最上面按「取出數字當時間點」（W1 → 1），
+          paste0("\u3002\u6642\u9593\u9ede\u8981\u662f\u6578\u5b57\uff1a\u8acb\u5728\u9019\u4e00\u9801\u6700\u4e0a\u9762\u6309\u300c\u53d6\u51fa\u6578\u5b57\u7576\u6642\u9593\u9ede\u300d\uff08W1 \u2192 1\uff09\uff0c",
+                 # 原文：或把這一欄選在「波次標籤」（在「還有…」裡），時間點另外選一個數字欄。
+                 "\u6216\u628a\u9019\u4e00\u6b04\u9078\u5728\u300c\u6ce2\u6b21\u6a19\u7c64\u300d\uff08\u5728\u300c\u9084\u6709\u2026\u300d\u88e1\uff09\uff0c\u6642\u9593\u9ede\u53e6\u5916\u9078\u4e00\u500b\u6578\u5b57\u6b04\u3002")
+        } else {
+          # 原文：。時間點要是數字：請回原檔改，或把這一欄選在「波次標籤」（在「還有…」裡），時間點另外選一個數字欄。
+          "\u3002\u6642\u9593\u9ede\u8981\u662f\u6578\u5b57\uff1a\u8acb\u56de\u539f\u6a94\u6539\uff0c\u6216\u628a\u9019\u4e00\u6b04\u9078\u5728\u300c\u6ce2\u6b21\u6a19\u7c64\u300d\uff08\u5728\u300c\u9084\u6709\u2026\u300d\u88e1\uff09\uff0c\u6642\u9593\u9ede\u53e6\u5916\u9078\u4e00\u500b\u6578\u5b57\u6b04\u3002"
+        }))
       } else {
         # 原文：，這些格的 age_m 會是空白。
         warnings <- c(warnings, paste0(msg, "\uff0c\u9019\u4e9b\u683c\u7684 age_m \u6703\u662f\u7a7a\u767d\u3002"))

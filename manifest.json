@@ -1785,7 +1785,7 @@
       "checksum": "d2a299d0cff64f653d470e7a44ef8d9b"
     },
     "DESCRIPTION": {
-      "checksum": "335abe711ece40eac7a2d92ea02d9984"
+      "checksum": "7aa38bd0fa6853c36756cd35f1d4b16f"
     },
     "inst/extdata/example_t1.csv": {
       "checksum": "86b287c755537d1155c134d0572929a5"
@@ -1803,13 +1803,13 @@
       "checksum": "12210821c1ef62c9965932db4c65c5da"
     },
     "NEWS.md": {
-      "checksum": "3f5f1bbea96f080f3746b75a398eded1"
+      "checksum": "25e172c7f061f74e1d7dc2147acf18a3"
     },
     "R/_disable_autoload.R": {
       "checksum": "9dad897ff481b6a729440efca3d65e6e"
     },
     "R/app.R": {
-      "checksum": "ab5a56acb9968353144752a578bedd29"
+      "checksum": "d7e195e49ec2c6ed606c30268ad942f5"
     },
     "R/attrition_pipeline.R": {
       "checksum": "3bcfc0549e07fc7e72ec48d0acd2089b"
@@ -1818,7 +1818,7 @@
       "checksum": "b99f2771a1d71848bde2f98fdc3af8a4"
     },
     "R/code_kitsdata.R": {
-      "checksum": "95e99bc33cc8c1b2ce2609e55d38603d"
+      "checksum": "ade88b0fc312a8fed8c2cfd9a9f39796"
     },
     "R/code_reshape.R": {
       "checksum": "7774ec138f5d9635f0d423fd0e2d3a40"
@@ -1839,10 +1839,13 @@
       "checksum": "f369effcfc2439e3bdf85b21feda9e04"
     },
     "R/kitsdata_pipeline.R": {
-      "checksum": "2df671803709a8f223439e9a16844547"
+      "checksum": "c40c93c63614886d93396322815ff212"
+    },
+    "R/kitsdata_source.R": {
+      "checksum": "b03af3d245d18c1d4bb41f16b27d6fc8"
     },
     "R/kitsdata_steps.R": {
-      "checksum": "e78bc45a42a36678963e8acabb621870"
+      "checksum": "b39bd32056d84b79631bb7871941f3a7"
     },
     "R/missing_pipeline.R": {
       "checksum": "f627c8ffc51fa7b52ea7699a2fcf6b78"
@@ -1857,7 +1860,7 @@
       "checksum": "4d1289ec23da4dbbcf0ab88288aee02c"
     },
     "R/mod_kitsdata.R": {
-      "checksum": "5e88658006b64ab96498278193e735f2"
+      "checksum": "2f23c9004b384fc0a8174173275e2e73"
     },
     "R/mod_missing.R": {
       "checksum": "73c08645c789d3dc9a0bce28b22e9a30"
@@ -1896,7 +1899,7 @@
       "checksum": "b5e65a08ff4385641df9048dda4056fb"
     },
     "README.md": {
-      "checksum": "eba330acd5feae061f6624604f24f432"
+      "checksum": "025258d42ca8c6c19fe5c1c28b116638"
     },
     "tools/escape_non_ascii.R": {
       "checksum": "b2673de0a3277a42ce8658d622845351"

@@ -127,9 +127,11 @@ test_that("A1：TDCYP 的 98、99 照原樣寫進作答檔並提醒到 ②；平
 test_that("A1：沒有「當成遺漏值」按鈕；舊設定檔的 missing_codes 欄略過；設定檔來回", {
   dfs <- list(tibble::tibble(id = 1:5, q1 = c(0, 1, 2, 9, 1), q2 = c(1, 2, 3, 99, 1)))
   s <- kits_item_settings(dfs, c("q1", "q2"))
-  expect_equal(nrow(s$codes[[1]]), 0)      # 0–2 加上 9：不確定，不算疑似代碼
-  expect_match(kits_settings_alerts(s)[1], "9 像遺漏值代碼：請先用「遺漏值處理」改成 NA，不要合併")
+  # 0–2 加上 9（0.8.1 起）：小量尺上和分數隔開的 9 是疑似代碼（不在計分對照裡，加減時不會動到）
+  expect_equal(s$codes[[1]]$value, 9)
+  expect_match(kits_settings_alerts(s)[1], "疑似遺漏值代碼 9（和分數分開）")
   expect_no_match(kits_settings_alerts(s)[1], "請用「合併」")
+  expect_equal(kits_bulk_shift(s, "q1", -1)$score[[1]], c(-1, 0, 1))
   expect_equal(s$codes[[2]]$value, 99)
   expect_false(exists("kits_bulk_codes", mode = "function"))
   expect_no_match(as.character(mod_kitsdata_ui("kitsdata")), "do_code|do_uncode|當成遺漏值（不輸出）|不是遺漏值代碼")
@@ -144,13 +146,14 @@ test_that("A1：沒有「當成遺漏值」按鈕；舊設定檔的 missing_code
   old <- ex
   old$missing_codes <- c("9", "99")
   back <- kits_settings_apply(fresh, kits_settings_import(old))
-  expect_equal(back$raw[[1]], c(0, 1, 2, 9))
+  expect_equal(back$raw[[1]], c(0, 1, 2))
   expect_equal(back$score[[2]], c(0, 1, 2))
   expect_equal(back$codes[[2]]$value, 99)   # 自動偵測照舊（只提醒）
 })
 
 test_that("A1：分數有缺而且最高的值像代碼時，提醒不要合併、先到 ②", {
-  dfs <- list(tibble::tibble(id = 1:4, q1 = c(0, 1, 9, 0), wave_m = 0))
+  # 0–7 加上 9：離最高分不夠遠，不算疑似代碼，但分數有缺、最高的值像代碼
+  dfs <- list(tibble::tibble(id = 1:9, q1 = c(0:7, 9), wave_m = 0))
   s <- kits_item_settings(dfs, "q1") |> kits_bulk_domain("q1", "a")
   map <- kits_guess_map(names(dfs[[1]]))
   map$subj_id <- "id"
@@ -199,10 +202,10 @@ test_that("A1：app 裡「遺漏值處理」的代碼清單只用來提醒；要
     kd_click(session, "ok1")
     kd_pick(session, "q", "a")
     kd_click(session, "ok2")
-    expect_match(kd_out(output, "items_table"), "q1 a 0 1 2 9 分數有缺")
+    expect_match(kd_out(output, "items_table"), "q1 a 0 1 2 代碼 9")    # 9：小量尺上和分數分開
     expect_match(kd_out(output, "items_table"), "q2 a 1 2 3 代碼 99")   # 99：和分數分開
     expect_equal(kd_check_state(output, "遺漏值代碼"), "todo")
-    expect_match(kd_out(output, "checks"), "1 欄有遺漏值代碼 99（共 1 格）")
+    expect_match(kd_out(output, "checks"), "2 欄有遺漏值代碼 9、99（共 2 格）")
     expect_match(output[["kitsdata-checks"]]$html, "kitsdata-goto_missing")
     session$setInputs(`missing-codes` = "9, 99")   # 「遺漏值處理」還沒執行：只拿來找代碼
     session$elapse(1000)   # 代碼清單停 0.8 秒才更新（debounce）
