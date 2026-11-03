@@ -197,3 +197,62 @@ kits_wave_suffix_warning <- function(dfs, file_names, items) {
   out <- out[!is.na(out)]
   if (length(out) == 0) NULL else out
 }
+
+#' 一波一檔、題目欄名帶著各檔的波次記號（w1.sav 裡是 soc01_w1，w2.sav 裡是 soc01_w2）
+#'
+#' 每個檔案裡的題目欄只有一種波次記號、各檔的記號不同，去掉記號後至少 2 題在 2 個以上的檔案
+#' 都有：這些欄的輸出題號預設成去掉記號的名字（soc01），同一題跨波次就是同一個題號。
+#' 一個檔案裡有好幾種記號的是多波寬檔（kits_detect_wave_suffix()），不在這裡處理。
+#' 只看結尾的記號：開頭的（TDCYP 的 w1d5_1、w2d5_1）各波問卷的題號不一定是同一題，
+#' 還是由使用者用「輸出題號：去掉欄名的一段」決定。
+#' @param file_cols 每個檔案的欄名（list）
+#' @return NULL，或 list(out（具名字元向量：欄名 → 去掉記號的題號）、tags（每個檔案的記號）、token、side)
+#' @noRd
+kits_detect_file_wave_tags <- function(file_cols) {
+  if (length(file_cols) < 2) return(NULL)
+  best <- NULL
+  for (side in "suffix") {
+    tokens <- KITS_WAVE_SUFFIX_TOKENS
+    for (token in tokens) {
+      tk <- kits_ci_regex(token)
+      pattern <- if (side == "suffix") paste0("^(.+)[_.](", tk, "[0-9]{1,3})$") else
+        paste0("^(", tk, "[0-9]{1,2})[_.]?(.+)$")
+      stem_i <- if (side == "suffix") 2 else 3
+      per_file <- lapply(file_cols, function(cols) {
+        hit <- cols[grepl(pattern, cols)]
+        if (length(hit) < 2) return(NULL)
+        parts <- regmatches(hit, regexec(pattern, hit))
+        tags <- tolower(vapply(parts, `[`, "", 5 - stem_i))
+        # 這個檔案大多數的欄是同一個記號（少數別的記號，例如上一波的年齡，不算）
+        top <- names(which.max(table(tags)))
+        keep <- tags == top
+        if (sum(keep) < 2) return(NULL)
+        list(tag = top, out = stats::setNames(vapply(parts[keep], `[`, "", stem_i), hit[keep]))
+      })
+      used <- !vapply(per_file, is.null, logical(1))
+      if (sum(used) < 2) next
+      tags <- vapply(per_file[used], `[[`, "", "tag")
+      if (anyDuplicated(tags)) next
+      stems <- unlist(lapply(per_file[used], function(p) unique(p$out)))
+      n_shared <- sum(table(stems) >= 2)
+      if (n_shared < 2) next
+      if (is.null(best) || n_shared > best$n_shared) {
+        file_tags <- rep(NA_character_, length(file_cols))
+        file_tags[used] <- tags
+        best <- list(out = unlist(lapply(per_file[used], `[[`, "out")), tags = file_tags,
+                     token = token, side = side, n_shared = n_shared)
+      }
+    }
+  }
+  best
+}
+
+#' 輸出題號還沒設的欄：套用 kits_detect_file_wave_tags() 的題號
+#' @noRd
+kits_wave_tag_out <- function(settings, tags) {
+  if (is.null(tags) || nrow(settings) == 0) return(settings)
+  if (is.null(settings[["item_id_out"]])) settings$item_id_out <- NA_character_
+  hit <- settings$column %in% names(tags$out) & is.na(settings$item_id_out)
+  settings$item_id_out[hit] <- unname(tags$out[settings$column[hit]])
+  settings
+}

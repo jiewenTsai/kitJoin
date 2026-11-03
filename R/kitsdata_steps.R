@@ -237,8 +237,8 @@ kits_step2_counts <- function(settings) {
 #' 用欄名挑：開頭是這些字的欄（可以寫好幾個，用頓號、逗號或空白隔開）
 #' @noRd
 kits_pick_cols <- function(cols, text) {
-  # 原文：[、,，;；\\s]+
-  pre <- trimws(strsplit(text %||% "", "[\u3001,\uff0c;\uff1b\\s]+")[[1]])
+  # 原文：[、,，;；[:space:]]+（[] 裡的 \\s 不是空白，是反斜線與 s）
+  pre <- trimws(strsplit(text %||% "", "[\u3001,\uff0c;\uff1b[:space:]]+")[[1]])
   pre <- pre[nzchar(pre)]
   if (length(pre) == 0) return(character(0))
   cols[Reduce(`|`, lapply(pre, function(p) startsWith(tolower(cols), tolower(p))))]
@@ -645,7 +645,10 @@ kits_item_groups <- function(settings, dfs) {
   like <- kits_group_like(settings$raw)
   s <- settings[like, ]
   if (nrow(s) == 0) return(empty)
-  stem <- kits_col_stems(s$column)
+  # 組名用輸出題號算：各波欄名不同、輸出題號相同的題（soc01_w1、soc01_w2 → soc01）放在同一組
+  ids <- s$column
+  if (!is.null(s[["item_id_out"]])) ids <- ifelse(is.na(s$item_id_out), s$column, s$item_id_out)
+  stem <- kits_col_stems(ids)
   labels <- kits_col_labels(dfs, s$column)
   idx <- split(seq_len(nrow(s)), factor(stem, levels = unique(stem)))
   tibble::tibble(

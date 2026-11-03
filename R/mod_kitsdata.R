@@ -692,6 +692,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
            mixed = a$mixed[!a$mixed$column %in% m, ])
     })
     reverse_rule <- shiny::reactive(input$reverse_rule %||% "suffix")
+    # 一波一檔、欄名帶著各檔的波次記號（soc01_w1、soc01_w2）：輸出題號預設去掉記號
+    file_tags <- shiny::reactive(kits_detect_file_wave_tags(lapply(dfs(), names)))
     shiny::observe({
       a <- all_settings()
       new <- a[a$column %in% candidates()$numeric, ]
@@ -701,7 +703,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
           identical(new$codes, old$codes)) return()
       up <- shiny::isolate(upload())
       if (inherits(up, "error")) up <- NULL
-      settings(kits_settings_sync(old, new, up, shiny::isolate(reverse_rule())))
+      settings(kits_wave_tag_out(kits_settings_sync(old, new, up, shiny::isolate(reverse_rule())),
+                                 shiny::isolate(file_tags())))
     })
     # 換規則：拿掉用舊規則從原題來的領域，再用新規則套一次題目表
     shiny::observeEvent(input$reverse_rule, {
@@ -741,7 +744,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
         )),
         shiny::tags$p(class = "kit-hint",
           # 原文：下面是看起來像題目的欄（分數是 0–20 的整數），欄名開頭一樣的放在一組。勾選要轉的組。
-          "\u4e0b\u9762\u662f\u770b\u8d77\u4f86\u50cf\u984c\u76ee\u7684\u6b04\uff08\u5206\u6578\u662f 0\u201320 \u7684\u6574\u6578\uff09\uff0c\u6b04\u540d\u958b\u982d\u4e00\u6a23\u7684\u653e\u5728\u4e00\u7d44\u3002\u52fe\u9078\u8981\u8f49\u7684\u7d44\u3002")
+          "\u4e0b\u9762\u662f\u770b\u8d77\u4f86\u50cf\u984c\u76ee\u7684\u6b04\uff08\u5206\u6578\u662f 0\u201320 \u7684\u6574\u6578\uff09\uff0c\u6b04\u540d\u958b\u982d\u4e00\u6a23\u7684\u653e\u5728\u4e00\u7d44\u3002\u52fe\u9078\u8981\u8f49\u7684\u7d44\u3002"),
+        kitsdata_tags_note(file_tags(), src_names())
       )
     })
 
@@ -1439,6 +1443,27 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
     # 這一頁的狀態（步驟分頁打 ✓ 用）
     list(state = tab$state, result = tab$result, code = page_code)
   })
+}
+
+#' 各檔欄名帶著波次記號：輸出題號已經去掉記號
+#' @noRd
+kitsdata_tags_note <- function(tags, file_names) {
+  if (is.null(tags)) return(NULL)
+  on <- !is.na(tags$tags)
+  ex <- names(tags$out)[1]
+  shiny::tags$div(
+    class = "kit-callout",
+    paste0(
+      # 原文：、 |  的題目欄名帶著各檔的波次（ | 、 | ）：
+      paste(file_names[on], collapse = "\u3001"), " \u7684\u984c\u76ee\u6b04\u540d\u5e36\u8457\u5404\u6a94\u7684\u6ce2\u6b21\uff08",
+      paste(tags$tags[on], collapse = "\u3001"), "\uff09\uff1a",
+      # 原文：輸出題號已經去掉波次（ |  → | ），同一題各波次是同一個題號、放在同一組。
+      "\u8f38\u51fa\u984c\u865f\u5df2\u7d93\u53bb\u6389\u6ce2\u6b21\uff08", ex, " \u2192 ", tags$out[[1]],
+      "\uff09\uff0c\u540c\u4e00\u984c\u5404\u6ce2\u6b21\u662f\u540c\u4e00\u500b\u984c\u865f\u3001\u653e\u5728\u540c\u4e00\u7d44\u3002",
+      # 原文：要用原本的欄名，在第 3 步的題目表選「輸出題號：還原成欄名」。
+      "\u8981\u7528\u539f\u672c\u7684\u6b04\u540d\uff0c\u5728\u7b2c 3 \u6b65\u7684\u984c\u76ee\u8868\u9078\u300c\u8f38\u51fa\u984c\u865f\uff1a\u9084\u539f\u6210\u6b04\u540d\u300d\u3002"
+    )
+  )
 }
 
 #' 在某些檔案是文字的題目欄：哪個檔案、哪一欄（那個檔案的這一題不轉）

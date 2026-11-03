@@ -1,3 +1,14 @@
+# kitJoin 0.9.1
+
+* ⑥ One file per wave whose item names carry that file's wave at the end (`socC20_w1` in
+  `w1.sav`, `socC20_w2` in `w2.sav`…): the output item ID now drops the wave tag (`socC20`), so the
+  same item across waves is one item and one group in step 2. Before, 10 items × 3 waves showed as
+  30 separate items. A note in step 2 says so; "輸出題號：還原成欄名" undoes it. Wave tags at the
+  start (TDCYP's `w1d5_1`) are still left to "輸出題號：去掉欄名的一段", because the same code in
+  different waves' questionnaires is not always the same item.
+* ⑥ "用欄名挑" ignored any prefix containing the letter s (`soc`, `sdq`): the separator pattern
+  treated `\s` inside `[]` as a literal backslash and s. Fixed.
+
 # kitJoin 0.9.0
 
 ⑥ (kits response file) now accepts data that is not "one file per wave". Nothing changes for KIT

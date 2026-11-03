@@ -196,3 +196,52 @@ test_that("app：用 ④ 疊加的結果；文字的波次欄取出數字當時�
     expect_match(kitsdata$code()$tidy, "stacked", fixed = TRUE)
   })
 })
+
+test_that("一波一檔、欄名帶著各檔的波次（socC20_w1、socC20_w2）：輸出題號去掉波次、放在同一組", {
+  cols <- list(c("id", "socC20_w1", "socC21_w1", "socB17_w1", "age_w1"),
+               c("id", "socC20_w2", "socC21_w2", "socB17_w2", "age_w1"),
+               c("id", "socC20_w3", "socC21_w3", "socB17_w3"))
+  t <- kits_detect_file_wave_tags(cols)
+  expect_equal(t$tags, c("w1", "w2", "w3"))
+  expect_equal(unname(t$out[c("socC20_w1", "socC20_w3", "age_w1")]), c("socC20", "socC20", "age"))
+  expect_null(kits_detect_file_wave_tags(cols[1]))
+  expect_null(kits_detect_file_wave_tags(list(c("id", "lana01", "lana02"), c("id", "lana01", "lana02"))))
+  # 同一個記號出現在兩個檔案（例如兩個世代的 w1）：不是各檔一波
+  expect_null(kits_detect_file_wave_tags(list(c("a_w1", "b_w1"), c("a_w1", "b_w1"))))
+  # 開頭的記號（TDCYP 的 w1d5_1、w2d5_1）不自動去掉
+  expect_null(kits_detect_file_wave_tags(list(c("w1d5_1", "w1d5_2"), c("w2d5_1", "w2d5_2"))))
+})
+
+test_that("app：三個檔案各一波、欄名帶 _w1 _w2 _w3：一組三波、作答檔的題號相同；程式碼結果相同", {
+  dir <- withr::local_tempdir()
+  for (k in 1:3) {
+    df <- tibble::tibble(id = 1:3, a = c(0, 1, 2), b = c(1, 2, 0), c = c(2, 0, 1))
+    names(df)[-1] <- paste0("socC2", 0:2, "_w", k)
+    readr::write_csv(df, file.path(dir, paste0("w", k, ".csv")))
+  }
+  shiny::testServer(kit_server, {
+    session$setInputs(`upload-files` = kd_upload(file.path(dir, paste0("w", 1:3, ".csv"))))
+    kd_cells(session, "cohort", c("A", "A", "A"))
+    kd_cells(session, "wave_m", c("1", "2", "3"))
+    kd_cells(session, "subj_id", c("id", "id", "id"))
+    kd_click(session, "ok1")
+    expect_match(kd_out(output, "intro2"), "socC20_w1 → socC20")
+    g <- kd_out(output, "groups_table")
+    expect_match(g, "9 欄")   # 一組 9 欄（3 題 × 3 波）
+    kd_pick(session, "soc", "soc")
+    kd_click(session, "ok2")
+    kd_click(session, "run")
+    expect_match(kd_out(output, "status"), "完成")
+    kd_code_same(session, kitsdata, dir)
+    long <- readr::read_csv(kit_test_download_file(session, "kitsdata-download_csv"),
+                            col_types = "ccccddcic")
+    expect_setequal(long$item_id, c("socC20", "socC21", "socC22"))
+    expect_equal(nrow(long), 27)
+  })
+})
+
+test_that("用欄名挑：開頭有 s 的也找得到（以前 s 被當成分隔符號）", {
+  expect_equal(kits_pick_cols(c("socC20_w1", "id", "sex"), "soc"), "socC20_w1")
+  expect_equal(kits_pick_cols(c("socC20_w1", "sdq1", "id"), "soc、sdq"), c("socC20_w1", "sdq1"))
+  expect_equal(kits_pick_cols(c("a1", "b1"), "a b"), c("a1", "b1"))
+})
