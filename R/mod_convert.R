@@ -57,7 +57,8 @@ mod_convert_ui <- function(id) {
       )
     ),
     shiny::uiOutput(ns("target_ui")),
-    gate = FALSE, result = TRUE, downloads = FALSE, details = FALSE, code = FALSE
+    shiny::uiOutput(ns("dict_ui")),
+    gate = FALSE, result = TRUE, downloads = FALSE, details = FALSE, code = TRUE
   )
 }
 
@@ -97,15 +98,47 @@ mod_convert_server <- function(id) {
             shiny::checkboxInput(ns("labels_as_text"), "\u6578\u503c\u6a19\u7c64\u8f49\u6210\u6587\u5b57\uff08\u4f8b\u5982 1 \u2192 \u7537\uff09"),
             shiny::tags$small(
               class = "kit-hint",
-              # 原文：CSV 不會保留 SPSS 的變項標籤與數值標籤；不勾選時寫出代碼（1、2…）。
-              "CSV \u4e0d\u6703\u4fdd\u7559 SPSS \u7684\u8b8a\u9805\u6a19\u7c64\u8207\u6578\u503c\u6a19\u7c64\uff1b\u4e0d\u52fe\u9078\u6642\u5beb\u51fa\u4ee3\u78bc\uff081\u30012\u2026\uff09\u3002",
-              # 原文：SPSS 自訂遺漏值會變成空白。
-              "SPSS \u81ea\u8a02\u907a\u6f0f\u503c\u6703\u8b8a\u6210\u7a7a\u767d\u3002"
+              # 原文：不勾選時資料檔寫出代碼（1、2…）；SPSS 自訂遺漏值會變成空白。
+              "\u4e0d\u52fe\u9078\u6642\u8cc7\u6599\u6a94\u5beb\u51fa\u4ee3\u78bc\uff081\u30012\u2026\uff09\uff1bSPSS \u81ea\u8a02\u907a\u6f0f\u503c\u6703\u8b8a\u6210\u7a7a\u767d\u3002",
+              # 原文：另外會輸出一個變項檔（_variables.csv，labelled::generate_dictionary() 的格式），
+              "\u53e6\u5916\u6703\u8f38\u51fa\u4e00\u500b\u8b8a\u9805\u6a94\uff08_variables.csv\uff0clabelled::generate_dictionary() \u7684\u683c\u5f0f\uff09\uff0c",
+              # 原文：記下變項標籤、數值標籤與自訂遺漏值；之後要轉回 SAV，把它和資料檔一起上傳就能貼回去。
+              "\u8a18\u4e0b\u8b8a\u9805\u6a19\u7c64\u3001\u6578\u503c\u6a19\u7c64\u8207\u81ea\u8a02\u907a\u6f0f\u503c\uff1b\u4e4b\u5f8c\u8981\u8f49\u56de SAV\uff0c\u628a\u5b83\u548c\u8cc7\u6599\u6a94\u4e00\u8d77\u4e0a\u50b3\u5c31\u80fd\u8cbc\u56de\u53bb\u3002"
             )
           )
         }
       )
     })
+
+    # CSV 轉 SAV：可以附上變項檔，把標籤貼回去
+    to_sav <- shiny::reactive(isTRUE(kind() %in% c("csv", "csv.gz")) && identical(input$target, "sav"))
+    output$dict_ui <- shiny::renderUI({
+      if (!to_sav()) return(NULL)
+      kit_callout(
+        shiny::fileInput(
+          ns("dict"),
+          # 原文：變項檔（選填）
+          "\u8b8a\u9805\u6a94\uff08\u9078\u586b\uff09",
+          multiple = FALSE, accept = ".csv",
+          # 原文：選擇變項檔…
+          buttonLabel = "\u9078\u64c7\u8b8a\u9805\u6a94\u2026",
+          # 原文：沒有：寫出的 SAV 沒有標籤
+          placeholder = "\u6c92\u6709\uff1a\u5beb\u51fa\u7684 SAV \u6c92\u6709\u6a19\u7c64",
+          width = "100%"
+        ),
+        shiny::tags$small(
+          class = "kit-hint",
+          # 原文：SAV 轉 CSV 時輸出的 _variables.csv（labelled::generate_dictionary() 的格式），
+          "SAV \u8f49 CSV \u6642\u8f38\u51fa\u7684 _variables.csv\uff08labelled::generate_dictionary() \u7684\u683c\u5f0f\uff09\uff0c",
+          # 原文：或其他分頁下載的 codebook。依欄名貼回變項標籤、數值標籤與自訂遺漏值。
+          "\u6216\u5176\u4ed6\u5206\u9801\u4e0b\u8f09\u7684 codebook\u3002\u4f9d\u6b04\u540d\u8cbc\u56de\u8b8a\u9805\u6a19\u7c64\u3001\u6578\u503c\u6a19\u7c64\u8207\u81ea\u8a02\u907a\u6f0f\u503c\u3002"
+        )
+      )
+    })
+    use_dict <- function() {
+      if (!to_sav() || is.null(input$dict)) return(NULL)
+      list(path = input$dict$datapath, name = input$dict$name)
+    }
 
     tab <- kit_run_tab_server(
       # 原文：開始轉換
@@ -118,10 +151,12 @@ mod_convert_server <- function(id) {
           # 原文： → 
           input$file$name, " \u2192 ", toupper(input$target),
           # 原文：（數值標籤轉成文字）
-          if (identical(kind(), "sav") && isTRUE(input$labels_as_text)) "\uff08\u6578\u503c\u6a19\u7c64\u8f49\u6210\u6587\u5b57\uff09"
+          if (identical(kind(), "sav") && isTRUE(input$labels_as_text)) "\uff08\u6578\u503c\u6a19\u7c64\u8f49\u6210\u6587\u5b57\uff09",
+          # 原文：（標籤來自  | ）
+          if (!is.null(use_dict())) paste0("\uff08\u6a19\u7c64\u4f86\u81ea ", input$dict$name, "\uff09")
         )
       },
-      stale_on = function() list(input$file, input$target, input$labels_as_text),
+      stale_on = function() list(input$file, input$target, input$labels_as_text, input$dict),
       # 還沒選檔案：按鈕一直能按，所以在這裡說
       guard = function() {
         # 原文：請先按「選擇檔案…」選一個要轉換的檔案。
@@ -132,7 +167,8 @@ mod_convert_server <- function(id) {
       run = function() {
         convert_file(
           input$file$datapath, input$file$name, input$target, new_run_dir(),
-          labels_as_text = isTRUE(input$labels_as_text)
+          labels_as_text = isTRUE(input$labels_as_text),
+          dict = use_dict()
         )
       },
       done = function(res) {
@@ -141,6 +177,13 @@ mod_convert_server <- function(id) {
       },
       # 原文：轉換
       error = function(e) kit_error_status(e, "\u8f49\u63db"),
+      code = function() {
+        if (is.null(input$file)) return(NULL)
+        code_convert(
+          input$file$name, input$target %||% "", isTRUE(input$labels_as_text),
+          dict_name = use_dict()$name
+        )
+      },
       result_ui = function(res) {
         shiny::tagList(
           shiny::tags$div(
@@ -154,7 +197,15 @@ mod_convert_server <- function(id) {
               session, "download_file", paste0("\u4e0b\u8f09 ", res$out_name), res$out_name,
               function(file) file.copy(res$out_path, file, overwrite = TRUE),
               class = kit_btn_class("secondary")
-            )
+            ),
+            if (!is.null(res$dict_path)) {
+              kit_download_button(
+                # 原文：下載 
+                session, "download_dict", paste0("\u4e0b\u8f09 ", res$dict_name), res$dict_name,
+                function(file) file.copy(res$dict_path, file, overwrite = TRUE),
+                class = kit_btn_class("secondary")
+              )
+            }
           )
         )
       }

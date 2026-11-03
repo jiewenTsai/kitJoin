@@ -1,3 +1,18 @@
+# kitJoin 0.10.0
+
+* ⑧ SPSS → CSV / CSV.GZ also writes a variables file, `<name>_variables.csv`: one row per
+  variable with the variable label, value labels (`[1] 男; [2] 女`) and user-missing values
+  (`na_values`, `na_range`). It is exactly `labelled::generate_dictionary(details = "full")` after
+  `convert_list_columns_to_character()`, so the same two lines in R give the same file.
+* ⑧ CSV / CSV.GZ → SPSS takes an optional variables file and puts the labels and user-missing
+  settings back by column name, so `w1.csv` + `w1_variables.csv` round-trips to a `w1.sav` with the
+  original labels. The codebook downloaded on ②–⑦ is accepted too (`1 = 男；2 = 女`, `97、90～99`).
+  Columns that do not match, value labels whose type does not fit the column, and columns missing
+  from either side are listed in the status message.
+* ⑧ now has "用 R 怎麼做" (tidyverse only), including the code that rebuilds the `.sav` from the CSV
+  and the variables file.
+* New dependency: labelled.
+
 # kitJoin 0.9.1
 
 * ⑥ One file per wave whose item names carry that file's wave at the end (`socC20_w1` in

@@ -161,7 +161,7 @@ test_that("SAV 轉 CSV：預設寫代碼，勾選時寫標籤文字；自訂遺�
   dir <- withr::local_tempdir()
   sav <- write_labelled_sav(file.path(dir, "w1.sav"))
   codes <- convert_file(sav, "w1.sav", "csv", withr::local_tempdir())
-  expect_match(paste(codes$notes, collapse = ""), "不會保留 SPSS 的變項標籤")
+  expect_match(paste(codes$notes, collapse = ""), "變項檔 w1_variables.csv")
   back <- readr::read_csv(codes$out_path, col_types = "cdd")
   expect_equal(back$sex, c(1, 2, NA, NA))
 

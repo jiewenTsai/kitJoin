@@ -1,7 +1,7 @@
 Package: kitJoin
 Title: KIT Multi-Wave Data Processing Tool
-Version: 0.9.1
-Date: 2026-11-03
+Version: 0.10.0
+Date: 2026-11-04
 Authors@R: person("Jie-Wen", "Tsai", email = "tsai.jiewen@gmail.com", role = c("aut", "cre"))
 Description: Shiny application for processing multi-wave survey data (CSV, Excel,
     SPSS SAV and Stata DTA). Launch with \code{run_kitjoin()}. Supports wide joins by ID,
@@ -17,6 +17,7 @@ Imports:
     jsonlite,
     htmltools,
     kitDesign (>= 0.7.1),
+    labelled (>= 2.12.0),
     purrr,
     readr,
     readxl,

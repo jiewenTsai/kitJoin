@@ -196,10 +196,26 @@ convert_csv_stream <- function(path, kind, out, target) {
 #' SAV 的 SPSS 自訂遺漏值讀成 NA。
 #' @return list(nrow, ncol, notes)
 #' @noRd
-convert_df <- function(path, name, kind, out, target, labels_as_text = FALSE) {
-  read <- if (kind == "csv.gz") read_csv_auto(kit_gz_path(path)) else read_data_file(path, name)
+convert_df <- function(path, name, kind, out, target, labels_as_text = FALSE, dict = NULL) {
+  read <- if (kind == "csv.gz") {
+    read_csv_auto(kit_gz_path(path))
+  } else {
+    read_data_file(path, name, user_na = kind == "sav")
+  }
   data <- read$data
   notes <- character(0)
+  dict_out <- NULL
+  if (kind == "sav") {
+    # 變項檔要在自訂遺漏值變成空白之前做，才留得住 na_values
+    dict_out <- file.path(dirname(out), convert_dict_name(basename(out)))
+    write_kit_csv(sav_dictionary(data), dict_out)
+    data <- haven::zap_missing(data)
+  }
+  if (!is.null(dict) && target == "sav") {
+    applied <- apply_variables(data, read_variables_file(dict$path, dict$name), dict$name)
+    data <- applied$data
+    notes <- c(notes, applied$notes)
+  }
   # 原文：原檔是 BIG5 編碼，已轉成 UTF-8。
   if (identical(read$encoding, "BIG5")) notes <- "\u539f\u6a94\u662f BIG5 \u7de8\u78bc\uff0c\u5df2\u8f49\u6210 UTF-8\u3002"
   if (identical(read$encoding, "Latin1")) {
@@ -212,8 +228,12 @@ convert_df <- function(path, name, kind, out, target, labels_as_text = FALSE) {
     } else {
       haven::zap_labels(data)
     }
-    # 原文：CSV 不會保留 SPSS 的變項標籤與數值標籤；自訂遺漏值已變成空白。
-    notes <- c(notes, "CSV \u4e0d\u6703\u4fdd\u7559 SPSS \u7684\u8b8a\u9805\u6a19\u7c64\u8207\u6578\u503c\u6a19\u7c64\uff1b\u81ea\u8a02\u907a\u6f0f\u503c\u5df2\u8b8a\u6210\u7a7a\u767d\u3002")
+    notes <- c(notes, paste0(
+      # 原文：CSV 本身不存標籤：變項標籤、數值標籤與自訂遺漏值寫在變項檔 
+      "CSV \u672c\u8eab\u4e0d\u5b58\u6a19\u7c64\uff1a\u8b8a\u9805\u6a19\u7c64\u3001\u6578\u503c\u6a19\u7c64\u8207\u81ea\u8a02\u907a\u6f0f\u503c\u5beb\u5728\u8b8a\u9805\u6a94 ", basename(dict_out),
+      # 原文：（labelled::generate_dictionary() 的格式），轉回 SAV 時一起上傳就能貼回去；資料檔裡自訂遺漏值已變成空白。
+      "\uff08labelled::generate_dictionary() \u7684\u683c\u5f0f\uff09\uff0c\u8f49\u56de SAV \u6642\u4e00\u8d77\u4e0a\u50b3\u5c31\u80fd\u8cbc\u56de\u53bb\uff1b\u8cc7\u6599\u6a94\u88e1\u81ea\u8a02\u907a\u6f0f\u503c\u5df2\u8b8a\u6210\u7a7a\u767d\u3002"
+    ))
   }
   if (target == "sav") {
     renamed <- sav_renamed_cols(names(data))
@@ -233,7 +253,7 @@ convert_df <- function(path, name, kind, out, target, labels_as_text = FALSE) {
   )
   # SAV 寫完讀不回來而修改了數值標籤時，寫進說明
   if (target == "sav") notes <- c(notes, sav_fix_message(written))
-  list(nrow = nrow(data), ncol = ncol(data), notes = notes)
+  list(nrow = nrow(data), ncol = ncol(data), notes = notes, dict_path = dict_out)
 }
 
 
@@ -249,9 +269,11 @@ convert_df <- function(path, name, kind, out, target, labels_as_text = FALSE) {
 #' @param out_dir 輸出資料夾
 #' @param labels_as_text SAV 轉 CSV 時，數值標籤是否轉成文字（haven::as_factor()）；
 #'   預設保留代碼
-#' @return list(name, out_name, out_path, nrow, ncol, size_before, size_after, notes)
+#' @param dict CSV 轉 SAV 時的變項檔：list(path, name)；NULL 表示不貼標籤
+#' @return list(name, out_name, out_path, nrow, ncol, size_before, size_after, notes,
+#'   dict_name, dict_path)；dict_* 是 SAV 轉 CSV 時一起輸出的變項檔（其他轉換為 NULL）
 #' @noRd
-convert_file <- function(path, name, target, out_dir, labels_as_text = FALSE) {
+convert_file <- function(path, name, target, out_dir, labels_as_text = FALSE, dict = NULL) {
   kind <- convert_kind(name)
   if (is.na(kind)) {
     kit_abort(
@@ -272,7 +294,7 @@ convert_file <- function(path, name, target, out_dir, labels_as_text = FALSE) {
   info <- if (kind != "sav" && target != "sav") {
     convert_csv_stream(path, kind, out, target)
   } else {
-    convert_df(path, name, kind, out, target, labels_as_text)
+    convert_df(path, name, kind, out, target, labels_as_text, dict)
   }
   list(
     name = name,
@@ -282,7 +304,9 @@ convert_file <- function(path, name, target, out_dir, labels_as_text = FALSE) {
     ncol = info$ncol,
     size_before = file.size(path),
     size_after = file.size(out),
-    notes = info$notes
+    notes = info$notes,
+    dict_name = if (!is.null(info$dict_path)) basename(info$dict_path),
+    dict_path = info$dict_path
   )
 }
 
