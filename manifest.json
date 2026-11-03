@@ -1818,7 +1818,7 @@
       "checksum": "d2a299d0cff64f653d470e7a44ef8d9b"
     },
     "DESCRIPTION": {
-      "checksum": "94a7da9c537cde8cd0174bc04dcb73de"
+      "checksum": "67f483e3c20a61042c71d4f331ad3ae5"
     },
     "inst/extdata/example_t1.csv": {
       "checksum": "86b287c755537d1155c134d0572929a5"
@@ -1836,7 +1836,7 @@
       "checksum": "12210821c1ef62c9965932db4c65c5da"
     },
     "NEWS.md": {
-      "checksum": "f19903358a05c30d7f8c12ebe9522c55"
+      "checksum": "bd596e0da7e89c084cf571b326a17769"
     },
     "R/_disable_autoload.R": {
       "checksum": "9dad897ff481b6a729440efca3d65e6e"
@@ -1863,10 +1863,10 @@
       "checksum": "45f23151a2f8bd3a4aca017522e23e3c"
     },
     "R/convert_labels.R": {
-      "checksum": "4468dd8af3e233faf1df3a61a69f003b"
+      "checksum": "42710e3f7e2b7f7d2fec05432a1a11e0"
     },
     "R/convert_pipeline.R": {
-      "checksum": "261d664306f12604a2babb716337699a"
+      "checksum": "448c6c82226fe1cc2489ebd1332cf9dd"
     },
     "R/io_data.R": {
       "checksum": "d0eea5bfb964b0fae967b02c68476e58"
@@ -1890,7 +1890,7 @@
       "checksum": "3e13cbd19fd24546a667779e2c3779c5"
     },
     "R/mod_convert.R": {
-      "checksum": "5462b9179cc154281cbc8f4c44d20330"
+      "checksum": "8a1fc57e47026847e86ec5af2061667b"
     },
     "R/mod_join.R": {
       "checksum": "4d1289ec23da4dbbcf0ab88288aee02c"
@@ -1935,7 +1935,7 @@
       "checksum": "b5e65a08ff4385641df9048dda4056fb"
     },
     "README.md": {
-      "checksum": "224d67645fe3db8fc364d2379ac1409c"
+      "checksum": "5effb2bcf353e70dcb0dd562e32873fb"
     },
     "tools/escape_non_ascii.R": {
       "checksum": "b2673de0a3277a42ce8658d622845351"

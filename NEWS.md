@@ -1,3 +1,13 @@
+# kitJoin 0.10.1
+
+* ⑧ CSV → SPSS: "下載空白變項檔" next to the variables-file upload gives the five columns that
+  matter (`variable`, `label`, `value_labels`, `na_values`, `na_range`) with `variable` already
+  filled with the CSV's column names, so people know what to fill in.
+* ⑧ variables file: column names may be English or Chinese (`欄位`、`變項標籤`、`數值標籤`、
+  `使用者自訂遺漏值`), mixed freely and case-insensitively; value labels may be written
+  `[1] 男; [2] 女` or `1 = 男；2 = 女` whatever the column names; missing values may use `;`, `、`
+  or `,` and ranges `90; 99` or `90～99`. Before, the header language also fixed the syntax.
+
 # kitJoin 0.10.0
 
 * ⑧ SPSS → CSV / CSV.GZ also writes a variables file, `<name>_variables.csv`: one row per

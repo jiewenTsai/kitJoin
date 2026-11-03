@@ -136,3 +136,45 @@ test_that("⑧ 畫面：SAV 有兩個下載，CSV → SAV 才出現變項檔上�
     expect_match(output$code$html, "labelled_spss")
   })
 })
+
+test_that("數值標籤兩種寫法、中英文欄名都可以混用", {
+  expect_equal(parse_value_labels("[1] 男; [2] 女"), list(values = c("1", "2"), labels = c("男", "女")))
+  expect_equal(parse_value_labels("1 = 男；2 = 女"), list(values = c("1", "2"), labels = c("男", "女")))
+  expect_equal(parse_value_labels("1=男;2=女"), list(values = c("1", "2"), labels = c("男", "女")))
+  expect_equal(parse_missing("97、98", NA), list(na_values = c("97", "98"), na_range = character(0)))
+  expect_equal(parse_missing("97; 90～99", NA), list(na_values = "97", na_range = c("90", "99")))
+  expect_equal(parse_missing(NA, "90; 99"), list(na_values = character(0), na_range = c("90", "99")))
+
+  dir <- withr::local_tempdir()
+  f <- file.path(dir, "v.csv")
+  readr::write_excel_csv(tibble::tibble(
+    "Variable" = "sex", "變項標籤" = "性別", value_labels = "1 = 男；2 = 女", na_values = "9"
+  ), f)
+  v <- read_variables_file(f, "v.csv")
+  expect_equal(v$sex$label, "性別")
+  expect_equal(v$sex$values, c("1", "2"))
+  expect_equal(v$sex$na_values, "9")
+})
+
+test_that("⑧ CSV → SAV 可以下載空白變項檔：五欄，variable 是資料的欄名；照著填就能貼回", {
+  dir <- withr::local_tempdir()
+  csv <- file.path(dir, "第一波.csv")
+  readr::write_excel_csv(data.frame(id = c("a", "b"), 性別 = c(1, 2)), csv)
+  shiny::testServer(mod_convert_server, {
+    session$setInputs(file = upload_files(csv), target = "sav")
+    expect_match(output$dict_ui$html, "下載空白變項檔")
+    tpl <- readr::read_csv(kit_test_download_file(session, "download_template"),
+                           col_types = readr::cols(.default = "c"))
+    expect_equal(names(tpl), c("variable", "label", "value_labels", "na_values", "na_range"))
+    expect_equal(tpl$variable, c("id", "性別"))
+    expect_true(all(is.na(tpl$label)))
+
+    tpl$label[2] <- "性別"
+    tpl$value_labels[2] <- "1 = 男；2 = 女"
+    filled <- file.path(dir, "第一波_variables.csv")
+    readr::write_excel_csv(tpl, filled, na = "")
+    session$setInputs(dict = upload_files(filled), run = 1)
+    s <- haven::read_sav(kit_test_download_file(session, "download_file"))
+    expect_equal(unclass(attr(s[[2]], "labels")), c("男" = 1, "女" = 2))
+  })
+})

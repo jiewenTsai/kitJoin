@@ -150,14 +150,23 @@ stream_big5_to_utf8 <- function(path, kind, out, target, bom = FALSE) {
 #' 讀 CSV 的第一列（欄名）算欄數；不讀其他列
 #' @noRd
 csv_header_ncol <- function(path, kind, encoding) {
+  length(csv_header_names(path, kind, encoding))
+}
+
+#' 讀 CSV 的第一列（欄名）；不讀其他列
+#'
+#' @param encoding "BIG5" 時轉成 UTF-8；NULL 時看這一列是不是合法 UTF-8，不是就當 BIG5
+#' @noRd
+csv_header_names <- function(path, kind, encoding = NULL) {
   con <- convert_open_in(path, kind, "r")
   on.exit(close(con))
   first <- readLines(con, n = 1, warn = FALSE)
-  if (length(first) == 0) return(0L)
+  if (length(first) == 0) return(character(0))
+  if (is.null(encoding)) encoding <- if (validUTF8(first)) "UTF-8" else "BIG5"
   if (identical(encoding, "BIG5")) first <- iconv(first, "CP950", "UTF-8")
-  # 原文：^﻿
   first <- sub("^\ufeff", "", first, useBytes = TRUE)
-  ncol(readr::read_csv(I(paste0(first, "\n")), n_max = 0, show_col_types = FALSE))
+  names(readr::read_csv(I(paste0(first, "\n")), n_max = 0, show_col_types = FALSE,
+                        name_repair = "minimal"))
 }
 
 #' CSV ↔ CSV.GZ

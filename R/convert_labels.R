@@ -25,75 +25,116 @@ sav_dictionary <- function(df) {
 dict_split <- function(s, sep) {
   s <- as.character(s)
   if (length(s) == 0 || is.na(s) || !nzchar(trimws(s))) return(character(0))
-  trimws(strsplit(s, sep, perl = TRUE)[[1]])
+  x <- trimws(strsplit(s, sep, perl = TRUE)[[1]])
+  x[nzchar(x)]
+}
+
+#' 變項檔的欄名：英文（labelled::generate_dictionary()）或中文（kitJoin 的 codebook）都可以，
+#' 各欄分開認，也可以混用
+#' @noRd
+KIT_DICT_COLS <- list(
+  # 原文：欄位
+  variable = c("variable", "\u6b04\u4f4d"),
+  # 原文：變項標籤
+  label = c("label", "\u8b8a\u9805\u6a19\u7c64"),
+  # 原文：數值標籤
+  value_labels = c("value_labels", "\u6578\u503c\u6a19\u7c64"),
+  # 原文：使用者自訂遺漏值 | 遺漏值
+  na_values = c("na_values", "\u4f7f\u7528\u8005\u81ea\u8a02\u907a\u6f0f\u503c", "\u907a\u6f0f\u503c"),
+  na_range = c("na_range")
+)
+
+#' 一格數值標籤 → list(values, labels)
+#'
+#' 兩種寫法都可以：「[1] 男; [2] 女」（labelled）或「1 = 男；2 = 女」（kitJoin codebook）。
+#' 開頭是「[」就當 labelled 的寫法。
+#' @noRd
+parse_value_labels <- function(s) {
+  s <- trimws(as.character(s))
+  if (length(s) == 0 || is.na(s) || !nzchar(s)) return(list(values = character(0), labels = character(0)))
+  if (startsWith(s, "[")) {
+    # 原文：[;；] ?(?=\\[)
+    parts <- dict_split(s, "[;\uff1b] ?(?=\\[)")
+    list(
+      values = sub("^\\[(.*?)\\].*$", "\\1", parts, perl = TRUE),
+      labels = trimws(sub("^\\[.*?\\]", "", parts, perl = TRUE))
+    )
+  } else {
+    # 原文：[;；]
+    parts <- dict_split(s, "[;\uff1b]")
+    list(
+      values = trimws(sub("=.*$", "", parts)),
+      labels = trimws(sub("^[^=]*=", "", parts))
+    )
+  }
+}
+
+#' 自訂遺漏值 → list(na_values, na_range)
+#'
+#' na_values 一格可以寫「97; 98」或「97、98」，也可以混進範圍「90～99」；
+#' na_range 一格寫「90; 99」（labelled）或「90～99」。
+#' @noRd
+parse_missing <- function(values, range) {
+  # 原文：[;；、,，]
+  v <- dict_split(values, "[;\uff1b\u3001,\uff0c]")
+  # 原文：[～~]
+  is_range <- grepl("[\uff5e~]", v)
+  # 原文：[～~] | [;；～~]
+  r <- if (any(is_range)) dict_split(v[is_range][1], "[\uff5e~]") else dict_split(range, "[;\uff1b\uff5e~]")
+  list(na_values = v[!is_range], na_range = r)
 }
 
 #' 讀變項檔：每個變項的變項標籤、數值標籤、自訂遺漏值
 #'
-#' 接受兩種格式：labelled::generate_dictionary() 的（variable、label、value_labels、
-#' na_values、na_range）與 kitJoin codebook 的（欄位、變項標籤、數值標籤、使用者自訂遺漏值）。
+#' 欄名英文、中文都可以（見 KIT_DICT_COLS）；數值標籤兩種寫法都可以（見 parse_value_labels()）。
 #' @return 具名 list：名稱是變項，值是 list(label, values, labels, na_values, na_range)；
 #'   values 是數值標籤的值（文字），labels 是對應的標籤
 #' @noRd
 read_variables_file <- function(path, name) {
   dict <- read_csv_auto(path)$data
   cols <- names(dict)
-  text <- function(col) if (col %in% cols) as.character(dict[[col]]) else rep(NA_character_, nrow(dict))
-  if ("variable" %in% cols) {
-    vars <- text("variable")
-    label <- text("label")
-    # 「[1] 男; [2] 女」：每一段是「[值] 標籤」
-    vl <- lapply(text("value_labels"), function(s) {
-      parts <- dict_split(s, "; (?=\\[)")
-      list(
-        values = sub("^\\[(.*?)\\] ?.*$", "\\1", parts, perl = TRUE),
-        labels = sub("^\\[.*?\\] ?", "", parts, perl = TRUE)
-      )
-    })
-    na_values <- lapply(text("na_values"), dict_split, sep = ";")
-    na_range <- lapply(text("na_range"), dict_split, sep = ";")
-  # 原文：欄位
-  } else if ("\u6b04\u4f4d" %in% cols) {
-    # 原文：欄位
-    vars <- text("\u6b04\u4f4d")
-    # 原文：變項標籤
-    label <- text("\u8b8a\u9805\u6a19\u7c64")
-    # 「1 = 男；2 = 女」
-    # 原文：數值標籤
-    vl <- lapply(text("\u6578\u503c\u6a19\u7c64"), function(s) {
-      # 原文：[；;]
-      parts <- dict_split(s, "[\uff1b;]")
-      list(
-        values = trimws(sub("^(.*?) = .*$", "\\1", parts, perl = TRUE)),
-        labels = sub("^.*? = ", "", parts, perl = TRUE)
-      )
-    })
-    # 「97、98、90～99」：有「～」的是範圍
-    # 原文：使用者自訂遺漏值 | [、,，]
-    na <- lapply(text("\u4f7f\u7528\u8005\u81ea\u8a02\u907a\u6f0f\u503c"), dict_split, sep = "[\u3001,\uff0c]")
-    # 原文：～
-    na_values <- lapply(na, function(x) x[!grepl("\uff5e", x)])
-    na_range <- lapply(na, function(x) {
-      # 原文：～
-      r <- x[grepl("\uff5e", x)]
-      # 原文：～
-      if (length(r) == 0) character(0) else trimws(strsplit(r[1], "\uff5e")[[1]])
-    })
-  } else {
+  low <- tolower(trimws(cols))
+  text <- function(field) {
+    hit <- match(tolower(KIT_DICT_COLS[[field]]), low)
+    hit <- hit[!is.na(hit)]
+    if (length(hit) == 0) rep(NA_character_, nrow(dict)) else as.character(dict[[hit[1]]])
+  }
+  if (!any(tolower(KIT_DICT_COLS$variable) %in% low)) {
     kit_abort(
-      # 原文：無法讀取變項檔  | ：找不到 variable 欄（labelled::generate_dictionary() 的格式）
-      "\u7121\u6cd5\u8b80\u53d6\u8b8a\u9805\u6a94 ", name, "\uff1a\u627e\u4e0d\u5230 variable \u6b04\uff08labelled::generate_dictionary() \u7684\u683c\u5f0f\uff09",
-      # 原文：或「欄位」欄（kitJoin 的 codebook）。
-      "\u6216\u300c\u6b04\u4f4d\u300d\u6b04\uff08kitJoin \u7684 codebook\uff09\u3002"
+      # 原文：無法讀取變項檔  | ：找不到 variable 欄（或中文的「欄位」欄），
+      "\u7121\u6cd5\u8b80\u53d6\u8b8a\u9805\u6a94 ", name, "\uff1a\u627e\u4e0d\u5230 variable \u6b04\uff08\u6216\u4e2d\u6587\u7684\u300c\u6b04\u4f4d\u300d\u6b04\uff09\uff0c",
+      # 原文：不知道每一列是哪個欄位。可以在「變項檔（選填）」旁下載空白變項檔照著填。
+      "\u4e0d\u77e5\u9053\u6bcf\u4e00\u5217\u662f\u54ea\u500b\u6b04\u4f4d\u3002\u53ef\u4ee5\u5728\u300c\u8b8a\u9805\u6a94\uff08\u9078\u586b\uff09\u300d\u65c1\u4e0b\u8f09\u7a7a\u767d\u8b8a\u9805\u6a94\u7167\u8457\u586b\u3002"
     )
   }
-  keep <- !is.na(vars) & nzchar(vars)
-  out <- lapply(which(keep), function(i) list(
-    label = if (is.na(label[i]) || !nzchar(label[i])) NULL else label[i],
-    values = vl[[i]]$values, labels = vl[[i]]$labels,
-    na_values = na_values[[i]], na_range = na_range[[i]]
-  ))
+  vars <- trimws(text("variable"))
+  label <- text("label")
+  value_labels <- text("value_labels")
+  na_values <- text("na_values")
+  na_range <- text("na_range")
+  keep <- which(!is.na(vars) & nzchar(vars))
+  out <- lapply(keep, function(i) {
+    vl <- parse_value_labels(value_labels[i])
+    na <- parse_missing(na_values[i], na_range[i])
+    list(
+      label = if (is.na(label[i]) || !nzchar(trimws(label[i]))) NULL else label[i],
+      values = vl$values, labels = vl$labels,
+      na_values = na$na_values, na_range = na$na_range
+    )
+  })
   stats::setNames(out, vars[keep])
+}
+
+#' 空白變項檔：只有真正用得到的五欄，variable 先填好資料的欄名
+#' @noRd
+variables_template <- function(cols) {
+  tibble::tibble(
+    variable = cols,
+    label = NA_character_,
+    value_labels = NA_character_,
+    na_values = NA_character_,
+    na_range = NA_character_
+  )
 }
 
 #' 把變項檔的標籤貼到資料上（CSV 轉 SAV 前）
@@ -221,21 +262,36 @@ code_convert <- function(name, target, labels_as_text = FALSE, dict_name = NULL)
   code_lines(
     "library(readr)", "library(haven)", "library(labelled)", "",
     read,
+    # 原文：# 變項檔：英文欄名 variable、label、value_labels、na_values、na_range
+    "# \u8b8a\u9805\u6a94\uff1a\u82f1\u6587\u6b04\u540d variable\u3001label\u3001value_labels\u3001na_values\u3001na_range",
     paste0("vars <- read_csv(", r_str(dict_name), ", col_types = cols(.default = \"c\"))"),
     "for (col in c(\"label\", \"value_labels\", \"na_values\", \"na_range\")) {",
     "  if (!col %in% names(vars)) vars[[col]] <- NA_character_",
     "}", "",
     # 原文：# 「[1] 男; [2] 女」→ c(男 = 1, 女 = 2)
     "# \u300c[1] \u7537; [2] \u5973\u300d\u2192 c(\u7537 = 1, \u5973 = 2)",
+    # 原文：# 也接受「1 = 男；2 = 女」的寫法
+    "# \u4e5f\u63a5\u53d7\u300c1 = \u7537\uff1b2 = \u5973\u300d\u7684\u5beb\u6cd5",
     "parse_labels <- function(s, numeric) {",
     "  if (is.na(s) || s == \"\") return(NULL)",
-    "  parts <- strsplit(s, \"; (?=\\\\[)\", perl = TRUE)[[1]]",
-    "  values <- sub(\"^\\\\[(.*?)\\\\] ?.*$\", \"\\\\1\", parts, perl = TRUE)",
-    "  labels <- sub(\"^\\\\[.*?\\\\] ?\", \"\", parts, perl = TRUE)",
+    "  if (startsWith(s, \"[\")) {",
+    # 原文：    parts <- strsplit(s, \"[;；] ?(?=\\\\[)\", perl = TRUE)[[1]]
+    "    parts <- strsplit(s, \"[;\uff1b] ?(?=\\\\[)\", perl = TRUE)[[1]]",
+    "    values <- sub(\"^\\\\[(.*?)\\\\].*$\", \"\\\\1\", parts, perl = TRUE)",
+    "    labels <- trimws(sub(\"^\\\\[.*?\\\\]\", \"\", parts, perl = TRUE))",
+    "  } else {",
+    # 原文：    parts <- trimws(strsplit(s, \"[;；]\")[[1]])
+    "    parts <- trimws(strsplit(s, \"[;\uff1b]\")[[1]])",
+    "    values <- trimws(sub(\"=.*$\", \"\", parts))",
+    "    labels <- trimws(sub(\"^[^=]*=\", \"\", parts))",
+    "  }",
     "  setNames(if (numeric) as.numeric(values) else values, labels)",
     "}",
+    # 原文：# 「97; 98」或「97、98」；範圍「90; 99」或「90～99」
+    "# \u300c97; 98\u300d\u6216\u300c97\u300198\u300d\uff1b\u7bc4\u570d\u300c90; 99\u300d\u6216\u300c90\uff5e99\u300d",
     "split_num <- function(s) {",
-    "  if (is.na(s) || s == \"\") NULL else as.numeric(strsplit(s, \";\")[[1]])",
+    # 原文：  if (is.na(s) || s == \"\") NULL else as.numeric(strsplit(s, \"[;；、,，～~]\")[[1]])
+    "  if (is.na(s) || s == \"\") NULL else as.numeric(strsplit(s, \"[;\uff1b\u3001,\uff0c\uff5e~]\")[[1]])",
     "}", "",
     "for (i in seq_len(nrow(vars))) {",
     "  v <- vars$variable[i]",

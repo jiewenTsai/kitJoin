@@ -128,10 +128,29 @@ mod_convert_server <- function(id) {
         ),
         shiny::tags$small(
           class = "kit-hint",
-          # 原文：SAV 轉 CSV 時輸出的 _variables.csv（labelled::generate_dictionary() 的格式），
-          "SAV \u8f49 CSV \u6642\u8f38\u51fa\u7684 _variables.csv\uff08labelled::generate_dictionary() \u7684\u683c\u5f0f\uff09\uff0c",
-          # 原文：或其他分頁下載的 codebook。依欄名貼回變項標籤、數值標籤與自訂遺漏值。
-          "\u6216\u5176\u4ed6\u5206\u9801\u4e0b\u8f09\u7684 codebook\u3002\u4f9d\u6b04\u540d\u8cbc\u56de\u8b8a\u9805\u6a19\u7c64\u3001\u6578\u503c\u6a19\u7c64\u8207\u81ea\u8a02\u907a\u6f0f\u503c\u3002"
+          # 原文：SAV 轉 CSV 時輸出的 _variables.csv，或其他分頁下載的 codebook，依欄名貼回標籤。
+          "SAV \u8f49 CSV \u6642\u8f38\u51fa\u7684 _variables.csv\uff0c\u6216\u5176\u4ed6\u5206\u9801\u4e0b\u8f09\u7684 codebook\uff0c\u4f9d\u6b04\u540d\u8cbc\u56de\u6a19\u7c64\u3002",
+          # 原文：沒有的話可以下載空白變項檔照著填：variable 已填好這個檔案的欄名，
+          "\u6c92\u6709\u7684\u8a71\u53ef\u4ee5\u4e0b\u8f09\u7a7a\u767d\u8b8a\u9805\u6a94\u7167\u8457\u586b\uff1avariable \u5df2\u586b\u597d\u9019\u500b\u6a94\u6848\u7684\u6b04\u540d\uff0c",
+          # 原文：其他欄不用的留空。label 填變項標籤；value_labels 填數值標籤，寫成「[1] 男; [2] 女」
+          "\u5176\u4ed6\u6b04\u4e0d\u7528\u7684\u7559\u7a7a\u3002label \u586b\u8b8a\u9805\u6a19\u7c64\uff1bvalue_labels \u586b\u6578\u503c\u6a19\u7c64\uff0c\u5beb\u6210\u300c[1] \u7537; [2] \u5973\u300d",
+          # 原文：或「1 = 男；2 = 女」；na_values 填自訂遺漏值，例如「97; 98」；na_range 填遺漏值範圍，
+          "\u6216\u300c1 = \u7537\uff1b2 = \u5973\u300d\uff1bna_values \u586b\u81ea\u8a02\u907a\u6f0f\u503c\uff0c\u4f8b\u5982\u300c97; 98\u300d\uff1bna_range \u586b\u907a\u6f0f\u503c\u7bc4\u570d\uff0c",
+          # 原文：例如「90; 99」。欄名寫中文（欄位、變項標籤、數值標籤、使用者自訂遺漏值）也可以。
+          "\u4f8b\u5982\u300c90; 99\u300d\u3002\u6b04\u540d\u5beb\u4e2d\u6587\uff08\u6b04\u4f4d\u3001\u8b8a\u9805\u6a19\u7c64\u3001\u6578\u503c\u6a19\u7c64\u3001\u4f7f\u7528\u8005\u81ea\u8a02\u907a\u6f0f\u503c\uff09\u4e5f\u53ef\u4ee5\u3002"
+        ),
+        shiny::tags$div(
+          class = "kit-downloads",
+          kit_download_button(
+            # 原文：下載空白變項檔
+            session, "download_template", "\u4e0b\u8f09\u7a7a\u767d\u8b8a\u9805\u6a94",
+            convert_dict_name(input$file$name),
+            function(file) {
+              cols <- csv_header_names(shiny::isolate(input$file$datapath), shiny::isolate(kind()))
+              write_kit_csv(variables_template(cols), file)
+            },
+            class = kit_btn_class("secondary")
+          )
         )
       )
     })
