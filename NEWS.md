@@ -4,6 +4,13 @@
   (`inst/validation/validation.md`, kitDesign 0.8.0).
 * Tests for missing codes (found by mutation testing): a code in an excluded column (an ID of 9999)
   stays as it is; a negative labelled code (-9 = 遺漏值) counts as a missing code. Results do not change.
+* ⑦ long to wide: a new advanced setting 「新欄照欄名來源的值排序」(`names_sort`). Unticked, as in
+  tidyr, the new columns follow their first appearance in the data, so shuffled rows give another
+  column order (the hint now says so); ticked, they are sorted (numbers by size, text alphabetically).
+  The R code writes `names_sort = TRUE` when it is ticked.
+* A report snapshot (`inst/validation/snapshot.R`): the example files through missing codes, the
+  merge, attrition, stacking, long to wide and a kits response file; the MD5 of each file is in
+  `results/snapshot_md5.txt`.
 
 # kitJoin 0.10.1
 

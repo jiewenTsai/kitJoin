@@ -1,0 +1,7 @@
+file lines md5
+missing_t2.csv 7 935f591ef9245faeda9b05ba96d6fa61
+joined.csv 8 4da9731df346ba8cfa5ef83eaa862fd2
+attrition_t2.csv 7 8fa55a4b024b1926683e84f1f10d63a8
+stacked.csv 18 c3aa43ea15692c78ca0cd508bd0c3da3
+wide.csv 8 70b5d0f073e97c62c468d6a4e2888da2
+kits_long.csv 46 c55a20e13c89dfdcbd4147c1a3ac3b7a

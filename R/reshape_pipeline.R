@@ -16,12 +16,13 @@ KITSUI_SCORE_ID_COLS <- c(
 #' @param names_from 新欄名來自哪一欄（一欄）
 #' @param values_from 要攤開的值（可多欄）
 #' @param names_prefix,names_sep,names_glue,names_vary 同 tidyr
+#' @param names_sort 新欄照欄名來源的值排序（tidyr 的預設 FALSE：照資料裡第一次出現的順序）
 #' @param values_fill 缺的格子填什麼：使用者輸入的文字；"" 或 NULL = 不填（NA）
 #' @noRd
 wider_args <- function(id_cols = NULL, names_from = character(0),
                        values_from = character(0), names_prefix = "",
                        names_sep = "_", names_glue = NULL,
-                       names_vary = "fastest", values_fill = NULL) {
+                       names_vary = "fastest", values_fill = NULL, names_sort = FALSE) {
   blank <- function(x) is.null(x) || length(x) == 0 || !nzchar(x[1])
   list(
     id_cols = if (length(id_cols) == 0) NULL else id_cols,
@@ -31,6 +32,7 @@ wider_args <- function(id_cols = NULL, names_from = character(0),
     names_sep = if (is.null(names_sep)) "_" else names_sep,
     names_glue = if (blank(names_glue)) NULL else names_glue,
     names_vary = if (blank(names_vary)) "fastest" else names_vary,
+    names_sort = isTRUE(names_sort),
     values_fill = if (blank(values_fill)) NULL else values_fill
   )
 }
@@ -146,7 +148,8 @@ check_wider_names <- function(data, args) {
     names_prefix = args$names_prefix,
     names_sep = args$names_sep,
     names_glue = args$names_glue,
-    names_vary = args$names_vary
+    names_vary = args$names_vary,
+    names_sort = isTRUE(args$names_sort)
   )
   new <- spec$.name
   id_cols <- wider_id_cols(data, args)
@@ -282,6 +285,7 @@ reshape_wider <- function(data, args, check_id = NULL) {
     names_sep = args$names_sep,
     names_glue = args$names_glue,
     names_vary = args$names_vary,
+    names_sort = isTRUE(args$names_sort),
     values_fill = fill
   )
 

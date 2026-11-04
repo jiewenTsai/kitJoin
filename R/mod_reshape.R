@@ -214,6 +214,18 @@ wider_advanced_ui <- function(ns) {
       ),
       selected = "fastest", width = "100%"
     ),
+    shiny::checkboxInput(
+      # 原文：新欄照欄名來源的值排序
+      ns("names_sort"), arg_label("\u65b0\u6b04\u7167\u6b04\u540d\u4f86\u6e90\u7684\u503c\u6392\u5e8f", "names_sort"),
+      value = FALSE, width = "100%"
+    ),
+    shiny::tags$small(
+      class = "kit-hint",
+      # 原文：不勾（tidyr 的預設）：新欄照資料裡第一次出現的順序，資料的列換了順序，欄的順序也會跟著換；
+      #       勾了：照值排序（數字照大小；文字照字母，t10 排在 t2 前面）。
+      "\u4e0d\u52fe\uff08tidyr \u7684\u9810\u8a2d\uff09\uff1a\u65b0\u6b04\u7167\u8cc7\u6599\u88e1\u7b2c\u4e00\u6b21\u51fa\u73fe\u7684\u9806\u5e8f\uff0c\u8cc7\u6599\u7684\u5217\u63db\u4e86\u9806\u5e8f\uff0c\u6b04\u7684\u9806\u5e8f\u4e5f\u6703\u8ddf\u8457\u63db\uff1b",
+      "\u52fe\u4e86\uff1a\u7167\u503c\u6392\u5e8f\uff08\u6578\u5b57\u7167\u5927\u5c0f\uff1b\u6587\u5b57\u7167\u5b57\u6bcd\uff0ct10 \u6392\u5728 t2 \u524d\u9762\uff09\u3002"
+    ),
     shiny::textInput(
       # 原文：缺的格子填什麼
       ns("values_fill"), arg_label("\u7f3a\u7684\u683c\u5b50\u586b\u4ec0\u9ebc", "values_fill"), "",
@@ -315,7 +327,8 @@ mod_reshape_server <- function(id, files, working, goto) {
         names_sep = if (glue) "_" else input$names_sep,
         names_glue = if (glue) input$names_glue,
         names_vary = input$names_vary,
-        values_fill = input$values_fill
+        values_fill = input$values_fill,
+        names_sort = input$names_sort
       )
     })
     # 寬轉長的設定：和 ⑥ 共用的元件（mod_pivot_longer.R）

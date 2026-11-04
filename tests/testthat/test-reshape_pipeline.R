@@ -277,3 +277,17 @@ test_that("錯誤訊息用主畫面的中文名稱，不用 tidyr 的參數名",
   expect_error(reshape_wider(df, wider_args(names_from = "k", values_from = character(0))),
                "要填進新欄的值")
 })
+
+test_that("names_sort：預設照第一次出現的順序（同 tidyr）；勾了照值排序，教學程式碼寫出 names_sort = TRUE", {
+  long <- tibble::tibble(id = rep(1:2, each = 3), wave = rep(c("t1", "t2", "t3"), 2), score = 1:6)
+  shuffled <- long[c(3, 1, 2, 6, 4, 5), ]
+  plain <- wider_args(names_from = "wave", values_from = "score")
+  expect_identical(names(reshape_wider(shuffled, plain)$result), c("id", "t3", "t1", "t2"))
+  sorted <- wider_args(names_from = "wave", values_from = "score", names_sort = TRUE)
+  out <- reshape_wider(shuffled, sorted)$result
+  expect_identical(names(out), c("id", "t1", "t2", "t3"))
+  expect_identical(out$t2, c(2L, 5L))
+  expect_identical(check_wider_names(shuffled, sorted)$names, c("t1", "t2", "t3"))
+  expect_match(code_wider(sorted, shuffled, "data_t1")$tidy, "names_sort = TRUE")
+  expect_no_match(code_wider(plain, shuffled, "data_t1")$tidy, "names_sort")
+})

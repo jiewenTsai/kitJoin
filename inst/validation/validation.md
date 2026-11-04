@@ -2,13 +2,14 @@
 
 Standard: [KIT validation standard](https://github.com/jiewenTsai/kitDesign/blob/main/inst/validation/criteria.md)
 (`kitDesign::kit_validation("kitDesign", "criteria")`). Version validated: kitJoin 0.10.1, with the
-regression tests of kitJoin 0.10.2. Date: 2026-11-04.
+regression tests, the `names_sort` option and the snapshot of kitJoin 0.10.2. Date: 2026-11-04.
 
 ## Summary
 
-kitJoin writes data files, not estimates, so its faults are about rows, IDs and codes. 17 of 18
-metamorphic relations hold; the one that fails is a column order, not a wrong value. The existing
-tests caught 6 of 8 planted faults; both survivors are in missing-code replacement and are now
+kitJoin writes data files, not estimates, so its faults are about rows, IDs and codes. 18 of 18
+metamorphic relations hold, after the column order of wide files was settled in 0.10.2 (the tidyr
+default, now documented, with `names_sort` as an option). The files of a fixed scenario are
+byte-identical across two runs. The existing tests caught 6 of 8 planted faults; both survivors are in missing-code replacement and are now
 covered by regression tests. This validation was run after release: no acceptance criteria were
 written before generation, and 12 faults were found after 2026-11-01, more than in any other KIT
 package. Most of them changed data silently.
@@ -20,7 +21,8 @@ imply:
 
 1. Missing-code replacement changes only the listed codes, in the listed columns, and never an ID column.
 2. A join keeps one row per ID: the union (full), the intersection (inner), the first file (left).
-3. Wide to long to wide gives the same cells.
+3. Wide to long to wide gives the same cells; the new columns follow their first appearance in the
+   data, or are sorted when `names_sort` is ticked.
 4. The kits response file has one row per visit and item, scores shifted exactly as asked.
 5. IDs keep their exact text: 1 and 001 are different only if the user says so.
 
@@ -42,26 +44,43 @@ with known answers.
 
 ## Metamorphic relations
 
-Script: `kitverse/inst/validation/metamorphic.R`. 6 functions × 3 relations; 17 of 18 hold.
+Script: `kitverse/inst/validation/metamorphic.R`. 6 functions × 3 relations; 18 of 18 hold.
 
 | Function | Relations |
 |---|---|
 | `replace_na_codes` | Idempotent; code order does not matter; non-codes, excluded and text columns unchanged |
 | `join_waves` | Row order; full, inner and left joins give the union, intersection and first-file counts; renaming a wave label renames only the suffix |
-| `reshape_wider`, `reshape_longer` | Long → wide → long; wide → long → wide (**fails**, see below); a missing wave gives NA, and `drop_na` gives the right count |
+| `reshape_wider`, `reshape_longer` | Long → wide → long; wide → long → wide (see below); a missing wave gives NA, and `drop_na` gives the right count |
 | `stack_waves` | Row counts per wave; file order; a column in some files only is NA in the others |
 | `build_attrition` | Retained + lost + NA = earlier n; later file order and duplicates; an empty later file makes everyone lost |
 | `kits_build` | Score shift −1 lowers every score by exactly 1; row order; NA cells give no row |
 
-The failure: wide → long → wide after shuffling the long rows gives the columns
-`id, t1, t3, t2` instead of `id, t1, t2, t3`. Every cell matches by name. `pivot_wider()` orders
-new columns by first appearance (`names_sort = FALSE`), so a step that reads columns by position
-would break. Open question: sort the new columns, or document the order.
+In kitJoin 0.10.1 the wide → long → wide relation failed: after shuffling the long rows the columns
+were `id, t1, t3, t2` instead of `id, t1, t2, t3`, although every cell matched by name.
+`pivot_wider()` orders new columns by first appearance (`names_sort = FALSE`). kitJoin keeps the
+tidyr default, because its reshape page teaches tidyr and its R code must give the same file, but
+0.10.2 says so under the setting and adds the option 「新欄照欄名來源的值排序」 (`names_sort`). The
+relation now asks for the cells always, for the original order with `names_sort = TRUE`, and for the
+first-appearance order without it. Sorting is by value: numbers by size, text alphabetically
+(`t10` before `t2`).
 
 ## Report snapshot
 
-Not yet taken. The candidate: the example files in `inst/extdata` through missing codes, join,
-reshape and the kits response file.
+Script: `inst/validation/snapshot.R`. Scenario: the three example files in `inst/extdata`
+(missing codes 7777 and 9999 in `lang_score`), and simulated wide item data for the kits response
+file (two cohorts, three waves, scores shifted 1–5 → 0–4). Each file is written with the app's own
+writers and compared with the MD5 in `inst/validation/results/snapshot_md5.txt`.
+
+| File | Step | Lines | Two runs identical |
+|---|---|---|---|
+| `missing_t2.csv` | Missing codes → NA (ID excluded) | 7 | yes |
+| `joined.csv` | Full join of t1–t3 on `release_id`, `sex` constant | 8 | yes |
+| `attrition_t2.csv` | Attrition of t1 at t2 | 7 | yes |
+| `stacked.csv` | Stacked waves with a wave column | 18 | yes |
+| `wide.csv` | Stacked → wide on `lang_score`, `names_sort = TRUE` | 8 | yes |
+| `kits_long.csv` | kits response file | 46 | yes |
+
+A release that changes any of these files says why in NEWS.
 
 ## Mutation testing
 
@@ -103,11 +122,12 @@ How these were caught is not stated in NEWS or the commits for 10 of the 12.
 |---|---|
 | Acceptance criteria written beforehand | 0 |
 | First-generation pass rate | 8 of 16 versions with a behaviour change (50%) |
-| Faults caught per layer | Metamorphic 0 (1 open question), mutation 2 missing tests; history: unit test 1, r-universe 1, not stated 10 (after release) |
+| Faults caught per layer | Snapshot 0, metamorphic 0 (1 question settled: column order), mutation 2 missing tests; history: unit test 1, r-universe 1, not stated 10 (after release) |
 | Faults found after release | 12 (strict: after 2026-11-01), 41 (broad: in any earlier tag) |
 
 ## Reproduce
 
 ```r
+source(system.file("validation", "snapshot.R", package = "kitJoin"))
 source(system.file("validation", "metamorphic.R", package = "kitverse"))
 ```

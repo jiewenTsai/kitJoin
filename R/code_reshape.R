@@ -65,6 +65,7 @@ code_wider <- function(args, data, data_name = "data_t1") {
     names_sep = if (!identical(args$names_sep, "_")) r_chr1(args$names_sep),
     names_glue = if (!is.null(args$names_glue)) r_chr1(args$names_glue),
     names_vary = if (args$names_vary != "fastest") r_chr1(args$names_vary),
+    names_sort = if (isTRUE(args$names_sort)) "TRUE",
     values_fill = if (!is.null(fill)) r_value(fill)
   )
   list(
