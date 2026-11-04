@@ -38,7 +38,7 @@ kit_ui <- function(request) {
     "KIT \u8cc7\u6599\u8655\u7406\u5de5\u5177", "\u81fa\u7063\u5e7c\u5152\u767c\u5c55\u8abf\u67e5\u8cc7\u6599\u5eab",
     # 原文：跨波次資料處理
     tagline = "\u8de8\u6ce2\u6b21\u8cc7\u6599\u8655\u7406",
-    version = meta$version, date = meta$date, package = "kitJoin",
+    version = meta$version, date = meta$date, package = "kitJoin", validation = TRUE,
     if (kit_is_cloud()) kit_cloud_banner(kit_cloud_banner_text()),
     # 分頁列：三組、不編號（kit_navgroups()）；下面是真的 Shiny 分頁，只是把它自己的分頁列藏起來，
     # 所以 input$tabs 與 updateTabsetPanel() 照常可以用

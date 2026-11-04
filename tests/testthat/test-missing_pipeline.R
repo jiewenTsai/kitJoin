@@ -108,3 +108,16 @@ test_that("TDCYP w1_jsq：依數值標籤不會改到真實體重，999 會轉�
   expect_false(any(after %in% 999))
   expect_equal(sum(after %in% 997), sum(before %in% 997))
 })
+
+test_that("排除的欄裡的代碼不換（ID 是 9999 時保持原值；突變 J02）", {
+  df <- data.frame(id = c(9999, 2), x = c(9999, 3))
+  out <- replace_na_codes(df, codes = 9999, exclude = "id")$data
+  expect_equal(out$id, c(9999, 2))
+  expect_equal(out$x, c(NA, 3))
+})
+
+test_that("依數值標籤：負數的遺漏值代碼（-9 = 遺漏值）要算；突變 J08", {
+  x <- haven::labelled(c(1, 2, -9), labels = c("是" = 1, "否" = 2, "遺漏值" = -9))
+  codes <- label_na_codes_of(x, "遺漏")
+  expect_equal(unname(codes), -9)
+})

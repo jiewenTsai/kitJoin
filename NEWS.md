@@ -1,3 +1,10 @@
+# kitJoin 0.10.2
+
+* The version line of the header ends with a link "驗證報告" to the validation report
+  (`inst/validation/validation.md`, kitDesign 0.8.0).
+* Tests for missing codes (found by mutation testing): a code in an excluded column (an ID of 9999)
+  stays as it is; a negative labelled code (-9 = 遺漏值) counts as a missing code. Results do not change.
+
 # kitJoin 0.10.1
 
 * ⑧ CSV → SPSS: "下載空白變項檔" next to the variables-file upload gives the five columns that
