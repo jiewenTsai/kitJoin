@@ -53,20 +53,20 @@ test_that("領域、排除、到「遺漏值處理」改掉代碼、減 1，轉�
     kd_pick(session, "lana", "lan")
     kd_pick(session, "bodyaf", "motor")
     kd_pick(session, "extra")
-    expect_match(kd_out(output, "items_status"), "挑出 3 欄")
+    expect_match(kd_out(output, "items_status"), "挑出 3 直欄")
     expect_match(kd_out(output, "text_cols"), "city")         # 文字欄不能當題目
     kd_click(session, "ok2")
     expect_equal(kd_head_state(output, 3), "current")
     # extra 沒有設領域：預設是組名，要決定（不改也能轉換）
     expect_equal(kd_check_state(output, "預設的組名"), "todo")
-    expect_match(kd_out(output, "checks"), "有 1 欄的領域還是預設的組名（例如 extra）")
+    expect_match(kd_out(output, "checks"), "有 1 直欄的領域還是預設的組名（例如 extra）")
     kd_click(session, "run")
     expect_match(kd_out(output, "status"), "還不能轉換：第 3 步有 2 件事要決定")   # 代碼、領域
 
     # 逐題表：extra 不要
     kd_bulk(session, "extra", "exclude")
-    expect_match(kd_out(output, "items_status"), "挑出 2 欄、2 組")
-    expect_equal(output[["kitsdata-items_title"]], "題目表（2 欄 · lan 1 題、motor 1 題）")
+    expect_match(kd_out(output, "items_status"), "挑出 2 直欄、2 組")
+    expect_equal(output[["kitsdata-items_title"]], "題目表（2 直欄 · lan 1 題、motor 1 題）")
     expect_equal(kd_check_state(output, "每一題都有領域"), "ok")
     expect_true(is.na(kd_check_state(output, "預設的組名")))
 
@@ -83,7 +83,7 @@ test_that("領域、排除、到「遺漏值處理」改掉代碼、減 1，轉�
     expect_equal(kd_check_state(output, "遺漏值處理"), "ok")
     expect_match(kd_out(output, "checks"), "遺漏值代碼已經用「遺漏值處理」改成 NA")
     expect_match(output[["kitsdata-code"]]$html, "已經把遺漏值代碼改成 NA")
-    expect_match(kd_out(output, "items_status"), "挑出 2 欄")   # 設定沒有不見
+    expect_match(kd_out(output, "items_status"), "挑出 2 直欄")   # 設定沒有不見
 
     # 每題最低分都是 1：建議（不會自己做）；按了才減
     expect_equal(kd_check_state(output, "都從 1 開始"), "todo")
@@ -164,7 +164,7 @@ test_that("還沒有上傳檔案時不會出錯", {
     expect_no_error(output[["kitsdata-head2"]])
     expect_no_error(output[["kitsdata-head3"]])
     expect_match(kd_out(output, "checks"), "還沒有挑題目")
-    expect_match(kd_out(output, "items_table"), "沒有符合的欄")
+    expect_match(kd_out(output, "items_table"), "沒有符合的直欄")
     expect_match(kd_out(output, "ready"), "第 1 步確認")
     kd_click(session, "ok1")
     kd_click(session, "ok2")
@@ -214,7 +214,7 @@ test_that("一開始一題都不納入：要上傳題目表或用欄名挑；「
     kd_step1(session)
     expect_equal(kd_out(output, "items_status"), "")
     expect_match(kd_out(output, "items_list"), "還沒有挑題目")
-    expect_match(kd_out(output, "items_table"), "沒有符合的欄")
+    expect_match(kd_out(output, "items_table"), "沒有符合的直欄")
     expect_match(kd_out(output, "checks"), "還沒有挑題目")
     # 也顯示沒挑的欄：三個數字欄都在，都是「沒挑」
     kd_set(session, tbl_all = TRUE)
@@ -230,14 +230,14 @@ test_that("一開始一題都不納入：要上傳題目表或用欄名挑；「
 
     # 題目表：列到的題才納入
     session$setInputs(`kitsdata-item_file` = kd_upload(tab))
-    expect_match(kd_out(output, "items_status"), "items.csv：挑出 2 欄、2 組")
+    expect_match(kd_out(output, "items_status"), "items.csv：挑出 2 直欄、2 組")
     expect_no_match(kd_out(output, "items_list"), "extra")
     kd_click(session, "pick_clear")
     expect_match(kd_out(output, "items_list"), "還沒有挑題目")
 
     # 用欄名挑
     kd_pick(session, "LANA, extra")
-    expect_match(kd_out(output, "items_status"), "挑出 2 欄")
+    expect_match(kd_out(output, "items_status"), "挑出 2 直欄")
     expect_match(kd_out(output, "items_list"), "lana01")
     expect_match(kd_out(output, "items_list"), "extra")
     expect_no_match(kd_out(output, "items_list"), "bodyaf01")
@@ -309,12 +309,12 @@ test_that("遺漏值代碼：「它們是真的分數」變成沒問題，「改
     kd_pick(session, "lana, bodyaf", "lan")
     kd_click(session, "ok2")
     expect_equal(kd_check_state(output, "9999"), "todo")
-    expect_match(kd_out(output, "checks"), "1 欄有遺漏值代碼 9999（共 1 格）")
+    expect_match(kd_out(output, "checks"), "1 直欄有遺漏值代碼 9999（共 1 格）")
     expect_match(output[["kitsdata-checks"]]$html, "kitsdata-ack_codes")
     expect_no_match(output[["kitsdata-checks"]]$html, "kitsdata-unack_codes")
     kd_click(session, "ack_codes")
     expect_equal(kd_check_state(output, "9999"), "ok")
-    expect_match(kd_out(output, "checks"), "1 欄的 9999 照原樣當成分數（你選的）")
+    expect_match(kd_out(output, "checks"), "1 直欄的 9999 照原樣當成分數（你選的）")
     expect_match(output[["kitsdata-checks"]]$html, "kitsdata-unack_codes")
     kd_click(session, "unack_codes")
     expect_equal(kd_check_state(output, "9999"), "todo")
@@ -367,7 +367,7 @@ test_that("逐題表換頁：勾選留著；「勾選全部符合的列」「全
     expect_match(page2, 'value="q30"')
     expect_no_match(page2, 'value="q01"')
     kd_set(session, sel = "q27")
-    expect_equal(output[["kitsdata-sel_count"]], "已勾選 3 列")
+    expect_equal(output[["kitsdata-sel_count"]], "已勾選 3 橫列")
     kd_click(session, "tbl_prev")
     page1 <- output[["kitsdata-items_table"]]$html
     expect_match(page1, 'value="q01" checked="checked"', fixed = TRUE)
@@ -377,16 +377,16 @@ test_that("逐題表換頁：勾選留著；「勾選全部符合的列」「全
     # 對三列設領域（兩頁的都改到）
     kd_set(session, bulk_action = "domain", bulk_domain = "a")
     kd_click(session, "bulk_apply")
-    expect_match(output[["kitsdata-items_title"]], "（30 欄 · a 3 題、q 27 題）", fixed = TRUE)
-    expect_match(kd_out(output, "checks"), "有 27 欄的領域還是預設的組名（例如 q）")
+    expect_match(output[["kitsdata-items_title"]], "（30 直欄 · a 3 題、q 27 題）", fixed = TRUE)
+    expect_match(kd_out(output, "checks"), "有 27 直欄的領域還是預設的組名（例如 q）")
 
     # 找欄名後全選：只勾符合的
     kd_set(session, tbl_search = "q1")
     expect_equal(output[["kitsdata-tbl_page"]], "第 1 / 1 頁")
     kd_click(session, "tbl_sel_all")
-    expect_equal(output[["kitsdata-sel_count"]], "已勾選 10 列")
+    expect_equal(output[["kitsdata-sel_count"]], "已勾選 10 橫列")
     kd_click(session, "tbl_sel_none")
-    expect_equal(output[["kitsdata-sel_count"]], "已勾選 0 列")
+    expect_equal(output[["kitsdata-sel_count"]], "已勾選 0 橫列")
   })
 })
 
@@ -405,7 +405,7 @@ test_that("轉換完成後三步都打 ✓；按第 2 步的「改」重新打�
       expect_match(output[[paste0("kitsdata-head", k)]]$html, paste0("kitsdata-edit", k))
     }
     expect_match(kd_out(output, "head1"), "2 個檔案 · 世代 M03、M36")
-    expect_match(kd_out(output, "head2"), "挑出 2 欄、2 組")
+    expect_match(kd_out(output, "head2"), "挑出 2 直欄、2 組")
     expect_match(kd_out(output, "head3"), "分數全部減了 1")
     expect_null(output[["kitsdata-ready"]])
     expect_null(output[["kitsdata-run_ui"]])
@@ -447,7 +447,7 @@ kd_groups_file <- function(dir, ...) {
 test_that("第 2 步只挑題目：沒有領域選單、用欄名挑沒有領域；第一行說領域在下一步", {
   ui <- as.character(mod_kitsdata_ui("kitsdata"))
   expect_no_match(ui, "pick_domain", fixed = TRUE)
-  expect_match(ui, "上傳題目表（之前下載的題目表，或 item_id、domain 兩欄的 CSV/SAV）", fixed = TRUE)
+  expect_match(ui, "上傳題目表（之前下載的題目表，或 item_id、domain 兩直欄的 CSV/SAV）", fixed = TRUE)
   expect_match(ui, 'id="kitsdata-item_table"', fixed = TRUE)
   expect_match(ui, 'id="kitsdata-table_dl_ui"', fixed = TRUE)
   # 題目表直接顯示（不在收合的細節裡）
@@ -458,8 +458,8 @@ test_that("第 2 步只挑題目：沒有領域選單、用欄名挑沒有領域
     session$setInputs(`upload-files` = kd_upload(path))
     expect_equal(
       kd_out(output, "intro2"),
-      paste("先挑出哪些欄是題目；領域和計分在下一步的題目表設定，之後都還可以改。",
-            "下面是看起來像題目的欄（分數是 0–20 的整數），欄名開頭一樣的放在一組。勾選要轉的組。")
+      paste("先挑出哪些直欄是題目；領域和計分在下一步的題目表設定，之後都還可以改。",
+            "下面是看起來像題目的直欄（分數是 0–20 的整數），直欄名稱開頭一樣的放在一組。勾選要轉的組。")
     )
     html <- output[["kitsdata-groups_table"]]$html
     expect_no_match(html, "gdom_|selectize|<th>領域</th>|<select")
@@ -483,23 +483,23 @@ test_that("第 2 步的組：勾選就納入、取消勾選就不納入；只改
     expect_equal(kd_out(output, "items_status"), "")
 
     kd_set(session, grp_sel = "a")
-    expect_match(kd_out(output, "items_status"), "挑出 2 欄、1 組")
+    expect_match(kd_out(output, "items_status"), "挑出 2 直欄、1 組")
     expect_match(kd_out(output, "items_list"), "a1")
     expect_no_match(kd_out(output, "items_list"), "b1")
     # 領域預設是組名
     expect_match(kd_out(output, "items_table"), "a1 a （組名）")
 
     kd_set(session, grp_sel = c("a", "b"))
-    expect_match(kd_out(output, "items_status"), "挑出 4 欄、2 組")
+    expect_match(kd_out(output, "items_status"), "挑出 4 直欄、2 組")
     # 第 3 步的題目表：b2 不要（b 這一組不再整組勾著）
     kd_set(session, sel = "b2", bulk_action = "exclude")
     kd_click(session, "bulk_apply")
-    expect_match(kd_out(output, "items_status"), "挑出 3 欄、2 組")
+    expect_match(kd_out(output, "items_status"), "挑出 3 直欄、2 組")
     # 瀏覽器裡 b 的勾已經拿掉；再取消 a：只動 a，b1 還在、b2 還是不要
     kd_set(session, grp_sel = "a")
-    expect_match(kd_out(output, "items_status"), "挑出 3 欄、2 組")   # 沒有變
+    expect_match(kd_out(output, "items_status"), "挑出 3 直欄、2 組")   # 沒有變
     kd_set(session, grp_sel = character(0))
-    expect_match(kd_out(output, "items_status"), "挑出 1 欄、1 組")
+    expect_match(kd_out(output, "items_status"), "挑出 1 直欄、1 組")
     expect_match(kd_out(output, "items_list"), "b1")
     expect_no_match(kd_out(output, "items_list"), "a1|b2")
   })
@@ -511,7 +511,7 @@ test_that("第 2 步的組：找組之後，取消勾選的組不會又被納入
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kd_upload(path))
     kd_set(session, grp_sel = "a")
-    expect_match(kd_out(output, "items_status"), "挑出 2 欄、1 組")
+    expect_match(kd_out(output, "items_status"), "挑出 2 直欄、1 組")
     kd_set(session, grp_sel = character(0))
     expect_match(kd_out(output, "items_list"), "還沒有挑題目")
     # 找組（換頁也一樣）：表重畫，不會又納入
@@ -572,7 +572,7 @@ test_that("第 3 步檢查：領域還是預設組名 → 要決定；「這樣�
   s <- kits_domain_defaults(kits_item_settings(dfs, names(dfs[[1]])))
   ch <- kits_step3_checks(s)
   expect_equal(ch$dom_default$state, "todo")
-  expect_equal(ch$dom_default$title, "有 3 欄的領域還是預設的組名（例如 socb）")
+  expect_equal(ch$dom_default$title, "有 3 直欄的領域還是預設的組名（例如 socb）")
   expect_equal(ch$dom_default$text, "kitsUI 會照領域分量尺。不改也能轉換。")
   expect_null(ch$domain)                                        # 不再另外說「每一題都有領域」
   key <- kits_domain_default_key(s)
@@ -599,7 +599,7 @@ test_that("模組：領域用組名要決定；「這樣就好」→ ✓、「�
     kd_set(session, grp_sel = c("socb", "lan"))
     kd_click(session, "ok2")
     expect_equal(kd_check_state(output, "預設的組名"), "todo")
-    expect_match(kd_out(output, "checks"), "有 4 欄的領域還是預設的組名（例如 socb）")
+    expect_match(kd_out(output, "checks"), "有 4 直欄的領域還是預設的組名（例如 socb）")
     html <- output[["kitsdata-checks"]]$html
     expect_match(html, "kitsdata-go_dom_table")
     expect_match(html, "kitsdata-ack_dom")
@@ -618,7 +618,7 @@ test_that("模組：領域用組名要決定；「這樣就好」→ ✓、「�
     kd_click(session, "ack_dom")
     kd_bulk(session, "lan1", "domain", bulk_domain = "lan")
     expect_equal(kd_check_state(output, "預設的組名"), "todo")
-    expect_match(kd_out(output, "checks"), "有 3 欄的領域還是預設的組名")
+    expect_match(kd_out(output, "checks"), "有 3 直欄的領域還是預設的組名")
     kd_click(session, "ack_dom")
     kd_click(session, "run")
     expect_match(kd_out(output, "status"), "完成")
@@ -655,7 +655,7 @@ test_that("題目表在第 3 步就能下載（轉換前）；下次在第 2 步
     session$setInputs(`upload-files` = kd_upload(paths))
     kd_step1(session)
     session$setInputs(`kitsdata-item_file` = kd_upload(saved))
-    expect_match(kd_out(output, "items_status"), "saved.csv：挑出 2 欄、2 組")
+    expect_match(kd_out(output, "items_status"), "saved.csv：挑出 2 直欄、2 組")
     expect_match(kd_out(output, "items_status"), "已套用題目表（納入、領域、計分對照）")
     kd_click(session, "ok2")
     table <- kd_out(output, "items_table")

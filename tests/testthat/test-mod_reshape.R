@@ -46,7 +46,7 @@ test_that("kitsUI 分數表：顯示預設按鈕，轉換後可下載並看到�
       expect_match(output$status$html, "轉換完成")
       expect_equal(dim(result()$result), c(6, 13))
       expect_match(output$downloads$html, "download_csv")
-      expect_match(output$preview_meta, "11 列 × 17 欄.*6 列 × 13 欄")
+      expect_match(output$preview_meta, "11 橫列 × 17 直欄.*6 橫列 × 13 直欄")
       expect_match(output$result_details$html, "空白格從哪裡來")
       expect_match(output$empty_table, "motor")
       expect_match(output$code$html, 'names_vary = "slowest"')
@@ -64,7 +64,7 @@ test_that("一般資料不顯示 kitsUI 預設按鈕；id_cols 預設為其餘�
       names_sep = "_", names_prefix = "", names_vary = "fastest", values_fill = ""
     )
     expect_null(output$preset)
-    expect_match(output$id_note$html, "辨認同一列的欄（1 欄）：id")
+    expect_match(output$id_note$html, "辨認同一個橫列的直欄（1 直欄）：id")
     session$setInputs(run = 1)
     expect_named(result()$result, c("id", "x_a", "x_b", "y_a", "y_b"))
     expect_no_match(output$code$html, "id_cols =")
@@ -79,7 +79,7 @@ test_that("id × names_from 重複時停下並列出重複列", {
     session$setInputs(run = 1)
     expect_match(output$status$html, "停下來")
     expect_null(result())
-    expect_match(output$blocked$html, "重複的列（共 2 列")
+    expect_match(output$blocked$html, "重複的橫列（共 2 橫列")
     expect_match(output$blocked_rows, "M03_001_12")
     expect_match(output$downloads$html, "disabled")
 
@@ -97,7 +97,7 @@ test_that("round 在同一個 visit 內不同：提醒並列出不一致的列",
     session$setInputs(run = 1)
     expect_match(output$status$html, "完成，但請注意")
     expect_match(output$status$html, "round")
-    expect_match(output$result_details$html, "辨認同一列的欄不一致的列")
+    expect_match(output$result_details$html, "辨認同一個橫列的直欄不一致的橫列")
     expect_match(output$id_rows, "M03_001_12")
   })
 })
@@ -206,7 +206,7 @@ test_that("轉換前提示格式；方向相反時提醒；寬轉長的程式碼
 
     # 自己選 ID：sex 每個值一列 → 還是寬格式
     session$setInputs(guess_id = "sex")
-    expect_match(output$guess$html, "每個 sex 一列")
+    expect_match(output$guess$html, "每個 sex 一個橫列")
   })
 
   long <- sim_kitsui_scores()

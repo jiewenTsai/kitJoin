@@ -108,7 +108,7 @@ test_that("重複的孩子：同一列次同一題好幾列，擋下", {
   dfs[[1]] <- dplyr::bind_rows(dfs[[1]], dfs[[1]][1, ])
   out <- kits_build(dfs, c("a.csv", "b.csv"), sim_spec(dfs))
   expect_null(out$prep)
-  expect_match(out$problems, "同一列次同一題有好幾列", all = FALSE)
+  expect_match(out$problems, "同一列次同一題有好幾橫列", all = FALSE)
 })
 
 test_that("visit_id 直接用某一欄時，兩個世代撞號會擋下", {

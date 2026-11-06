@@ -268,18 +268,18 @@ test_that("模組：找欄名、勾選全部、批次動作；計分欄顯示原
     # 找 lana → 勾選符合的列 → 要這幾欄、設領域
     kd_set(session, tbl_search = "lana")
     kd_click(session, "tbl_sel_all")
-    expect_equal(output[["kitsdata-sel_count"]], "已勾選 2 列")
+    expect_equal(output[["kitsdata-sel_count"]], "已勾選 2 橫列")
     kd_set(session, bulk_action = "include")
     kd_click(session, "bulk_apply")
     kd_set(session, bulk_action = "domain", bulk_domain = "lan")
     kd_click(session, "bulk_apply")
-    expect_match(kd_out(output, "items_status"), "挑出 2 欄、1 組")
-    expect_equal(output[["kitsdata-items_title"]], "題目表（2 欄 · lan 2 題）")
+    expect_match(kd_out(output, "items_status"), "挑出 2 直欄、1 組")
+    expect_equal(output[["kitsdata-items_title"]], "題目表（2 直欄 · lan 2 題）")
 
     # 全部勾選後減 1：lana01 有 0 分 → 有負分
     kd_set(session, tbl_search = "")
     kd_click(session, "tbl_sel_all")
-    expect_equal(output[["kitsdata-sel_count"]], "已勾選 3 列")
+    expect_equal(output[["kitsdata-sel_count"]], "已勾選 3 橫列")
     kd_set(session, bulk_action = "shift", bulk_shift = -1)
     kd_click(session, "bulk_apply")
     table <- kd_out(output, "items_table")
@@ -295,7 +295,7 @@ test_that("模組：找欄名、勾選全部、批次動作；計分欄顯示原
     expect_match(kd_out(output, "items_table"), "lana01 lan 0→0 1→0 2→2 ")
     expect_match(output[["kitsdata-code"]]$html, "x == 1 ~ 0")
     kd_click(session, "tbl_sel_none")
-    expect_equal(output[["kitsdata-sel_count"]], "已勾選 0 列")
+    expect_equal(output[["kitsdata-sel_count"]], "已勾選 0 橫列")
   })
 })
 

@@ -19,8 +19,8 @@ mod_kitsdata_ui <- function(id) {
       steps = kit_steps(
         # 原文：說清楚每個檔案是哪個世代、哪個波次
         "\u8aaa\u6e05\u695a\u6bcf\u500b\u6a94\u6848\u662f\u54ea\u500b\u4e16\u4ee3\u3001\u54ea\u500b\u6ce2\u6b21",
-        # 原文：挑出哪些欄是題目（有題目表就上傳）
-        "\u6311\u51fa\u54ea\u4e9b\u6b04\u662f\u984c\u76ee\uff08\u6709\u984c\u76ee\u8868\u5c31\u4e0a\u50b3\uff09",
+        # 原文：挑出哪些直欄是題目（有題目表就上傳）
+        "\u6311\u51fa\u54ea\u4e9b\u76f4\u6b04\u662f\u984c\u76ee\uff08\u6709\u984c\u76ee\u8868\u5c31\u4e0a\u50b3\uff09",
         # 原文：在題目表看領域與計分，決定要不要改
         "\u5728\u984c\u76ee\u8868\u770b\u9818\u57df\u8207\u8a08\u5206\uff0c\u6c7a\u5b9a\u8981\u4e0d\u8981\u6539",
         # 原文：按「轉換成作答檔」，下載
@@ -43,12 +43,12 @@ mod_kitsdata_ui <- function(id) {
       technical = paste0(
         # 原文：每個檔案先把每一題的原分數換成計分（計分對照），
         "\u6bcf\u500b\u6a94\u6848\u5148\u628a\u6bcf\u4e00\u984c\u7684\u539f\u5206\u6578\u63db\u6210\u8a08\u5206\uff08\u8a08\u5206\u5c0d\u7167\uff09\uff0c",
-        # 原文：再用 tidyr::pivot_longer() 把題目欄轉成 item_id、item_score，最後接上領域並合併。
-        "\u518d\u7528 tidyr::pivot_longer() \u628a\u984c\u76ee\u6b04\u8f49\u6210 item_id\u3001item_score\uff0c\u6700\u5f8c\u63a5\u4e0a\u9818\u57df\u4e26\u5408\u4f75\u3002",
-        # 原文：檢查都在寬資料上做；長格式在下載時每 5,000 列寬資料轉一段、寫進 .csv.gz，不會整張放進記憶體。
-        "\u6aa2\u67e5\u90fd\u5728\u5bec\u8cc7\u6599\u4e0a\u505a\uff1b\u9577\u683c\u5f0f\u5728\u4e0b\u8f09\u6642\u6bcf 5,000 \u5217\u5bec\u8cc7\u6599\u8f49\u4e00\u6bb5\u3001\u5beb\u9032 .csv.gz\uff0c\u4e0d\u6703\u6574\u5f35\u653e\u9032\u8a18\u61b6\u9ad4\u3002",
-        # 原文：visit_id 由 {cohort}_{subj_id}_{波次標籤} 組成；沒有波次標籤欄時改用 wave_m。
-        "visit_id \u7531 {cohort}_{subj_id}_{\u6ce2\u6b21\u6a19\u7c64} \u7d44\u6210\uff1b\u6c92\u6709\u6ce2\u6b21\u6a19\u7c64\u6b04\u6642\u6539\u7528 wave_m\u3002",
+        # 原文：再用 tidyr::pivot_longer() 把題目直欄轉成 item_id、item_score，最後接上領域並合併。
+        "\u518d\u7528 tidyr::pivot_longer() \u628a\u984c\u76ee\u76f4\u6b04\u8f49\u6210 item_id\u3001item_score\uff0c\u6700\u5f8c\u63a5\u4e0a\u9818\u57df\u4e26\u5408\u4f75\u3002",
+        # 原文：檢查都在寬資料上做；長格式在下載時每 5,000 橫列的寬資料轉一段、寫進 .csv.gz，不會整張放進記憶體。
+        "\u6aa2\u67e5\u90fd\u5728\u5bec\u8cc7\u6599\u4e0a\u505a\uff1b\u9577\u683c\u5f0f\u5728\u4e0b\u8f09\u6642\u6bcf 5,000 \u6a6b\u5217\u7684\u5bec\u8cc7\u6599\u8f49\u4e00\u6bb5\u3001\u5beb\u9032 .csv.gz\uff0c\u4e0d\u6703\u6574\u5f35\u653e\u9032\u8a18\u61b6\u9ad4\u3002",
+        # 原文：visit_id 由 {cohort}_{subj_id}_{波次標籤} 組成；沒有波次標籤直欄時改用 wave_m。
+        "visit_id \u7531 {cohort}_{subj_id}_{\u6ce2\u6b21\u6a19\u7c64} \u7d44\u6210\uff1b\u6c92\u6709\u6ce2\u6b21\u6a19\u7c64\u76f4\u6b04\u6642\u6539\u7528 wave_m\u3002",
         # 原文：這一頁不把任何值改成 NA：疑似遺漏值代碼（值標籤是「遺漏值」「跳答」這類、
         "\u9019\u4e00\u9801\u4e0d\u628a\u4efb\u4f55\u503c\u6539\u6210 NA\uff1a\u7591\u4f3c\u907a\u6f0f\u503c\u4ee3\u78bc\uff08\u503c\u6a19\u7c64\u662f\u300c\u907a\u6f0f\u503c\u300d\u300c\u8df3\u7b54\u300d\u9019\u985e\u3001",
         # 原文：「遺漏值處理」的代碼、7777 以上、和分數明顯分開的值）要在第 3 步決定：
@@ -68,14 +68,14 @@ mod_kitsdata_ui <- function(id) {
         shiny::uiOutput(ns("head1")),
         shiny::conditionalPanel(
           open_is(1), ns = ns, kit_step_body(
-          # 原文：已經照欄名猜好了（淡黃色），請看一遍，不對就改。
-          shiny::tags$p("\u5df2\u7d93\u7167\u6b04\u540d\u731c\u597d\u4e86\uff08\u6de1\u9ec3\u8272\uff09\uff0c\u8acb\u770b\u4e00\u904d\uff0c\u4e0d\u5c0d\u5c31\u6539\u3002",
-                        # 原文：每一格可以選檔案裡的一欄，也可以直接打字填一個值（例如 2009）。
-                        "\u6bcf\u4e00\u683c\u53ef\u4ee5\u9078\u6a94\u6848\u88e1\u7684\u4e00\u6b04\uff0c\u4e5f\u53ef\u4ee5\u76f4\u63a5\u6253\u5b57\u586b\u4e00\u500b\u503c\uff08\u4f8b\u5982 2009\uff09\u3002"),
+          # 原文：已經照直欄名稱猜好了（淡黃色），請看一遍，不對就改。
+          shiny::tags$p("\u5df2\u7d93\u7167\u76f4\u6b04\u540d\u7a31\u731c\u597d\u4e86\uff08\u6de1\u9ec3\u8272\uff09\uff0c\u8acb\u770b\u4e00\u904d\uff0c\u4e0d\u5c0d\u5c31\u6539\u3002",
+                        # 原文：每一格可以選檔案裡的一個直欄，也可以直接打字填一個值（例如 2009）。
+                        "\u6bcf\u4e00\u683c\u53ef\u4ee5\u9078\u6a94\u6848\u88e1\u7684\u4e00\u500b\u76f4\u6b04\uff0c\u4e5f\u53ef\u4ee5\u76f4\u63a5\u6253\u5b57\u586b\u4e00\u500b\u503c\uff08\u4f8b\u5982 2009\uff09\u3002"),
           shiny::uiOutput(ns("files_table")),
           shiny::uiOutput(ns("single_note")),
-          # 原文：第一列的世代套用到每一列
-          shiny::actionLink(ns("fill_cohort"), "\u7b2c\u4e00\u5217\u7684\u4e16\u4ee3\u5957\u7528\u5230\u6bcf\u4e00\u5217"),
+          # 原文：第一個橫列的世代套用到每一個橫列
+          shiny::actionLink(ns("fill_cohort"), "\u7b2c\u4e00\u500b\u6a6b\u5217\u7684\u4e16\u4ee3\u5957\u7528\u5230\u6bcf\u4e00\u500b\u6a6b\u5217"),
           shiny::tags$div(
             class = "kit-inline",
             # 原文：波次的單位
@@ -89,8 +89,8 @@ mod_kitsdata_ui <- function(id) {
             "\u9084\u6709\u6027\u5225\u3001\u5be6\u969b\u6708\u9f61\u3001\u6ce2\u6b21\u6a19\u7c64\uff08\u4e0d\u4e00\u5b9a\u8981\uff09",
             shiny::uiOutput(ns("more_table")),
             shiny::radioButtons(
-              # 原文：世代欄、性別欄有值標籤時（SPSS 檔），作答檔寫：
-              ns("value_labels"), "\u4e16\u4ee3\u6b04\u3001\u6027\u5225\u6b04\u6709\u503c\u6a19\u7c64\u6642\uff08SPSS \u6a94\uff09\uff0c\u4f5c\u7b54\u6a94\u5beb\uff1a",
+              # 原文：世代直欄、性別直欄有值標籤時（SPSS 檔），作答檔寫：
+              ns("value_labels"), "\u4e16\u4ee3\u76f4\u6b04\u3001\u6027\u5225\u76f4\u6b04\u6709\u503c\u6a19\u7c64\u6642\uff08SPSS \u6a94\uff09\uff0c\u4f5c\u7b54\u6a94\u5beb\uff1a",
               # 原文：代碼（例如 1、2） | 標籤（例如 男、女）
               choices = c("\u4ee3\u78bc\uff08\u4f8b\u5982 1\u30012\uff09" = "code", "\u6a19\u7c64\uff08\u4f8b\u5982 \u7537\u3001\u5973\uff09" = "label"),
               selected = "code", inline = TRUE
@@ -112,8 +112,8 @@ mod_kitsdata_ui <- function(id) {
           shiny::tags$div(
             class = "kit-inline",
             shiny::textInput(ns("grp_search"), NULL, width = "20rem",
-                             # 原文：找欄名或題目內容，例如 d5 或 緊張
-                             placeholder = "\u627e\u6b04\u540d\u6216\u984c\u76ee\u5167\u5bb9\uff0c\u4f8b\u5982 d5 \u6216 \u7dca\u5f35")
+                             # 原文：找直欄名稱或題目內容，例如 d5 或 緊張
+                             placeholder = "\u627e\u76f4\u6b04\u540d\u7a31\u6216\u984c\u76ee\u5167\u5bb9\uff0c\u4f8b\u5982 d5 \u6216 \u7dca\u5f35")
           ),
           shiny::tags$div(
             class = "kit-pager",
@@ -131,36 +131,36 @@ mod_kitsdata_ui <- function(id) {
               # 原文：有題目表就上傳
               "\u6709\u984c\u76ee\u8868\u5c31\u4e0a\u50b3",
               shiny::fileInput(
-                # 原文：上傳題目表（之前下載的題目表，或 item_id、domain 兩欄的 CSV/SAV）
-                ns("item_file"), "\u4e0a\u50b3\u984c\u76ee\u8868\uff08\u4e4b\u524d\u4e0b\u8f09\u7684\u984c\u76ee\u8868\uff0c\u6216 item_id\u3001domain \u5169\u6b04\u7684 CSV/SAV\uff09",
+                # 原文：上傳題目表（之前下載的題目表，或 item_id、domain 兩直欄的 CSV/SAV）
+                ns("item_file"), "\u4e0a\u50b3\u984c\u76ee\u8868\uff08\u4e4b\u524d\u4e0b\u8f09\u7684\u984c\u76ee\u8868\uff0c\u6216 item_id\u3001domain \u5169\u76f4\u6b04\u7684 CSV/SAV\uff09",
                 # 原文：選擇檔案… | 還沒有上傳
                 accept = c(".csv", ".sav"), buttonLabel = "\u9078\u64c7\u6a94\u6848\u2026", placeholder = "\u9084\u6c92\u6709\u4e0a\u50b3",
                 width = "34rem"
               ),
               shiny::tags$p(class = "kit-hint",
-                # 原文：一列一題：item_id（資料裡的欄名）、domain（領域）；
-                "\u4e00\u5217\u4e00\u984c\uff1aitem_id\uff08\u8cc7\u6599\u88e1\u7684\u6b04\u540d\uff09\u3001domain\uff08\u9818\u57df\uff09\uff1b",
-                # 原文：可以再加 item_id_out（作答檔的題號：各波次欄名不同、其實是同一題時，給同一個題號）。
-                "\u53ef\u4ee5\u518d\u52a0 item_id_out\uff08\u4f5c\u7b54\u6a94\u7684\u984c\u865f\uff1a\u5404\u6ce2\u6b21\u6b04\u540d\u4e0d\u540c\u3001\u5176\u5be6\u662f\u540c\u4e00\u984c\u6642\uff0c\u7d66\u540c\u4e00\u500b\u984c\u865f\uff09\u3002",
+                # 原文：一個橫列一題：item_id（資料裡的直欄名稱）、domain（領域）；
+                "\u4e00\u500b\u6a6b\u5217\u4e00\u984c\uff1aitem_id\uff08\u8cc7\u6599\u88e1\u7684\u76f4\u6b04\u540d\u7a31\uff09\u3001domain\uff08\u9818\u57df\uff09\uff1b",
+                # 原文：可以再加 item_id_out（作答檔的題號：各波次直欄名稱不同、其實是同一題時，給同一個題號）。
+                "\u53ef\u4ee5\u518d\u52a0 item_id_out\uff08\u4f5c\u7b54\u6a94\u7684\u984c\u865f\uff1a\u5404\u6ce2\u6b21\u76f4\u6b04\u540d\u7a31\u4e0d\u540c\u3001\u5176\u5be6\u662f\u540c\u4e00\u984c\u6642\uff0c\u7d66\u540c\u4e00\u500b\u984c\u865f\uff09\u3002",
                 # 原文：之前在第 3 步下載的題目表，會連領域、計分對照一起套用。
                 "\u4e4b\u524d\u5728\u7b2c 3 \u6b65\u4e0b\u8f09\u7684\u984c\u76ee\u8868\uff0c\u6703\u9023\u9818\u57df\u3001\u8a08\u5206\u5c0d\u7167\u4e00\u8d77\u5957\u7528\u3002"),
               shiny::selectInput(
-                # 原文：反向題的欄名（題目表查不到時，用原題的領域）
-                ns("reverse_rule"), "\u53cd\u5411\u984c\u7684\u6b04\u540d\uff08\u984c\u76ee\u8868\u67e5\u4e0d\u5230\u6642\uff0c\u7528\u539f\u984c\u7684\u9818\u57df\uff09",
+                # 原文：反向題的直欄名稱（題目表查不到時，用原題的領域）
+                ns("reverse_rule"), "\u53cd\u5411\u984c\u7684\u76f4\u6b04\u540d\u7a31\uff08\u984c\u76ee\u8868\u67e5\u4e0d\u5230\u6642\uff0c\u7528\u539f\u984c\u7684\u9818\u57df\uff09",
                 choices = KITS_REVERSE_RULES, selected = "suffix", width = "24rem"
               )
             ),
             kit_detail(
-              # 原文：用欄名一次挑很多欄
-              "\u7528\u6b04\u540d\u4e00\u6b21\u6311\u5f88\u591a\u6b04",
+              # 原文：用直欄名稱一次挑很多直欄
+              "\u7528\u76f4\u6b04\u540d\u7a31\u4e00\u6b21\u6311\u5f88\u591a\u76f4\u6b04",
               shiny::tags$div(
                 class = "kit-inline",
-                # 原文：欄名開頭是
-                shiny::textInput(ns("pick_prefix"), "\u6b04\u540d\u958b\u982d\u662f", width = "16rem",
+                # 原文：直欄名稱開頭是
+                shiny::textInput(ns("pick_prefix"), "\u76f4\u6b04\u540d\u7a31\u958b\u982d\u662f", width = "16rem",
                                  # 原文：例如 w1d5_、w2d5_
                                  placeholder = "\u4f8b\u5982 w1d5_\u3001w2d5_"),
-                # 原文：加入這些欄
-                shiny::actionButton(ns("pick_add"), "\u52a0\u5165\u9019\u4e9b\u6b04", class = "btn-default")
+                # 原文：加入這些直欄
+                shiny::actionButton(ns("pick_add"), "\u52a0\u5165\u9019\u4e9b\u76f4\u6b04", class = "btn-default")
               ),
               shiny::uiOutput(ns("pick_note")),
               # 原文：全部清掉，重新挑
@@ -168,8 +168,8 @@ mod_kitsdata_ui <- function(id) {
             ),
             # 原文：看挑出來的題目
             kit_detail("\u770b\u6311\u51fa\u4f86\u7684\u984c\u76ee", shiny::uiOutput(ns("items_list"))),
-            # 原文：沒有列在上面的欄
-            kit_detail("\u6c92\u6709\u5217\u5728\u4e0a\u9762\u7684\u6b04", shiny::uiOutput(ns("text_cols")))
+            # 原文：沒有列在上面的直欄
+            kit_detail("\u6c92\u6709\u5217\u5728\u4e0a\u9762\u7684\u76f4\u6b04", shiny::uiOutput(ns("text_cols")))
           ),
           # 原文：對，下一步
           shiny::actionButton(ns("ok2"), "\u5c0d\uff0c\u4e0b\u4e00\u6b65", class = "btn-default")
@@ -190,8 +190,8 @@ mod_kitsdata_ui <- function(id) {
             shiny::tags$h5(class = "kit-itemtable-title",
                            shiny::textOutput(ns("items_title"), inline = TRUE)),
             shiny::tags$p(class = "kit-hint",
-              # 原文：一列一欄。勾選幾列，再用表下面的「對勾選的列」改領域或計分。
-              "\u4e00\u5217\u4e00\u6b04\u3002\u52fe\u9078\u5e7e\u5217\uff0c\u518d\u7528\u8868\u4e0b\u9762\u7684\u300c\u5c0d\u52fe\u9078\u7684\u5217\u300d\u6539\u9818\u57df\u6216\u8a08\u5206\u3002"),
+              # 原文：一個橫列一個直欄。勾選幾橫列，再用表下面的「對勾選的橫列」改領域或計分。
+              "\u4e00\u500b\u6a6b\u5217\u4e00\u500b\u76f4\u6b04\u3002\u52fe\u9078\u5e7e\u6a6b\u5217\uff0c\u518d\u7528\u8868\u4e0b\u9762\u7684\u300c\u5c0d\u52fe\u9078\u7684\u6a6b\u5217\u300d\u6539\u9818\u57df\u6216\u8a08\u5206\u3002"),
             kitsdata_items_tools(ns),
             shiny::uiOutput(ns("items_table")),
             kitsdata_bulk_tools(ns),
@@ -215,10 +215,10 @@ kitsdata_items_tools <- function(ns) {
   shiny::tagList(
     shiny::tags$div(
       class = "kit-inline",
-      # 原文：找欄名，例如 d5
-      shiny::textInput(ns("tbl_search"), NULL, placeholder = "\u627e\u6b04\u540d\uff0c\u4f8b\u5982 d5", width = "14rem"),
-      # 原文：也顯示沒挑的欄
-      shiny::checkboxInput(ns("tbl_all"), "\u4e5f\u986f\u793a\u6c92\u6311\u7684\u6b04", value = FALSE)
+      # 原文：找直欄名稱，例如 d5
+      shiny::textInput(ns("tbl_search"), NULL, placeholder = "\u627e\u76f4\u6b04\u540d\u7a31\uff0c\u4f8b\u5982 d5", width = "14rem"),
+      # 原文：也顯示沒挑的直欄
+      shiny::checkboxInput(ns("tbl_all"), "\u4e5f\u986f\u793a\u6c92\u6311\u7684\u76f4\u6b04", value = FALSE)
     ),
     shiny::tags$div(
       class = "kit-pager",
@@ -235,10 +235,10 @@ kitsdata_items_tools <- function(ns) {
 KITS_BULK_ACTIONS <- c(
   # 原文：設領域 | 計分加減（例如 -1） | 反向計分
   "\u8a2d\u9818\u57df" = "domain", "\u8a08\u5206\u52a0\u6e1b\uff08\u4f8b\u5982 -1\uff09" = "shift", "\u53cd\u5411\u8a08\u5206" = "reverse",
-  # 原文：合併原分數 | 還原（計分＝原分數） | 不要這幾欄
-  "\u5408\u4f75\u539f\u5206\u6578" = "merge", "\u9084\u539f\uff08\u8a08\u5206\uff1d\u539f\u5206\u6578\uff09" = "restore", "\u4e0d\u8981\u9019\u5e7e\u6b04" = "exclude",
-  # 原文：要這幾欄 | 輸出題號：去掉欄名的一段 | 輸出題號：還原成欄名
-  "\u8981\u9019\u5e7e\u6b04" = "include", "\u8f38\u51fa\u984c\u865f\uff1a\u53bb\u6389\u6b04\u540d\u7684\u4e00\u6bb5" = "out_prefix", "\u8f38\u51fa\u984c\u865f\uff1a\u9084\u539f\u6210\u6b04\u540d" = "out_reset"
+  # 原文：合併原分數 | 還原（計分＝原分數） | 不要這幾直欄
+  "\u5408\u4f75\u539f\u5206\u6578" = "merge", "\u9084\u539f\uff08\u8a08\u5206\uff1d\u539f\u5206\u6578\uff09" = "restore", "\u4e0d\u8981\u9019\u5e7e\u76f4\u6b04" = "exclude",
+  # 原文：要這幾直欄 | 輸出題號：去掉直欄名稱的一段 | 輸出題號：還原成直欄名稱
+  "\u8981\u9019\u5e7e\u76f4\u6b04" = "include", "\u8f38\u51fa\u984c\u865f\uff1a\u53bb\u6389\u76f4\u6b04\u540d\u7a31\u7684\u4e00\u6bb5" = "out_prefix", "\u8f38\u51fa\u984c\u865f\uff1a\u9084\u539f\u6210\u76f4\u6b04\u540d\u7a31" = "out_reset"
 )
 kitsdata_bulk_tools <- function(ns) {
   when <- function(value, ...) {
@@ -248,16 +248,16 @@ kitsdata_bulk_tools <- function(ns) {
     class = "kit-bulk",
     shiny::tags$div(
       class = "kit-inline",
-      # 原文：勾選全部符合的列
-      shiny::actionLink(ns("tbl_sel_all"), "\u52fe\u9078\u5168\u90e8\u7b26\u5408\u7684\u5217"),
+      # 原文：勾選全部符合的橫列
+      shiny::actionLink(ns("tbl_sel_all"), "\u52fe\u9078\u5168\u90e8\u7b26\u5408\u7684\u6a6b\u5217"),
       # 原文：全部不勾
       shiny::actionLink(ns("tbl_sel_none"), "\u5168\u90e8\u4e0d\u52fe"),
       shiny::textOutput(ns("sel_count"), inline = TRUE)
     ),
     shiny::tags$div(
       class = "kit-inline",
-      # 原文：對勾選的列
-      shiny::selectInput(ns("bulk_action"), "\u5c0d\u52fe\u9078\u7684\u5217", choices = KITS_BULK_ACTIONS,
+      # 原文：對勾選的橫列
+      shiny::selectInput(ns("bulk_action"), "\u5c0d\u52fe\u9078\u7684\u6a6b\u5217", choices = KITS_BULK_ACTIONS,
                          width = "17rem"),
       when("domain", shiny::selectizeInput(
         # 原文：領域
@@ -286,8 +286,8 @@ kitsdata_bulk_tools <- function(ns) {
       class = "kit-hint",
       # 原文：加減、反向都在目前的計分上做。遺漏值代碼（例如 98、99）不要用合併接起來，
       "\u52a0\u6e1b\u3001\u53cd\u5411\u90fd\u5728\u76ee\u524d\u7684\u8a08\u5206\u4e0a\u505a\u3002\u907a\u6f0f\u503c\u4ee3\u78bc\uff08\u4f8b\u5982 98\u300199\uff09\u4e0d\u8981\u7528\u5408\u4f75\u63a5\u8d77\u4f86\uff0c",
-      # 原文：請先用「遺漏值處理」改成 NA。輸出題號是作答檔的 item_id：各波次欄名不同、其實是同一題時，
-      "\u8acb\u5148\u7528\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u6539\u6210 NA\u3002\u8f38\u51fa\u984c\u865f\u662f\u4f5c\u7b54\u6a94\u7684 item_id\uff1a\u5404\u6ce2\u6b21\u6b04\u540d\u4e0d\u540c\u3001\u5176\u5be6\u662f\u540c\u4e00\u984c\u6642\uff0c",
+      # 原文：請先用「遺漏值處理」改成 NA。輸出題號是作答檔的 item_id：各波次直欄名稱不同、其實是同一題時，
+      "\u8acb\u5148\u7528\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u6539\u6210 NA\u3002\u8f38\u51fa\u984c\u865f\u662f\u4f5c\u7b54\u6a94\u7684 item_id\uff1a\u5404\u6ce2\u6b21\u76f4\u6b04\u540d\u7a31\u4e0d\u540c\u3001\u5176\u5be6\u662f\u540c\u4e00\u984c\u6642\uff0c",
       # 原文：給它們同一個題號（例如 w1d5_1、w2d5_1 去掉 ^w[0-9]+ 都是 d5_1）。
       "\u7d66\u5b83\u5011\u540c\u4e00\u500b\u984c\u865f\uff08\u4f8b\u5982 w1d5_1\u3001w2d5_1 \u53bb\u6389 ^w[0-9]+ \u90fd\u662f d5_1\uff09\u3002"
     )
@@ -412,13 +412,13 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
             class = "kit-callout",
             shiny::tags$strong(name), "\uff1a",
             if (kind == "pivot") paste0(
-              # 原文：已轉成一列一個孩子的一個波次（ |  → 
-              "\u5df2\u8f49\u6210\u4e00\u5217\u4e00\u500b\u5b69\u5b50\u7684\u4e00\u500b\u6ce2\u6b21\uff08", kit_dims(nrow(df), ncol(df)), " \u2192 ",
-              # 原文：）；波次記號在  |  欄，時間點在  |  欄。
-              kit_dims(nrow(applied), ncol(applied)), "\uff09\uff1b\u6ce2\u6b21\u8a18\u865f\u5728 ", det$pivot$label_col, " \u6b04\uff0c\u6642\u9593\u9ede\u5728 ", det$pivot$wave_col, " \u6b04\u3002"
+              # 原文：已轉成一個橫列一個孩子的一個波次（ |  → 
+              "\u5df2\u8f49\u6210\u4e00\u500b\u6a6b\u5217\u4e00\u500b\u5b69\u5b50\u7684\u4e00\u500b\u6ce2\u6b21\uff08", kit_dims(nrow(df), ncol(df)), " \u2192 ",
+              # 原文：）；波次記號在  |  直欄，時間點在  |  直欄。
+              kit_dims(nrow(applied), ncol(applied)), "\uff09\uff1b\u6ce2\u6b21\u8a18\u865f\u5728 ", det$pivot$label_col, " \u76f4\u6b04\uff0c\u6642\u9593\u9ede\u5728 ", det$pivot$wave_col, " \u76f4\u6b04\u3002"
             ) else paste0(
-              # 原文：已從  |  欄取出數字，放在 wave_m 欄（ | 、 | ）。
-              "\u5df2\u5f9e ", det$wave_num$col, " \u6b04\u53d6\u51fa\u6578\u5b57\uff0c\u653e\u5728 wave_m \u6b04\uff08", paste(det$wave_num$examples, collapse = "\u3001"), "\uff09\u3002"
+              # 原文：已從  |  直欄取出數字，放在 wave_m 直欄（ | 、 | ）。
+              "\u5df2\u5f9e ", det$wave_num$col, " \u76f4\u6b04\u53d6\u51fa\u6578\u5b57\uff0c\u653e\u5728 wave_m \u76f4\u6b04\uff08", paste(det$wave_num$examples, collapse = "\u3001"), "\uff09\u3002"
             ),
             " ",
             # 原文：還原
@@ -430,13 +430,13 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
           return(shiny::tags$div(
             class = "kit-callout kit-callout-warn",
             shiny::tags$strong(name),
-            # 原文：像是多波寬檔：同一題各波次一欄（ | 、 | …，
-            paste0("\u50cf\u662f\u591a\u6ce2\u5bec\u6a94\uff1a\u540c\u4e00\u984c\u5404\u6ce2\u6b21\u4e00\u6b04\uff08", paste(utils::head(p$cols, 2), collapse = "\u3001"), "\u2026\uff0c",
-                   # 原文：  個波次、 |  題）。這一頁要的是一列一個孩子的一個波次，不轉的話同一題各波次會被當成不同的題。
-                   length(p$waves), " \u500b\u6ce2\u6b21\u3001", p$n_stems, " \u984c\uff09\u3002\u9019\u4e00\u9801\u8981\u7684\u662f\u4e00\u5217\u4e00\u500b\u5b69\u5b50\u7684\u4e00\u500b\u6ce2\u6b21\uff0c\u4e0d\u8f49\u7684\u8a71\u540c\u4e00\u984c\u5404\u6ce2\u6b21\u6703\u88ab\u7576\u6210\u4e0d\u540c\u7684\u984c\u3002"),
+            # 原文：像是多波寬檔：同一題各波次一個直欄（ | 、 | …，
+            paste0("\u50cf\u662f\u591a\u6ce2\u5bec\u6a94\uff1a\u540c\u4e00\u984c\u5404\u6ce2\u6b21\u4e00\u500b\u76f4\u6b04\uff08", paste(utils::head(p$cols, 2), collapse = "\u3001"), "\u2026\uff0c",
+                   # 原文：  個波次、 |  題）。這一頁要的是一個橫列一個孩子的一個波次，不轉的話同一題各波次會被當成不同的題。
+                   length(p$waves), " \u500b\u6ce2\u6b21\u3001", p$n_stems, " \u984c\uff09\u3002\u9019\u4e00\u9801\u8981\u7684\u662f\u4e00\u500b\u6a6b\u5217\u4e00\u500b\u5b69\u5b50\u7684\u4e00\u500b\u6ce2\u6b21\uff0c\u4e0d\u8f49\u7684\u8a71\u540c\u4e00\u984c\u5404\u6ce2\u6b21\u6703\u88ab\u7576\u6210\u4e0d\u540c\u7684\u984c\u3002"),
             " ",
-            # 原文：轉成一列一個波次
-            tf_btn(key, "pivot", "\u8f49\u6210\u4e00\u5217\u4e00\u500b\u6ce2\u6b21")
+            # 原文：轉成一個橫列一個波次
+            tf_btn(key, "pivot", "\u8f49\u6210\u4e00\u500b\u6a6b\u5217\u4e00\u500b\u6ce2\u6b21")
           ))
         }
         if (!is.null(det$wave_num)) {
@@ -444,8 +444,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
           return(shiny::tags$div(
             class = "kit-callout kit-callout-warn",
             shiny::tags$strong(name),
-            # 原文：的波次欄  |  是文字，時間點（wave_m）要是數字。可以取出裡面的數字（ | 、 | ）。
-            paste0("\u7684\u6ce2\u6b21\u6b04 ", w$col, " \u662f\u6587\u5b57\uff0c\u6642\u9593\u9ede\uff08wave_m\uff09\u8981\u662f\u6578\u5b57\u3002\u53ef\u4ee5\u53d6\u51fa\u88e1\u9762\u7684\u6578\u5b57\uff08", paste(w$examples, collapse = "\u3001"), "\uff09\u3002"),
+            # 原文：的波次直欄  |  是文字，時間點（wave_m）要是數字。可以取出裡面的數字（ | 、 | ）。
+            paste0("\u7684\u6ce2\u6b21\u76f4\u6b04 ", w$col, " \u662f\u6587\u5b57\uff0c\u6642\u9593\u9ede\uff08wave_m\uff09\u8981\u662f\u6578\u5b57\u3002\u53ef\u4ee5\u53d6\u51fa\u88e1\u9762\u7684\u6578\u5b57\uff08", paste(w$examples, collapse = "\u3001"), "\uff09\u3002"),
             " ",
             # 原文：取出數字當時間點
             tf_btn(key, "wave_num", "\u53d6\u51fa\u6578\u5b57\u7576\u6642\u9593\u9ede")
@@ -562,8 +562,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
           create = TRUE, createOnBlur = TRUE, persist = FALSE,
           # 選單掛在整頁上：表格外框會左右捲動（overflow），選單放在裡面會被切掉
           dropdownParent = "body",
-          # 原文：例如 M03 | 選一欄或打字
-          placeholder = if (field == "cohort") "\u4f8b\u5982 M03" else "\u9078\u4e00\u6b04\u6216\u6253\u5b57",
+          # 原文：例如 M03 | 選一個直欄或打字
+          placeholder = if (field == "cohort") "\u4f8b\u5982 M03" else "\u9078\u4e00\u500b\u76f4\u6b04\u6216\u6253\u5b57",
           # 表格裡的選單沒有看得到的標籤：給螢幕閱讀器「檔名 的 世代」
           onInitialize = I(sprintf("function() { this.$control_input.attr('aria-label', %s); }",
                                    # 原文： 的
@@ -612,8 +612,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
         class = "kit-hint",
         # 原文：只有一個檔案、檔案裡沒有世代與波次：世代先填 S1、時間點先填 0。
         "\u53ea\u6709\u4e00\u500b\u6a94\u6848\u3001\u6a94\u6848\u88e1\u6c92\u6709\u4e16\u4ee3\u8207\u6ce2\u6b21\uff1a\u4e16\u4ee3\u5148\u586b S1\u3001\u6642\u9593\u9ede\u5148\u586b 0\u3002",
-        # 原文：kitsUI 要這兩欄，這裡只用來組列次編號；只有一次施測的研究不用改，要改也可以。
-        "kitsUI \u8981\u9019\u5169\u6b04\uff0c\u9019\u88e1\u53ea\u7528\u4f86\u7d44\u5217\u6b21\u7de8\u865f\uff1b\u53ea\u6709\u4e00\u6b21\u65bd\u6e2c\u7684\u7814\u7a76\u4e0d\u7528\u6539\uff0c\u8981\u6539\u4e5f\u53ef\u4ee5\u3002"
+        # 原文：kitsUI 要這兩直欄，這裡只用來組列次編號；只有一次施測的研究不用改，要改也可以。
+        "kitsUI \u8981\u9019\u5169\u76f4\u6b04\uff0c\u9019\u88e1\u53ea\u7528\u4f86\u7d44\u5217\u6b21\u7de8\u865f\uff1b\u53ea\u6709\u4e00\u6b21\u65bd\u6e2c\u7684\u7814\u7a76\u4e0d\u7528\u6539\uff0c\u8981\u6539\u4e5f\u53ef\u4ee5\u3002"
       )
     })
     output$more_table <- shiny::renderUI({
@@ -655,8 +655,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
     shiny::observeEvent(input$fill_cohort, {
       v <- cells()$cohort[1]
       if (!nzchar(v)) {
-        # 原文：第一列的世代還沒有填。
-        shiny::showNotification("\u7b2c\u4e00\u5217\u7684\u4e16\u4ee3\u9084\u6c92\u6709\u586b\u3002", type = "warning")
+        # 原文：第一個橫列的世代還沒有填。
+        shiny::showNotification("\u7b2c\u4e00\u500b\u6a6b\u5217\u7684\u4e16\u4ee3\u9084\u6c92\u6709\u586b\u3002", type = "warning")
         return()
       }
       keys <- src_keys()
@@ -759,12 +759,12 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
     output$intro2 <- shiny::renderUI({
       shiny::tagList(
         shiny::tags$p(shiny::tags$strong(
-          # 原文：先挑出哪些欄是題目；領域和計分在下一步的題目表設定，之後都還可以改。
-          "\u5148\u6311\u51fa\u54ea\u4e9b\u6b04\u662f\u984c\u76ee\uff1b\u9818\u57df\u548c\u8a08\u5206\u5728\u4e0b\u4e00\u6b65\u7684\u984c\u76ee\u8868\u8a2d\u5b9a\uff0c\u4e4b\u5f8c\u90fd\u9084\u53ef\u4ee5\u6539\u3002"
+          # 原文：先挑出哪些直欄是題目；領域和計分在下一步的題目表設定，之後都還可以改。
+          "\u5148\u6311\u51fa\u54ea\u4e9b\u76f4\u6b04\u662f\u984c\u76ee\uff1b\u9818\u57df\u548c\u8a08\u5206\u5728\u4e0b\u4e00\u6b65\u7684\u984c\u76ee\u8868\u8a2d\u5b9a\uff0c\u4e4b\u5f8c\u90fd\u9084\u53ef\u4ee5\u6539\u3002"
         )),
         shiny::tags$p(class = "kit-hint",
-          # 原文：下面是看起來像題目的欄（分數是 0–20 的整數），欄名開頭一樣的放在一組。勾選要轉的組。
-          "\u4e0b\u9762\u662f\u770b\u8d77\u4f86\u50cf\u984c\u76ee\u7684\u6b04\uff08\u5206\u6578\u662f 0\u201320 \u7684\u6574\u6578\uff09\uff0c\u6b04\u540d\u958b\u982d\u4e00\u6a23\u7684\u653e\u5728\u4e00\u7d44\u3002\u52fe\u9078\u8981\u8f49\u7684\u7d44\u3002"),
+          # 原文：下面是看起來像題目的直欄（分數是 0–20 的整數），直欄名稱開頭一樣的放在一組。勾選要轉的組。
+          "\u4e0b\u9762\u662f\u770b\u8d77\u4f86\u50cf\u984c\u76ee\u7684\u76f4\u6b04\uff08\u5206\u6578\u662f 0\u201320 \u7684\u6574\u6578\uff09\uff0c\u76f4\u6b04\u540d\u7a31\u958b\u982d\u4e00\u6a23\u7684\u653e\u5728\u4e00\u7d44\u3002\u52fe\u9078\u8981\u8f49\u7684\u7d44\u3002"),
         kitsdata_tags_note(file_tags(), src_names())
       )
     })
@@ -808,8 +808,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
       g <- grp_rows()
       if (nrow(g) == 0) {
         return(shiny::tags$p(class = "kit-hint", if (nrow(groups_all()) == 0)
-          # 原文：沒有看起來像題目的欄。可以上傳題目表，或用欄名挑（下面）。 | 沒有符合的組。
-          "\u6c92\u6709\u770b\u8d77\u4f86\u50cf\u984c\u76ee\u7684\u6b04\u3002\u53ef\u4ee5\u4e0a\u50b3\u984c\u76ee\u8868\uff0c\u6216\u7528\u6b04\u540d\u6311\uff08\u4e0b\u9762\uff09\u3002" else "\u6c92\u6709\u7b26\u5408\u7684\u7d44\u3002"))
+          # 原文：沒有看起來像題目的直欄。可以上傳題目表，或用直欄名稱挑（下面）。 | 沒有符合的組。
+          "\u6c92\u6709\u770b\u8d77\u4f86\u50cf\u984c\u76ee\u7684\u76f4\u6b04\u3002\u53ef\u4ee5\u4e0a\u50b3\u984c\u76ee\u8868\uff0c\u6216\u7528\u76f4\u6b04\u540d\u7a31\u6311\uff08\u4e0b\u9762\uff09\u3002" else "\u6c92\u6709\u7b26\u5408\u7684\u7d44\u3002"))
       }
       s <- shiny::isolate(settings())
       shiny::isolate(grp_sel_prev(group_on(s, g)))
@@ -849,8 +849,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
           shiny::tags$table(
             class = "table kit-groups",
             shiny::tags$thead(shiny::tags$tr(
-              # 原文：要 | 欄 | 題目內容（第一題）
-              shiny::tags$th("\u8981"), shiny::tags$th("\u6b04"), shiny::tags$th("\u984c\u76ee\u5167\u5bb9\uff08\u7b2c\u4e00\u984c\uff09")
+              # 原文：要 | 直欄 | 題目內容（第一題）
+              shiny::tags$th("\u8981"), shiny::tags$th("\u76f4\u6b04"), shiny::tags$th("\u984c\u76ee\u5167\u5bb9\uff08\u7b2c\u4e00\u984c\uff09")
             )),
             shiny::tags$tbody(rows)
           )
@@ -873,8 +873,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
       g <- g[g$stem %in% on, ]
       shiny::tags$div(
         class = "kit-merge",
-        # 原文：各波欄名不同、其實是同一份量表？
-        shiny::tags$p(shiny::tags$strong("\u5404\u6ce2\u6b04\u540d\u4e0d\u540c\u3001\u5176\u5be6\u662f\u540c\u4e00\u4efd\u91cf\u8868\uff1f"),
+        # 原文：各波直欄名稱不同、其實是同一份量表？
+        shiny::tags$p(shiny::tags$strong("\u5404\u6ce2\u76f4\u6b04\u540d\u7a31\u4e0d\u540c\u3001\u5176\u5be6\u662f\u540c\u4e00\u4efd\u91cf\u8868\uff1f"),
                       # 原文：把每一波的那一組選進來，依題目順序合成同一組題號，kits 才能把各波連起來。
                       "\u628a\u6bcf\u4e00\u6ce2\u7684\u90a3\u4e00\u7d44\u9078\u9032\u4f86\uff0c\u4f9d\u984c\u76ee\u9806\u5e8f\u5408\u6210\u540c\u4e00\u7d44\u984c\u865f\uff0ckits \u624d\u80fd\u628a\u5404\u6ce2\u9023\u8d77\u4f86\u3002"),
         shiny::tags$div(
@@ -938,8 +938,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
     picked <- shiny::reactive(kits_pick_cols(settings()$column, input$pick_prefix))
     output$pick_note <- shiny::renderUI({
       if (!nzchar(trimws(input$pick_prefix %||% ""))) return(NULL)
-      # 原文：符合  |  欄
-      shiny::tags$small(class = "kit-hint", paste0("\u7b26\u5408 ", length(picked()), " \u6b04",
+      # 原文：符合  |  直欄
+      shiny::tags$small(class = "kit-hint", paste0("\u7b26\u5408 ", length(picked()), " \u76f4\u6b04",
         # 原文：： | 、
         if (length(picked()) > 0) paste0("\uff1a", paste(utils::head(picked(), 6), collapse = "\u3001"),
                                         # 原文：… | 。
@@ -948,8 +948,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
     shiny::observeEvent(input$pick_add, {
       rows <- picked()
       if (length(rows) == 0) {
-        # 原文：沒有符合的欄：請填欄名的開頭，例如 w1d5_。
-        shiny::showNotification("\u6c92\u6709\u7b26\u5408\u7684\u6b04\uff1a\u8acb\u586b\u6b04\u540d\u7684\u958b\u982d\uff0c\u4f8b\u5982 w1d5_\u3002", type = "warning")
+        # 原文：沒有符合的直欄：請填直欄名稱的開頭，例如 w1d5_。
+        shiny::showNotification("\u6c92\u6709\u7b26\u5408\u7684\u76f4\u6b04\uff1a\u8acb\u586b\u76f4\u6b04\u540d\u7a31\u7684\u958b\u982d\uff0c\u4f8b\u5982 w1d5_\u3002", type = "warning")
         return()
       }
       settings(kits_bulk_include(settings(), rows, TRUE))
@@ -983,8 +983,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
           paste0(
             # 原文：已套用題目表（納入、領域、計分對照）。
             if (up$type == "settings") "\u5df2\u5957\u7528\u984c\u76ee\u8868\uff08\u7d0d\u5165\u3001\u9818\u57df\u3001\u8a08\u5206\u5c0d\u7167\uff09\u3002",
-            # 原文：各波欄名不同的同一題，用 item_id_out 合成一題。
-            if (length(rename) > 0) paste0("\u5404\u6ce2\u6b04\u540d\u4e0d\u540c\u7684\u540c\u4e00\u984c\uff0c\u7528 item_id_out \u5408\u6210\u4e00\u984c\u3002"),
+            # 原文：各波直欄名稱不同的同一題，用 item_id_out 合成一題。
+            if (length(rename) > 0) paste0("\u5404\u6ce2\u76f4\u6b04\u540d\u7a31\u4e0d\u540c\u7684\u540c\u4e00\u984c\uff0c\u7528 item_id_out \u5408\u6210\u4e00\u984c\u3002"),
             # 原文：題目表有  |  題在資料裡找不到（
             if (length(miss) > 0) paste0("\u984c\u76ee\u8868\u6709 ", length(miss), " \u984c\u5728\u8cc7\u6599\u88e1\u627e\u4e0d\u5230\uff08",
                                          # 原文：、
@@ -1014,8 +1014,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
       )
       shiny::tags$div(class = "kit-table-scroll", shiny::tags$table(
         class = "table",
-        # 原文：題號 | 來自哪幾欄
-        shiny::tags$thead(shiny::tags$tr(shiny::tags$th("\u984c\u865f"), shiny::tags$th("\u4f86\u81ea\u54ea\u5e7e\u6b04"))),
+        # 原文：題號 | 來自哪幾直欄
+        shiny::tags$thead(shiny::tags$tr(shiny::tags$th("\u984c\u865f"), shiny::tags$th("\u4f86\u81ea\u54ea\u5e7e\u76f4\u6b04"))),
         shiny::tags$tbody(purrr::pmap(tab, function(item, cols) shiny::tags$tr(
           shiny::tags$td(shiny::tags$code(item)), shiny::tags$td(cols)
         )))
@@ -1025,16 +1025,16 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
       tx <- candidates()$text
       # 原文：沒有。
       shiny::tags$p(class = "kit-hint", if (length(tx) == 0) "\u6c92\u6709\u3002" else paste0(
-        # 原文：文字的欄不能當題目（ |  欄）： | 、
-        "\u6587\u5b57\u7684\u6b04\u4e0d\u80fd\u7576\u984c\u76ee\uff08", length(tx), " \u6b04\uff09\uff1a", paste(utils::head(tx, 12), collapse = "\u3001"),
+        # 原文：文字的直欄不能當題目（ |  直欄）： | 、
+        "\u6587\u5b57\u7684\u76f4\u6b04\u4e0d\u80fd\u7576\u984c\u76ee\uff08", length(tx), " \u76f4\u6b04\uff09\uff1a", paste(utils::head(tx, 12), collapse = "\u3001"),
         # 原文：… | 。
         if (length(tx) > 12) "\u2026", "\u3002"
       ))
     })
     shiny::observeEvent(input$ok2, {
       if (counts()$n_cols == 0) {
-        # 原文：還沒有挑題目：請上傳題目表，或用欄名挑。
-        shiny::showNotification("\u9084\u6c92\u6709\u6311\u984c\u76ee\uff1a\u8acb\u4e0a\u50b3\u984c\u76ee\u8868\uff0c\u6216\u7528\u6b04\u540d\u6311\u3002", type = "warning")
+        # 原文：還沒有挑題目：請上傳題目表，或用直欄名稱挑。
+        shiny::showNotification("\u9084\u6c92\u6709\u6311\u984c\u76ee\uff1a\u8acb\u4e0a\u50b3\u984c\u76ee\u8868\uff0c\u6216\u7528\u76f4\u6b04\u540d\u7a31\u6311\u3002", type = "warning")
         return()
       }
       ok$s2 <- TRUE
@@ -1091,8 +1091,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
                                 choices = sort(unique(stats::na.omit(settings()$domain))),
                                 # 原文：選或輸入領域
                                 options = list(create = TRUE, placeholder = "\u9078\u6216\u8f38\u5165\u9818\u57df")),
-          # 原文：這幾欄都設成這個領域
-          btn("do_fix_domain", "\u9019\u5e7e\u6b04\u90fd\u8a2d\u6210\u9019\u500b\u9818\u57df")
+          # 原文：這幾直欄都設成這個領域
+          btn("do_fix_domain", "\u9019\u5e7e\u76f4\u6b04\u90fd\u8a2d\u6210\u9019\u500b\u9818\u57df")
         ),
         dom_default = function(x) if (x$state == "todo") list(
           # 原文：在下面的題目表改領域
@@ -1101,8 +1101,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
           btn("ack_dom", "\u9019\u6a23\u5c31\u597d")
         # 原文：改回來
         ) else if (!is.null(ack$dom_default)) list(shiny::actionLink(ns("unack_dom"), "\u6539\u56de\u4f86")),
-        # 原文：不要這幾欄（建議）
-        frac = function(x) if (x$state == "todo") list(btn("do_drop_frac", "\u4e0d\u8981\u9019\u5e7e\u6b04\uff08\u5efa\u8b70\uff09")),
+        # 原文：不要這幾直欄（建議）
+        frac = function(x) if (x$state == "todo") list(btn("do_drop_frac", "\u4e0d\u8981\u9019\u5e7e\u76f4\u6b04\uff08\u5efa\u8b70\uff09")),
         common = function(x) if (x$state == "todo") list(
           # 原文：回第 2 步合成同一組題號（建議）
           btn("go_merge", "\u56de\u7b2c 2 \u6b65\u5408\u6210\u540c\u4e00\u7d44\u984c\u865f\uff08\u5efa\u8b70\uff09"),
@@ -1180,8 +1180,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
     output$items_title <- shiny::renderText({
       cnt <- counts()
       dom <- cnt$by_domain
-      # 原文：題目表（ |  欄
-      paste0("\u984c\u76ee\u8868\uff08", kit_num(cnt$n_cols), " \u6b04",
+      # 原文：題目表（ |  直欄
+      paste0("\u984c\u76ee\u8868\uff08", kit_num(cnt$n_cols), " \u76f4\u6b04",
              # 原文： ·  |  題
              if (length(dom) > 0) paste0(" \u00b7 ", paste0(names(dom), " ", as.integer(dom), " \u984c",
                                                        # 原文：、 | ）
@@ -1209,14 +1209,14 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
     }
     shiny::observeEvent(input$tbl_sel_all, set_sel(tbl_rows()$column))
     shiny::observeEvent(input$tbl_sel_none, set_sel(character(0)))
-    # 原文：已勾選  |  列
-    output$sel_count <- shiny::renderText(paste0("\u5df2\u52fe\u9078 ", length(intersect(sel(), settings()$column)), " \u5217"))
+    # 原文：已勾選  |  橫列
+    output$sel_count <- shiny::renderText(paste0("\u5df2\u52fe\u9078 ", length(intersect(sel(), settings()$column)), " \u6a6b\u5217"))
 
     shiny::observeEvent(input$bulk_apply, {
       rows <- intersect(sel(), settings()$column)
       if (length(rows) == 0) {
-        # 原文：請先在表裡勾選要改的列。
-        shiny::showNotification("\u8acb\u5148\u5728\u8868\u88e1\u52fe\u9078\u8981\u6539\u7684\u5217\u3002", type = "warning")
+        # 原文：請先在表裡勾選要改的橫列。
+        shiny::showNotification("\u8acb\u5148\u5728\u8868\u88e1\u52fe\u9078\u8981\u6539\u7684\u6a6b\u5217\u3002", type = "warning")
         return()
       }
       s <- settings()
@@ -1281,8 +1281,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
       1, "\u6bcf\u500b\u6a94\u6848\u662f\u54ea\u500b\u4e16\u4ee3\u3001\u54ea\u500b\u6ce2\u6b21",
       kits_step1_summary(cells(), length(src_keys()), wave_unit(), step1())
     ))
-    # 原文：哪些欄是題目
-    output$head2 <- shiny::renderUI(head_ui(2, "\u54ea\u4e9b\u6b04\u662f\u984c\u76ee", counts()$pick_text))
+    # 原文：哪些直欄是題目
+    output$head2 <- shiny::renderUI(head_ui(2, "\u54ea\u4e9b\u76f4\u6b04\u662f\u984c\u76ee", counts()$pick_text))
     # 原文：題目表：領域與計分
     output$head3 <- shiny::renderUI(head_ui(3, "\u984c\u76ee\u8868\uff1a\u9818\u57df\u8207\u8a08\u5206", kits_step3_summary(checks())))
 
@@ -1349,8 +1349,8 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
         open(0L)
         kit_done_status(
           paste0(
-            # 原文：作答檔  |  列：
-            "\u4f5c\u7b54\u6a94 ", kit_num(out$n_rows), " \u5217\uff1a",
+            # 原文：作答檔  |  橫列：
+            "\u4f5c\u7b54\u6a94 ", kit_num(out$n_rows), " \u6a6b\u5217\uff1a",
             # 原文： 個列次、 |  題。
             kit_num(out$n_visits), " \u500b\u5217\u6b21\u3001", out$n_items, " \u984c\u3002"
           ),
@@ -1378,15 +1378,15 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
             # 原文：開啟 kitsUI，上傳這個檔 →
             kit_kitsui_link("\u958b\u555f kitsUI\uff0c\u4e0a\u50b3\u9019\u500b\u6a94 \u2192", class = "kit-next-link")
           ),
-          # 原文：每個世代、每個領域有幾列
-          shiny::h5("\u6bcf\u500b\u4e16\u4ee3\u3001\u6bcf\u500b\u9818\u57df\u6709\u5e7e\u5217"),
+          # 原文：每個世代、每個領域有幾橫列
+          shiny::h5("\u6bcf\u500b\u4e16\u4ee3\u3001\u6bcf\u500b\u9818\u57df\u6709\u5e7e\u6a6b\u5217"),
           kit_table_scroll(shiny::tableOutput(ns("summary"))),
           kit_details_row(
             kit_detail(
               # 原文：作答檔預覽
               "\u4f5c\u7b54\u6a94\u9810\u89bd",
-              # 原文：前  |  列。
-              shiny::tags$small(class = "kit-hint", paste0("\u524d ", KIT_PREVIEW_ROWS * 2, " \u5217\u3002")),
+              # 原文：前  |  橫列。
+              shiny::tags$small(class = "kit-hint", paste0("\u524d ", KIT_PREVIEW_ROWS * 2, " \u6a6b\u5217\u3002")),
               shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
             ),
             kit_detail(
@@ -1474,14 +1474,14 @@ kitsdata_tags_note <- function(tags, file_names) {
   shiny::tags$div(
     class = "kit-callout",
     paste0(
-      # 原文：、 |  的題目欄名帶著各檔的波次（ | 、 | ）：
-      paste(file_names[on], collapse = "\u3001"), " \u7684\u984c\u76ee\u6b04\u540d\u5e36\u8457\u5404\u6a94\u7684\u6ce2\u6b21\uff08",
+      # 原文：、 |  的題目直欄名稱帶著各檔的波次（ | 、 | ）：
+      paste(file_names[on], collapse = "\u3001"), " \u7684\u984c\u76ee\u76f4\u6b04\u540d\u7a31\u5e36\u8457\u5404\u6a94\u7684\u6ce2\u6b21\uff08",
       paste(tags$tags[on], collapse = "\u3001"), "\uff09\uff1a",
       # 原文：輸出題號已經去掉波次（ |  → | ），同一題各波次是同一個題號、放在同一組。
       "\u8f38\u51fa\u984c\u865f\u5df2\u7d93\u53bb\u6389\u6ce2\u6b21\uff08", ex, " \u2192 ", tags$out[[1]],
       "\uff09\uff0c\u540c\u4e00\u984c\u5404\u6ce2\u6b21\u662f\u540c\u4e00\u500b\u984c\u865f\u3001\u653e\u5728\u540c\u4e00\u7d44\u3002",
-      # 原文：要用原本的欄名，在第 3 步的題目表選「輸出題號：還原成欄名」。
-      "\u8981\u7528\u539f\u672c\u7684\u6b04\u540d\uff0c\u5728\u7b2c 3 \u6b65\u7684\u984c\u76ee\u8868\u9078\u300c\u8f38\u51fa\u984c\u865f\uff1a\u9084\u539f\u6210\u6b04\u540d\u300d\u3002"
+      # 原文：要用原本的直欄名稱，在第 3 步的題目表選「輸出題號：還原成直欄名稱」。
+      "\u8981\u7528\u539f\u672c\u7684\u76f4\u6b04\u540d\u7a31\uff0c\u5728\u7b2c 3 \u6b65\u7684\u984c\u76ee\u8868\u9078\u300c\u8f38\u51fa\u984c\u865f\uff1a\u9084\u539f\u6210\u76f4\u6b04\u540d\u7a31\u300d\u3002"
     )
   )
 }
@@ -1493,8 +1493,8 @@ kitsdata_mixed_note <- function(mixed, file_names) {
   # 原文：（ | ）
   shown <- paste0(mixed$column, "\uff08", file_names[mixed$file], "\uff09")
   shiny::tags$p(class = "small text-warning", paste0(
-    # 原文： 個題目欄在部分檔案是文字： | 、
-    nrow(mixed), " \u500b\u984c\u76ee\u6b04\u5728\u90e8\u5206\u6a94\u6848\u662f\u6587\u5b57\uff1a", paste(utils::head(shown, 8), collapse = "\u3001"),
+    # 原文： 個題目直欄在部分檔案是文字： | 、
+    nrow(mixed), " \u500b\u984c\u76ee\u76f4\u6b04\u5728\u90e8\u5206\u6a94\u6848\u662f\u6587\u5b57\uff1a", paste(utils::head(shown, 8), collapse = "\u3001"),
     # 原文：… | 。這些檔案的這一題不轉，其他檔案照常轉。
     if (nrow(mixed) > 8) "\u2026", "\u3002\u9019\u4e9b\u6a94\u6848\u7684\u9019\u4e00\u984c\u4e0d\u8f49\uff0c\u5176\u4ed6\u6a94\u6848\u7167\u5e38\u8f49\u3002"
   ))
@@ -1533,13 +1533,13 @@ kitsdata_spec_ui <- function() {
     )
   })
   shiny::tagList(
-    # 原文：作答檔固定 9 個欄位（名稱、順序、型別都固定）：
-    shiny::tags$p(class = "kit-hint", "\u4f5c\u7b54\u6a94\u56fa\u5b9a 9 \u500b\u6b04\u4f4d\uff08\u540d\u7a31\u3001\u9806\u5e8f\u3001\u578b\u5225\u90fd\u56fa\u5b9a\uff09\uff1a"),
+    # 原文：作答檔固定 9 個直欄（名稱、順序、型別都固定）：
+    shiny::tags$p(class = "kit-hint", "\u4f5c\u7b54\u6a94\u56fa\u5b9a 9 \u500b\u76f4\u6b04\uff08\u540d\u7a31\u3001\u9806\u5e8f\u3001\u578b\u5225\u90fd\u56fa\u5b9a\uff09\uff1a"),
     shiny::tags$table(
       class = "table table-sm kit-example-table",
       shiny::tags$thead(shiny::tags$tr(
-        # 原文：欄位 | 必填 | 型別
-        shiny::tags$th("\u6b04\u4f4d"), shiny::tags$th("\u5fc5\u586b"), shiny::tags$th("\u578b\u5225"),
+        # 原文：直欄 | 必填 | 型別
+        shiny::tags$th("\u76f4\u6b04"), shiny::tags$th("\u5fc5\u586b"), shiny::tags$th("\u578b\u5225"),
         # 原文：意思
         shiny::tags$th("\u610f\u601d")
       )),
@@ -1547,8 +1547,8 @@ kitsdata_spec_ui <- function() {
     ),
     shiny::tags$small(
       class = "kit-hint",
-      # 原文：不是必填、也沒有對應的欄（subj_id、sex、age_m）仍會輸出，內容是空白。
-      "\u4e0d\u662f\u5fc5\u586b\u3001\u4e5f\u6c92\u6709\u5c0d\u61c9\u7684\u6b04\uff08subj_id\u3001sex\u3001age_m\uff09\u4ecd\u6703\u8f38\u51fa\uff0c\u5167\u5bb9\u662f\u7a7a\u767d\u3002"
+      # 原文：不是必填、也沒有對應的直欄（subj_id、sex、age_m）仍會輸出，內容是空白。
+      "\u4e0d\u662f\u5fc5\u586b\u3001\u4e5f\u6c92\u6709\u5c0d\u61c9\u7684\u76f4\u6b04\uff08subj_id\u3001sex\u3001age_m\uff09\u4ecd\u6703\u8f38\u51fa\uff0c\u5167\u5bb9\u662f\u7a7a\u767d\u3002"
     )
   )
 }

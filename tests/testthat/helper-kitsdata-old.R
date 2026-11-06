@@ -79,10 +79,10 @@ kits_long_checks_old <- function(long, dfs, spec, items) {
 
   # 必填的欄不能空白（domain 下面逐題列出）
   empty <- kits_required_empty_old(long)
-  why <- c(visit_id = "（組成它的世代、孩子編號或波次有缺）", cohort = "（世代欄有空白）")
+  why <- c(visit_id = "（組成它的世代、孩子編號或波次有缺）", cohort = "（世代直欄有空白）")
   for (col in setdiff(names(empty), "domain")) {
     problems <- add(problems, paste0(
-      empty[[col]], " 列的 ", col, " 是空白", if (col %in% names(why)) why[[col]], "；這一欄是必填。"
+      empty[[col]], " 橫列的 ", col, " 是空白", if (col %in% names(why)) why[[col]], "；這一個直欄是必填。"
     ))
   }
   ok <- long[!is.na(long$visit_id), ]
@@ -92,7 +92,7 @@ kits_long_checks_old <- function(long, dfs, spec, items) {
   if (any(twice)) {
     first <- which(twice)[1]
     problems <- add(problems, paste0(
-      "同一列次同一題有好幾列（共 ", sum(twice), " 列），例如 ", ok$visit_id[first], " 的 ",
+      "同一列次同一題有好幾橫列（共 ", sum(twice), " 橫列），例如 ", ok$visit_id[first], " 的 ",
       ok$item_id[first], "。原檔可能有重複的孩子，或 visit_id 沒有分開不同波次。"
     ))
   }
@@ -107,7 +107,7 @@ kits_long_checks_old <- function(long, dfs, spec, items) {
   } else if (anyDuplicated(persons$visit_id) > 0) {
     v <- persons$visit_id[duplicated(persons$visit_id)][1]
     problems <- add(problems, paste0(
-      "同一個列次（例如 ", v, "）的孩子欄（subj_id、sex、wave_m、age_m）不一致。",
+      "同一個列次（例如 ", v, "）的孩子直欄（subj_id、sex、wave_m、age_m）不一致。",
       "請確認原檔沒有重複的孩子。"
     ))
   }

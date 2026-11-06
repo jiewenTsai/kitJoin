@@ -7,11 +7,11 @@ mod_join_ui <- function(id) {
     # 原文：執行串接
     id, "\u57f7\u884c\u4e32\u63a5",
     guide = kit_tab_guide(
-      # 原文：把各波資料左右並排：每個人一列，各波的變項加上波次名稱（例如 score_t1、score_t2）。
-      goal = "\u628a\u5404\u6ce2\u8cc7\u6599\u5de6\u53f3\u4e26\u6392\uff1a\u6bcf\u500b\u4eba\u4e00\u5217\uff0c\u5404\u6ce2\u7684\u8b8a\u9805\u52a0\u4e0a\u6ce2\u6b21\u540d\u7a31\uff08\u4f8b\u5982 score_t1\u3001score_t2\uff09\u3002",
+      # 原文：把各波資料左右並排：每個人一個橫列，各波的變項加上波次名稱（例如 score_t1、score_t2）。
+      goal = "\u628a\u5404\u6ce2\u8cc7\u6599\u5de6\u53f3\u4e26\u6392\uff1a\u6bcf\u500b\u4eba\u4e00\u500b\u6a6b\u5217\uff0c\u5404\u6ce2\u7684\u8b8a\u9805\u52a0\u4e0a\u6ce2\u6b21\u540d\u7a31\uff08\u4f8b\u5982 score_t1\u3001score_t2\uff09\u3002",
       steps = kit_steps(
-        # 原文：選擇用來辨識同一個人的 ID 欄位（各檔欄名不同時，可以分別指定）
-        "\u9078\u64c7\u7528\u4f86\u8fa8\u8b58\u540c\u4e00\u500b\u4eba\u7684 ID \u6b04\u4f4d\uff08\u5404\u6a94\u6b04\u540d\u4e0d\u540c\u6642\uff0c\u53ef\u4ee5\u5206\u5225\u6307\u5b9a\uff09",
+        # 原文：選擇用來辨識同一個人的 ID 直欄（各檔直欄名稱不同時，可以分別指定）
+        "\u9078\u64c7\u7528\u4f86\u8fa8\u8b58\u540c\u4e00\u500b\u4eba\u7684 ID \u76f4\u6b04\uff08\u5404\u6a94\u76f4\u6b04\u540d\u7a31\u4e0d\u540c\u6642\uff0c\u53ef\u4ee5\u5206\u5225\u6307\u5b9a\uff09",
         # 原文：選擇要保留哪些人
         "\u9078\u64c7\u8981\u4fdd\u7559\u54ea\u4e9b\u4eba",
         # 原文：按「執行串接」，看結果與預覽
@@ -19,36 +19,36 @@ mod_join_ui <- function(id) {
         # 原文：下載 CSV 或 SAV
         "\u4e0b\u8f09 CSV \u6216 SAV"
       ),
-      # 原文：寬格式資料：一人一列；欄位是 ID 加上各波的變項。
-      output = "\u5bec\u683c\u5f0f\u8cc7\u6599\uff1a\u4e00\u4eba\u4e00\u5217\uff1b\u6b04\u4f4d\u662f ID \u52a0\u4e0a\u5404\u6ce2\u7684\u8b8a\u9805\u3002",
+      # 原文：寬格式資料：一人一個橫列；直欄是 ID 加上各波的變項。
+      output = "\u5bec\u683c\u5f0f\u8cc7\u6599\uff1a\u4e00\u4eba\u4e00\u500b\u6a6b\u5217\uff1b\u76f4\u6b04\u662f ID \u52a0\u4e0a\u5404\u6ce2\u7684\u8b8a\u9805\u3002",
       technical = paste0(
-        # 原文：依序以 dplyr 的 left_join / inner_join / full_join 合併，ID 空白的列不互相配對；
-        "\u4f9d\u5e8f\u4ee5 dplyr \u7684 left_join / inner_join / full_join \u5408\u4f75\uff0cID \u7a7a\u767d\u7684\u5217\u4e0d\u4e92\u76f8\u914d\u5c0d\uff1b",
-        # 原文：非 ID 欄位依波次名稱加後綴（t1 → _t1）避免同名衝突。
-        "\u975e ID \u6b04\u4f4d\u4f9d\u6ce2\u6b21\u540d\u7a31\u52a0\u5f8c\u7db4\uff08t1 \u2192 _t1\uff09\u907f\u514d\u540c\u540d\u885d\u7a81\u3002"
+        # 原文：依序以 dplyr 的 left_join / inner_join / full_join 合併，ID 空白的橫列不互相配對；
+        "\u4f9d\u5e8f\u4ee5 dplyr \u7684 left_join / inner_join / full_join \u5408\u4f75\uff0cID \u7a7a\u767d\u7684\u6a6b\u5217\u4e0d\u4e92\u76f8\u914d\u5c0d\uff1b",
+        # 原文：非 ID 直欄依波次名稱加後綴（t1 → _t1）避免同名衝突。
+        "\u975e ID \u76f4\u6b04\u4f9d\u6ce2\u6b21\u540d\u7a31\u52a0\u5f8c\u7db4\uff08t1 \u2192 _t1\uff09\u907f\u514d\u540c\u540d\u885d\u7a81\u3002"
       ),
       diagram = join_diagram()
     ),
     shiny::uiOutput(ns("source_note")),
     shiny::checkboxInput(
       ns("id_per_file"),
-      # 原文：各檔的 ID 欄名不同（例如 w1_id、w2_id、w3id），分別指定每個檔案的 ID 欄
-      "\u5404\u6a94\u7684 ID \u6b04\u540d\u4e0d\u540c\uff08\u4f8b\u5982 w1_id\u3001w2_id\u3001w3id\uff09\uff0c\u5206\u5225\u6307\u5b9a\u6bcf\u500b\u6a94\u6848\u7684 ID \u6b04",
+      # 原文：各檔的 ID 直欄名稱不同（例如 w1_id、w2_id、w3id），分別指定每個檔案的 ID 直欄
+      "\u5404\u6a94\u7684 ID \u76f4\u6b04\u540d\u7a31\u4e0d\u540c\uff08\u4f8b\u5982 w1_id\u3001w2_id\u3001w3id\uff09\uff0c\u5206\u5225\u6307\u5b9a\u6bcf\u500b\u6a94\u6848\u7684 ID \u76f4\u6b04",
       value = FALSE, width = "100%"
     ),
     shiny::conditionalPanel(
       "!input.id_per_file", ns = ns,
       shiny::selectizeInput(
-        # 原文：用哪個欄位辨識同一個人？（ID，可多選）
-        ns("by_vars"), "\u7528\u54ea\u500b\u6b04\u4f4d\u8fa8\u8b58\u540c\u4e00\u500b\u4eba\uff1f\uff08ID\uff0c\u53ef\u591a\u9078\uff09",
+        # 原文：用哪個直欄辨識同一個人？（ID，可多選）
+        ns("by_vars"), "\u7528\u54ea\u500b\u76f4\u6b04\u8fa8\u8b58\u540c\u4e00\u500b\u4eba\uff1f\uff08ID\uff0c\u53ef\u591a\u9078\uff09",
         choices = NULL, multiple = TRUE,
-        # 原文：請選擇 ID 欄位，例如 id
-        options = list(create = FALSE, placeholder = "\u8acb\u9078\u64c7 ID \u6b04\u4f4d\uff0c\u4f8b\u5982 id")
+        # 原文：請選擇 ID 直欄，例如 id
+        options = list(create = FALSE, placeholder = "\u8acb\u9078\u64c7 ID \u76f4\u6b04\uff0c\u4f8b\u5982 id")
       ),
       shiny::tags$small(
         class = "kit-hint",
-        # 原文：只列出每個檔案都有的欄位；括號裡是「不重複的比例」，ID 應該接近 100%。
-        "\u53ea\u5217\u51fa\u6bcf\u500b\u6a94\u6848\u90fd\u6709\u7684\u6b04\u4f4d\uff1b\u62ec\u865f\u88e1\u662f\u300c\u4e0d\u91cd\u8907\u7684\u6bd4\u4f8b\u300d\uff0cID \u61c9\u8a72\u63a5\u8fd1 100%\u3002",
+        # 原文：只列出每個檔案都有的直欄；括號裡是「不重複的比例」，ID 應該接近 100%。
+        "\u53ea\u5217\u51fa\u6bcf\u500b\u6a94\u6848\u90fd\u6709\u7684\u76f4\u6b04\uff1b\u62ec\u865f\u88e1\u662f\u300c\u4e0d\u91cd\u8907\u7684\u6bd4\u4f8b\u300d\uff0cID \u61c9\u8a72\u63a5\u8fd1 100%\u3002",
         # 原文：請選每個人唯一的編號（例如受訪者編號）；不要用姓名，因為可能有人同名。
         "\u8acb\u9078\u6bcf\u500b\u4eba\u552f\u4e00\u7684\u7de8\u865f\uff08\u4f8b\u5982\u53d7\u8a2a\u8005\u7de8\u865f\uff09\uff1b\u4e0d\u8981\u7528\u59d3\u540d\uff0c\u56e0\u70ba\u53ef\u80fd\u6709\u4eba\u540c\u540d\u3002"
       )
@@ -58,10 +58,10 @@ mod_join_ui <- function(id) {
       shiny::uiOutput(ns("per_file_ids")),
       shiny::tags$small(
         class = "kit-hint",
-        # 原文：每個檔案選自己的 ID 欄；比對前會改成第 1 個檔案的欄名，結果的 ID 欄也用這個名稱。
-        "\u6bcf\u500b\u6a94\u6848\u9078\u81ea\u5df1\u7684 ID \u6b04\uff1b\u6bd4\u5c0d\u524d\u6703\u6539\u6210\u7b2c 1 \u500b\u6a94\u6848\u7684\u6b04\u540d\uff0c\u7d50\u679c\u7684 ID \u6b04\u4e5f\u7528\u9019\u500b\u540d\u7a31\u3002",
-        # 原文：括號裡是「不重複的比例」。用多個 ID 欄時，各檔請依相同順序選。
-        "\u62ec\u865f\u88e1\u662f\u300c\u4e0d\u91cd\u8907\u7684\u6bd4\u4f8b\u300d\u3002\u7528\u591a\u500b ID \u6b04\u6642\uff0c\u5404\u6a94\u8acb\u4f9d\u76f8\u540c\u9806\u5e8f\u9078\u3002"
+        # 原文：每個檔案選自己的 ID 直欄；比對前會改成第 1 個檔案的直欄名稱，結果的 ID 直欄也用這個名稱。
+        "\u6bcf\u500b\u6a94\u6848\u9078\u81ea\u5df1\u7684 ID \u76f4\u6b04\uff1b\u6bd4\u5c0d\u524d\u6703\u6539\u6210\u7b2c 1 \u500b\u6a94\u6848\u7684\u76f4\u6b04\u540d\u7a31\uff0c\u7d50\u679c\u7684 ID \u76f4\u6b04\u4e5f\u7528\u9019\u500b\u540d\u7a31\u3002",
+        # 原文：括號裡是「不重複的比例」。用多個 ID 直欄時，各檔請依相同順序選。
+        "\u62ec\u865f\u88e1\u662f\u300c\u4e0d\u91cd\u8907\u7684\u6bd4\u4f8b\u300d\u3002\u7528\u591a\u500b ID \u76f4\u6b04\u6642\uff0c\u5404\u6a94\u8acb\u4f9d\u76f8\u540c\u9806\u5e8f\u9078\u3002"
       )
     ),
     shiny::uiOutput(ns("id_check")),
@@ -90,16 +90,16 @@ mod_join_ui <- function(id) {
         width = "100%"
       ),
       shiny::selectizeInput(
-        # 原文：不分波次的欄位（性別、出生日期…）：只留一欄、不加後綴
-        ns("constant_cols"), "\u4e0d\u5206\u6ce2\u6b21\u7684\u6b04\u4f4d\uff08\u6027\u5225\u3001\u51fa\u751f\u65e5\u671f\u2026\uff09\uff1a\u53ea\u7559\u4e00\u6b04\u3001\u4e0d\u52a0\u5f8c\u7db4",
+        # 原文：不分波次的直欄（性別、出生日期…）：只留一個直欄、不加後綴
+        ns("constant_cols"), "\u4e0d\u5206\u6ce2\u6b21\u7684\u76f4\u6b04\uff08\u6027\u5225\u3001\u51fa\u751f\u65e5\u671f\u2026\uff09\uff1a\u53ea\u7559\u4e00\u500b\u76f4\u6b04\u3001\u4e0d\u52a0\u5f8c\u7db4",
         choices = NULL, multiple = TRUE, width = "100%",
         # 原文：不選就每一波都留，例如 gender_t1、gender_t2
         options = list(create = FALSE, placeholder = "\u4e0d\u9078\u5c31\u6bcf\u4e00\u6ce2\u90fd\u7559\uff0c\u4f8b\u5982 gender_t1\u3001gender_t2")
       ),
       shiny::tags$small(
         class = "kit-hint",
-        # 原文：選了的欄位取最早有值的那一波；各波的值不一樣時，完成後會列出幾個人不一樣。
-        "\u9078\u4e86\u7684\u6b04\u4f4d\u53d6\u6700\u65e9\u6709\u503c\u7684\u90a3\u4e00\u6ce2\uff1b\u5404\u6ce2\u7684\u503c\u4e0d\u4e00\u6a23\u6642\uff0c\u5b8c\u6210\u5f8c\u6703\u5217\u51fa\u5e7e\u500b\u4eba\u4e0d\u4e00\u6a23\u3002"
+        # 原文：選了的直欄取最早有值的那一波；各波的值不一樣時，完成後會列出幾個人不一樣。
+        "\u9078\u4e86\u7684\u76f4\u6b04\u53d6\u6700\u65e9\u6709\u503c\u7684\u90a3\u4e00\u6ce2\uff1b\u5404\u6ce2\u7684\u503c\u4e0d\u4e00\u6a23\u6642\uff0c\u5b8c\u6210\u5f8c\u6703\u5217\u51fa\u5e7e\u500b\u4eba\u4e0d\u4e00\u6a23\u3002"
       )
     ),
     result = TRUE
@@ -178,13 +178,13 @@ mod_join_server <- function(id, files, working, goto) {
           prev <- intersect(shiny::isolate(input[[id]]) %||% character(0), cols)
           # 寬度跟著內容（約 28rem）：不拉滿整頁；手機上由 CSS 的 max-width: 100% 收窄
           shiny::selectizeInput(
-            # 原文：的 ID 欄
-            ns(id), paste0(names_shown[i], "\u7684 ID \u6b04"),
+            # 原文：的 ID 直欄
+            ns(id), paste0(names_shown[i], "\u7684 ID \u76f4\u6b04"),
             choices = choices,
             selected = if (length(prev) > 0) prev else default_id_choice(choices),
             multiple = TRUE, width = "28rem",
-            # 原文：請選擇這個檔案的 ID 欄
-            options = list(create = FALSE, placeholder = "\u8acb\u9078\u64c7\u9019\u500b\u6a94\u6848\u7684 ID \u6b04")
+            # 原文：請選擇這個檔案的 ID 直欄
+            options = list(create = FALSE, placeholder = "\u8acb\u9078\u64c7\u9019\u500b\u6a94\u6848\u7684 ID \u76f4\u6b04")
           )
         })
       )
@@ -225,8 +225,8 @@ mod_join_server <- function(id, files, working, goto) {
         if (any(tbl[["\u91cd\u8907\u7684ID\u6578"]] > 0)) {
           shiny::tags$small(
             class = "kit-hint",
-            # 原文：ID 重複時，同一個人在結果中會佔多列；重複很多時結果會暴增。
-            "ID \u91cd\u8907\u6642\uff0c\u540c\u4e00\u500b\u4eba\u5728\u7d50\u679c\u4e2d\u6703\u4f54\u591a\u5217\uff1b\u91cd\u8907\u5f88\u591a\u6642\u7d50\u679c\u6703\u66b4\u589e\u3002",
+            # 原文：ID 重複時，同一個人在結果中會佔多橫列；重複很多時結果會暴增。
+            "ID \u91cd\u8907\u6642\uff0c\u540c\u4e00\u500b\u4eba\u5728\u7d50\u679c\u4e2d\u6703\u4f54\u591a\u6a6b\u5217\uff1b\u91cd\u8907\u5f88\u591a\u6642\u7d50\u679c\u6703\u66b4\u589e\u3002",
             # 原文：請確認選的是每個人都不同的編號。
             "\u8acb\u78ba\u8a8d\u9078\u7684\u662f\u6bcf\u500b\u4eba\u90fd\u4e0d\u540c\u7684\u7de8\u865f\u3002"
           )
@@ -244,12 +244,12 @@ mod_join_server <- function(id, files, working, goto) {
         if (!is.null(need)) return(need)
         spec <- id_spec()
         if (length(spec$by_vars) == 0) {
-          # 原文：選第 1 個檔案的 ID 欄 | 選 ID 欄
-          return(if (isTRUE(input$id_per_file)) "\u9078\u7b2c 1 \u500b\u6a94\u6848\u7684 ID \u6b04" else "\u9078 ID \u6b04")
+          # 原文：選第 1 個檔案的 ID 直欄 | 選 ID 直欄
+          return(if (isTRUE(input$id_per_file)) "\u9078\u7b2c 1 \u500b\u6a94\u6848\u7684 ID \u76f4\u6b04" else "\u9078 ID \u76f4\u6b04")
         }
         if (!is.null(spec$id_cols) && any(lengths(spec$id_cols) != length(spec$by_vars))) {
-          # 原文：每個檔案選一樣多個 ID 欄
-          return("\u6bcf\u500b\u6a94\u6848\u9078\u4e00\u6a23\u591a\u500b ID \u6b04")
+          # 原文：每個檔案選一樣多個 ID 直欄
+          return("\u6bcf\u500b\u6a94\u6848\u9078\u4e00\u6a23\u591a\u500b ID \u76f4\u6b04")
         }
         character(0)
       }),
@@ -343,8 +343,8 @@ mod_join_server <- function(id, files, working, goto) {
             # 原文：最終核對
             shiny::h6("\u6700\u7d42\u6838\u5c0d"),
             shiny::tableOutput(ns("audit_checks")),
-            # 原文：各檔案的列數與 ID
-            shiny::h6("\u5404\u6a94\u6848\u7684\u5217\u6578\u8207 ID"),
+            # 原文：各檔案的橫列數與 ID
+            shiny::h6("\u5404\u6a94\u6848\u7684\u6a6b\u5217\u6578\u8207 ID"),
             shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("audit_files"))),
             # 原文：逐步合併
             shiny::h6("\u9010\u6b65\u5408\u4f75"),
@@ -453,7 +453,7 @@ join_diagram <- function() {
       # 原文：結果
       data.frame(id = c(1, 2), score_t1 = c(5, 3), score_t2 = c(6, NA)), "\u7d50\u679c"
     ),
-    # 原文：依 id 左右接起來：每人一列，各波的變項加上波次名稱；預設只留第 1 波有的人
-    caption = "\u4f9d id \u5de6\u53f3\u63a5\u8d77\u4f86\uff1a\u6bcf\u4eba\u4e00\u5217\uff0c\u5404\u6ce2\u7684\u8b8a\u9805\u52a0\u4e0a\u6ce2\u6b21\u540d\u7a31\uff1b\u9810\u8a2d\u53ea\u7559\u7b2c 1 \u6ce2\u6709\u7684\u4eba"
+    # 原文：依 id 左右接起來：每人一個橫列，各波的變項加上波次名稱；預設只留第 1 波有的人
+    caption = "\u4f9d id \u5de6\u53f3\u63a5\u8d77\u4f86\uff1a\u6bcf\u4eba\u4e00\u500b\u6a6b\u5217\uff0c\u5404\u6ce2\u7684\u8b8a\u9805\u52a0\u4e0a\u6ce2\u6b21\u540d\u7a31\uff1b\u9810\u8a2d\u53ea\u7559\u7b2c 1 \u6ce2\u6709\u7684\u4eba"
   )
 }

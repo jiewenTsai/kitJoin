@@ -194,6 +194,6 @@ test_that("結果表：檔案、轉成、列 × 欄、大小", {
   res <- list(name = "a.csv", out_name = "a.csv.gz", nrow = 3, ncol = 2,
               size_before = 2048, size_after = 500, notes = character(0))
   tbl <- convert_summary_table(res)
-  expect_equal(names(tbl), c("檔案", "轉成", "列 × 欄", "原始大小", "轉換後大小"))
-  expect_equal(tbl$`列 × 欄`, "3 列 × 2 欄")
+  expect_equal(names(tbl), c("檔案", "轉成", "橫列 × 直欄", "原始大小", "轉換後大小"))
+  expect_equal(tbl$`橫列 × 直欄`, "3 橫列 × 2 直欄")
 })

@@ -55,32 +55,32 @@ stack_waves <- function(dfs, file_names, wave_labels) {
     warnings = c(
       if (!audit_ok) {
         paste0(
-          # 原文：核對結果不符（見下方「詳細核對」）：列數、欄位數或各波列數和預期不同。
-          "\u6838\u5c0d\u7d50\u679c\u4e0d\u7b26\uff08\u898b\u4e0b\u65b9\u300c\u8a73\u7d30\u6838\u5c0d\u300d\uff09\uff1a\u5217\u6578\u3001\u6b04\u4f4d\u6578\u6216\u5404\u6ce2\u5217\u6578\u548c\u9810\u671f\u4e0d\u540c\u3002",
+          # 原文：核對結果不符（見下方「詳細核對」）：橫列數、直欄數或各波橫列數和預期不同。
+          "\u6838\u5c0d\u7d50\u679c\u4e0d\u7b26\uff08\u898b\u4e0b\u65b9\u300c\u8a73\u7d30\u6838\u5c0d\u300d\uff09\uff1a\u6a6b\u5217\u6578\u3001\u76f4\u6b04\u6578\u6216\u5404\u6ce2\u6a6b\u5217\u6578\u548c\u9810\u671f\u4e0d\u540c\u3002",
           # 原文：請先確認結果再使用，並把這個情況回報給開發者。
           "\u8acb\u5148\u78ba\u8a8d\u7d50\u679c\u518d\u4f7f\u7528\uff0c\u4e26\u628a\u9019\u500b\u60c5\u6cc1\u56de\u5831\u7d66\u958b\u767c\u8005\u3002"
         )
       },
       if (wave_col != "wave") {
         paste0(
-          # 原文：原始檔案已經有 wave 欄，為了不覆蓋原資料，
-          "\u539f\u59cb\u6a94\u6848\u5df2\u7d93\u6709 wave \u6b04\uff0c\u70ba\u4e86\u4e0d\u8986\u84cb\u539f\u8cc7\u6599\uff0c",
-          # 原文：波次標記放在新的  |  欄。
-          "\u6ce2\u6b21\u6a19\u8a18\u653e\u5728\u65b0\u7684 ", wave_col, " \u6b04\u3002"
+          # 原文：原始檔案已經有 wave 直欄，為了不覆蓋原資料，
+          "\u539f\u59cb\u6a94\u6848\u5df2\u7d93\u6709 wave \u76f4\u6b04\uff0c\u70ba\u4e86\u4e0d\u8986\u84cb\u539f\u8cc7\u6599\uff0c",
+          # 原文：波次標記放在新的  |  直欄。
+          "\u6ce2\u6b21\u6a19\u8a18\u653e\u5728\u65b0\u7684 ", wave_col, " \u76f4\u6b04\u3002"
         )
       },
       if (length(harmonized$cols) > 0) {
         paste0(
-          # 原文：這些欄位在各波的型別不同（有的是數字、有的是文字），已統一轉成文字：
-          "\u9019\u4e9b\u6b04\u4f4d\u5728\u5404\u6ce2\u7684\u578b\u5225\u4e0d\u540c\uff08\u6709\u7684\u662f\u6578\u5b57\u3001\u6709\u7684\u662f\u6587\u5b57\uff09\uff0c\u5df2\u7d71\u4e00\u8f49\u6210\u6587\u5b57\uff1a",
+          # 原文：這些直欄在各波的型別不同（有的是數字、有的是文字），已統一轉成文字：
+          "\u9019\u4e9b\u76f4\u6b04\u5728\u5404\u6ce2\u7684\u578b\u5225\u4e0d\u540c\uff08\u6709\u7684\u662f\u6578\u5b57\u3001\u6709\u7684\u662f\u6587\u5b57\uff09\uff0c\u5df2\u7d71\u4e00\u8f49\u6210\u6587\u5b57\uff1a",
           # 原文：、 | 。若應該是數字，請回原檔檢查是否有非數字的值。
           paste(harmonized$cols, collapse = "\u3001"), "\u3002\u82e5\u61c9\u8a72\u662f\u6578\u5b57\uff0c\u8acb\u56de\u539f\u6a94\u6aa2\u67e5\u662f\u5426\u6709\u975e\u6578\u5b57\u7684\u503c\u3002"
         )
       },
       if (nrow(measures$conflicts) > 0) {
         paste0(
-          # 原文：這些欄位在各波的測量水準不同（SPSS 的名義、次序、尺度），結果用第一個檔案的：
-          "\u9019\u4e9b\u6b04\u4f4d\u5728\u5404\u6ce2\u7684\u6e2c\u91cf\u6c34\u6e96\u4e0d\u540c\uff08SPSS \u7684\u540d\u7fa9\u3001\u6b21\u5e8f\u3001\u5c3a\u5ea6\uff09\uff0c\u7d50\u679c\u7528\u7b2c\u4e00\u500b\u6a94\u6848\u7684\uff1a",
+          # 原文：這些直欄在各波的測量水準不同（SPSS 的名義、次序、尺度），結果用第一個檔案的：
+          "\u9019\u4e9b\u76f4\u6b04\u5728\u5404\u6ce2\u7684\u6e2c\u91cf\u6c34\u6e96\u4e0d\u540c\uff08SPSS \u7684\u540d\u7fa9\u3001\u6b21\u5e8f\u3001\u5c3a\u5ea6\uff09\uff0c\u7d50\u679c\u7528\u7b2c\u4e00\u500b\u6a94\u6848\u7684\uff1a",
           # 原文：（ | ） | 、
           paste0(measures$conflicts$column, "\uff08", measures$conflicts$measures, "\uff09", collapse = "\u3001"),
           # 原文：。
@@ -89,8 +89,8 @@ stack_waves <- function(dfs, file_names, wave_labels) {
       },
       if (length(label_conflicts) > 0) {
         paste0(
-          # 原文：這些欄位在各波的數值標籤不同（例如 1 在一波是「是」、在另一波是「同意」），
-          "\u9019\u4e9b\u6b04\u4f4d\u5728\u5404\u6ce2\u7684\u6578\u503c\u6a19\u7c64\u4e0d\u540c\uff08\u4f8b\u5982 1 \u5728\u4e00\u6ce2\u662f\u300c\u662f\u300d\u3001\u5728\u53e6\u4e00\u6ce2\u662f\u300c\u540c\u610f\u300d\uff09\uff0c",
+          # 原文：這些直欄在各波的數值標籤不同（例如 1 在一波是「是」、在另一波是「同意」），
+          "\u9019\u4e9b\u76f4\u6b04\u5728\u5404\u6ce2\u7684\u6578\u503c\u6a19\u7c64\u4e0d\u540c\uff08\u4f8b\u5982 1 \u5728\u4e00\u6ce2\u662f\u300c\u662f\u300d\u3001\u5728\u53e6\u4e00\u6ce2\u662f\u300c\u540c\u610f\u300d\uff09\uff0c",
           # 原文：結果只保留第一個檔案的標籤： | 、 | 。
           "\u7d50\u679c\u53ea\u4fdd\u7559\u7b2c\u4e00\u500b\u6a94\u6848\u7684\u6a19\u7c64\uff1a", paste(label_conflicts, collapse = "\u3001"), "\u3002"
         )
@@ -223,19 +223,19 @@ stack_plain_summary <- function(stats, names_shown, wave_col) {
     paste0(
       # 原文：共疊加  |  個檔案：
       "\u5171\u758a\u52a0 ", length(names_shown), " \u500b\u6a94\u6848\uff1a",
-      # 原文： 列 | 、 | 。
-      paste0(names_shown, " ", kit_num(stats$n_rows), " \u5217", collapse = "\u3001"), "\u3002"
+      # 原文： 橫列 | 、 | 。
+      paste0(names_shown, " ", kit_num(stats$n_rows), " \u6a6b\u5217", collapse = "\u3001"), "\u3002"
     ),
-    # 原文：每一列的  |  欄標示它來自哪一波。
-    paste0("\u6bcf\u4e00\u5217\u7684 ", wave_col, " \u6b04\u6a19\u793a\u5b83\u4f86\u81ea\u54ea\u4e00\u6ce2\u3002"),
+    # 原文：每一個橫列的  |  直欄標示它來自哪一波。
+    paste0("\u6bcf\u4e00\u500b\u6a6b\u5217\u7684 ", wave_col, " \u76f4\u6b04\u6a19\u793a\u5b83\u4f86\u81ea\u54ea\u4e00\u6ce2\u3002"),
     if (length(stats$partial_cols) > 0) {
       paste0(
-        # 原文：有  |  個欄位只出現在部分波次（例如 
-        "\u6709 ", kit_num(length(stats$partial_cols)), " \u500b\u6b04\u4f4d\u53ea\u51fa\u73fe\u5728\u90e8\u5206\u6ce2\u6b21\uff08\u4f8b\u5982 ",
+        # 原文：有  |  個直欄只出現在部分波次（例如 
+        "\u6709 ", kit_num(length(stats$partial_cols)), " \u500b\u76f4\u6b04\u53ea\u51fa\u73fe\u5728\u90e8\u5206\u6ce2\u6b21\uff08\u4f8b\u5982 ",
         # 原文：、
         paste(utils::head(stats$partial_cols, 3), collapse = "\u3001"),
-        # 原文：），沒有這些欄位的波次會是空白。
-        "\uff09\uff0c\u6c92\u6709\u9019\u4e9b\u6b04\u4f4d\u7684\u6ce2\u6b21\u6703\u662f\u7a7a\u767d\u3002"
+        # 原文：），沒有這些直欄的波次會是空白。
+        "\uff09\uff0c\u6c92\u6709\u9019\u4e9b\u76f4\u6b04\u7684\u6ce2\u6b21\u6703\u662f\u7a7a\u767d\u3002"
       )
     }
   )
@@ -250,16 +250,16 @@ stack_audit_tables <- function(stats, names_shown) {
     "\u9806\u5e8f" = seq_along(names_shown),
     # 原文：檔案
     "\u6a94\u6848" = names_shown,
-    # 原文：列數
-    "\u5217\u6578" = stats$n_rows,
-    # 原文：欄位數
-    "\u6b04\u4f4d\u6578" = stats$n_cols,
-    # 原文：結果中該波列數
-    "\u7d50\u679c\u4e2d\u8a72\u6ce2\u5217\u6578" = stats$n_by_wave
+    # 原文：橫列數
+    "\u6a6b\u5217\u6578" = stats$n_rows,
+    # 原文：直欄數
+    "\u76f4\u6b04\u6578" = stats$n_cols,
+    # 原文：結果中該波橫列數
+    "\u7d50\u679c\u4e2d\u8a72\u6ce2\u6a6b\u5217\u6578" = stats$n_by_wave
   )
   checks <- tibble::tibble(
-    # 原文：檢查項目 | 列數（各檔列數相加） | 欄位數（各檔欄位聯集 + 波次欄） | 各波列數
-    "\u6aa2\u67e5\u9805\u76ee" = c("\u5217\u6578\uff08\u5404\u6a94\u5217\u6578\u76f8\u52a0\uff09", "\u6b04\u4f4d\u6578\uff08\u5404\u6a94\u6b04\u4f4d\u806f\u96c6 + \u6ce2\u6b21\u6b04\uff09", "\u5404\u6ce2\u5217\u6578"),
+    # 原文：檢查項目 | 橫列數（各檔橫列數相加） | 直欄數（各檔直欄聯集 + 波次直欄） | 各波橫列數
+    "\u6aa2\u67e5\u9805\u76ee" = c("\u6a6b\u5217\u6578\uff08\u5404\u6a94\u6a6b\u5217\u6578\u76f8\u52a0\uff09", "\u76f4\u6b04\u6578\uff08\u5404\u6a94\u76f4\u6b04\u806f\u96c6 + \u6ce2\u6b21\u76f4\u6b04\uff09", "\u5404\u6ce2\u6a6b\u5217\u6578"),
     # 原文：結果
     "\u7d50\u679c" = c(stats$nrow_out, stats$ncol_out, NA),
     # 原文：預期

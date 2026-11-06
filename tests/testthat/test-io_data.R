@@ -102,7 +102,7 @@ test_that("TDCYP w1_pq.sav（BIG5）讀成正確中文", {
 test_that("空檔、只有表頭的檔在 ① 給白話錯誤", {
   expect_error(check_not_empty(tibble::tibble(), "empty.csv"), "空的", class = "kit_user_error")
   expect_error(
-    check_not_empty(tibble::tibble(id = character()), "h.csv"), "0 列",
+    check_not_empty(tibble::tibble(id = character()), "h.csv"), "0 橫列",
     class = "kit_user_error"
   )
 })

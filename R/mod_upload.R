@@ -26,8 +26,8 @@ mod_upload_ui <- function(id) {
       technical = paste0(
         # 原文：CSV 會依序嘗試 UTF-8 與 BIG5（CP950）編碼；都不符合時以 Latin1 讀入並提醒可能是亂碼。
         "CSV \u6703\u4f9d\u5e8f\u5617\u8a66 UTF-8 \u8207 BIG5\uff08CP950\uff09\u7de8\u78bc\uff1b\u90fd\u4e0d\u7b26\u5408\u6642\u4ee5 Latin1 \u8b80\u5165\u4e26\u63d0\u9192\u53ef\u80fd\u662f\u4e82\u78bc\u3002",
-        # 原文：欄位型別以整個檔案判斷，SAV 檔保留變項標籤與數值標籤。
-        "\u6b04\u4f4d\u578b\u5225\u4ee5\u6574\u500b\u6a94\u6848\u5224\u65b7\uff0cSAV \u6a94\u4fdd\u7559\u8b8a\u9805\u6a19\u7c64\u8207\u6578\u503c\u6a19\u7c64\u3002"
+        # 原文：直欄型別以整個檔案判斷，SAV 檔保留變項標籤與數值標籤。
+        "\u76f4\u6b04\u578b\u5225\u4ee5\u6574\u500b\u6a94\u6848\u5224\u65b7\uff0cSAV \u6a94\u4fdd\u7559\u8b8a\u9805\u6a19\u7c64\u8207\u6578\u503c\u6a19\u7c64\u3002"
       )
     ),
     # 這一頁的主要動作是「選擇檔案…」：用 kit-file-primary 畫成主要按鈕
@@ -284,10 +284,10 @@ mod_upload_server <- function(id, goto) {
         ),
         shiny::tags$small(
           class = "kit-hint",
-          # 原文：波次名稱：橫向資料串接時加在欄名後面（score → score_t1）；
-          "\u6ce2\u6b21\u540d\u7a31\uff1a\u6a6b\u5411\u8cc7\u6599\u4e32\u63a5\u6642\u52a0\u5728\u6b04\u540d\u5f8c\u9762\uff08score \u2192 score_t1\uff09\uff1b",
-          # 原文：直向波次疊加時填進 wave 欄。每個檔案要不同。
-          "\u76f4\u5411\u6ce2\u6b21\u758a\u52a0\u6642\u586b\u9032 wave \u6b04\u3002\u6bcf\u500b\u6a94\u6848\u8981\u4e0d\u540c\u3002"
+          # 原文：波次名稱：橫向資料串接時加在直欄名稱後面（score → score_t1）；
+          "\u6ce2\u6b21\u540d\u7a31\uff1a\u6a6b\u5411\u8cc7\u6599\u4e32\u63a5\u6642\u52a0\u5728\u76f4\u6b04\u540d\u7a31\u5f8c\u9762\uff08score \u2192 score_t1\uff09\uff1b",
+          # 原文：直向波次疊加時填進 wave 直欄。每個檔案要不同。
+          "\u76f4\u5411\u6ce2\u6b21\u758a\u52a0\u6642\u586b\u9032 wave \u76f4\u6b04\u3002\u6bcf\u500b\u6a94\u6848\u8981\u4e0d\u540c\u3002"
         )
       )
     })
@@ -314,13 +314,13 @@ mod_upload_server <- function(id, goto) {
           paste0(r$name, "\uff1a\u4e2d\u6587\u53ef\u80fd\u662f\u4e82\u78bc\uff0c\u8acb\u7528 Excel \u53e6\u5b58\u70ba\u300cCSV UTF-8\u300d\u5f8c\u91cd\u65b0\u52a0\u5165\u3002")
         }),
         purrr::map_chr(purrr::keep(recs, function(r) r$n_problems > 0), function(r) {
-          # 原文：：有  |  處資料格式異常（例如欄位數不對）。
-          paste0(r$name, "\uff1a\u6709 ", kit_num(r$n_problems), " \u8655\u8cc7\u6599\u683c\u5f0f\u7570\u5e38\uff08\u4f8b\u5982\u6b04\u4f4d\u6578\u4e0d\u5c0d\uff09\u3002")
+          # 原文：：有  |  處資料格式異常（例如直欄數不對）。
+          paste0(r$name, "\uff1a\u6709 ", kit_num(r$n_problems), " \u8655\u8cc7\u6599\u683c\u5f0f\u7570\u5e38\uff08\u4f8b\u5982\u76f4\u6b04\u6578\u4e0d\u5c0d\uff09\u3002")
         })
       )
       kit_done_status(
-        # 原文：已加入  |  個檔案，共  |  列。
-        paste0("\u5df2\u52a0\u5165 ", length(recs), " \u500b\u6a94\u6848\uff0c\u5171 ", kit_num(n_rows), " \u5217\u3002"),
+        # 原文：已加入  |  個檔案，共  |  橫列。
+        paste0("\u5df2\u52a0\u5165 ", length(recs), " \u500b\u6a94\u6848\uff0c\u5171 ", kit_num(n_rows), " \u6a6b\u5217\u3002"),
         warnings = warns
       )
     })
@@ -374,10 +374,10 @@ mod_upload_server <- function(id, goto) {
                 link("goto_missing", "\u907a\u6f0f\u503c\u8655\u7406"), "\uff08\u9078\u7528\uff09"
               )
             },
-            # 原文：要「每人一列、各波變項並排」→ 到  | 橫向資料串接
-            shiny::tags$li("\u8981\u300c\u6bcf\u4eba\u4e00\u5217\u3001\u5404\u6ce2\u8b8a\u9805\u4e26\u6392\u300d\u2192 \u5230 ", link("goto_join", "\u6a6b\u5411\u8cc7\u6599\u4e32\u63a5")),
-            # 原文：要「每人每波一列」→ 到  | 直向波次疊加
-            shiny::tags$li("\u8981\u300c\u6bcf\u4eba\u6bcf\u6ce2\u4e00\u5217\u300d\u2192 \u5230 ", link("goto_stack", "\u76f4\u5411\u6ce2\u6b21\u758a\u52a0")),
+            # 原文：要「每人一個橫列、各波變項並排」→ 到  | 橫向資料串接
+            shiny::tags$li("\u8981\u300c\u6bcf\u4eba\u4e00\u500b\u6a6b\u5217\u3001\u5404\u6ce2\u8b8a\u9805\u4e26\u6392\u300d\u2192 \u5230 ", link("goto_join", "\u6a6b\u5411\u8cc7\u6599\u4e32\u63a5")),
+            # 原文：要「每人每波一個橫列」→ 到  | 直向波次疊加
+            shiny::tags$li("\u8981\u300c\u6bcf\u4eba\u6bcf\u6ce2\u4e00\u500b\u6a6b\u5217\u300d\u2192 \u5230 ", link("goto_stack", "\u76f4\u5411\u6ce2\u6b21\u758a\u52a0")),
             # 原文：要標記誰在後期沒有繼續參加 → 到  | 流失樣本
             shiny::tags$li("\u8981\u6a19\u8a18\u8ab0\u5728\u5f8c\u671f\u6c92\u6709\u7e7c\u7e8c\u53c3\u52a0 \u2192 \u5230 ", link("goto_attrition", "\u6d41\u5931\u6a23\u672c")),
             # 原文：要做 kits 或 kitsUI 的作答檔 → 到  | kits 作答檔
@@ -504,16 +504,16 @@ file_read_notes <- function(record) {
         paste0(
           # 原文：　分隔符號： | 分號（;）
           "\u3000\u5206\u9694\u7b26\u865f\uff1a", if (record$delim == ";") "\u5206\u865f\uff08;\uff09" else "Tab",
-          # 原文：。這個檔案的欄位不是用逗號分隔，已自動改用 | 分號 | 讀取。
-          "\u3002\u9019\u500b\u6a94\u6848\u7684\u6b04\u4f4d\u4e0d\u662f\u7528\u9017\u865f\u5206\u9694\uff0c\u5df2\u81ea\u52d5\u6539\u7528", if (record$delim == ";") "\u5206\u865f" else " Tab", "\u8b80\u53d6\u3002"
+          # 原文：。這個檔案的直欄不是用逗號分隔，已自動改用 | 分號 | 讀取。
+          "\u3002\u9019\u500b\u6a94\u6848\u7684\u76f4\u6b04\u4e0d\u662f\u7528\u9017\u865f\u5206\u9694\uff0c\u5df2\u81ea\u52d5\u6539\u7528", if (record$delim == ";") "\u5206\u865f" else " Tab", "\u8b80\u53d6\u3002"
         )
       )
     },
     if (record$n_problems > 0) {
       shiny::tags$div(
         class = "text-danger small",
-        # 原文：⚠ 有  |  處資料格式異常（例如欄位數不對），請用 Excel 檢查原檔。
-        paste0("\u26a0 \u6709 ", kit_num(record$n_problems), " \u8655\u8cc7\u6599\u683c\u5f0f\u7570\u5e38\uff08\u4f8b\u5982\u6b04\u4f4d\u6578\u4e0d\u5c0d\uff09\uff0c\u8acb\u7528 Excel \u6aa2\u67e5\u539f\u6a94\u3002")
+        # 原文：⚠ 有  |  處資料格式異常（例如直欄數不對），請用 Excel 檢查原檔。
+        paste0("\u26a0 \u6709 ", kit_num(record$n_problems), " \u8655\u8cc7\u6599\u683c\u5f0f\u7570\u5e38\uff08\u4f8b\u5982\u76f4\u6b04\u6578\u4e0d\u5c0d\uff09\uff0c\u8acb\u7528 Excel \u6aa2\u67e5\u539f\u6a94\u3002")
       )
     }
   )

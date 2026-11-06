@@ -185,13 +185,13 @@ dta_safe_names <- function(cols) {
 #' @noRd
 check_not_empty <- function(df, name) {
   if (ncol(df) == 0) {
-    # 原文：無法讀取  | ：檔案是空的（沒有任何欄位）。請確認選對檔案。
-    kit_abort("\u7121\u6cd5\u8b80\u53d6 ", name, "\uff1a\u6a94\u6848\u662f\u7a7a\u7684\uff08\u6c92\u6709\u4efb\u4f55\u6b04\u4f4d\uff09\u3002\u8acb\u78ba\u8a8d\u9078\u5c0d\u6a94\u6848\u3002")
+    # 原文：無法讀取  | ：檔案是空的（沒有任何直欄）。請確認選對檔案。
+    kit_abort("\u7121\u6cd5\u8b80\u53d6 ", name, "\uff1a\u6a94\u6848\u662f\u7a7a\u7684\uff08\u6c92\u6709\u4efb\u4f55\u76f4\u6b04\uff09\u3002\u8acb\u78ba\u8a8d\u9078\u5c0d\u6a94\u6848\u3002")
   }
   if (nrow(df) == 0) {
     kit_abort(
-      # 原文：無法讀取  | ：檔案只有欄名，沒有任何資料列（0 列）。
-      "\u7121\u6cd5\u8b80\u53d6 ", name, "\uff1a\u6a94\u6848\u53ea\u6709\u6b04\u540d\uff0c\u6c92\u6709\u4efb\u4f55\u8cc7\u6599\u5217\uff080 \u5217\uff09\u3002",
+      # 原文：無法讀取  | ：檔案只有直欄名稱，沒有任何資料橫列（0 橫列）。
+      "\u7121\u6cd5\u8b80\u53d6 ", name, "\uff1a\u6a94\u6848\u53ea\u6709\u76f4\u6b04\u540d\u7a31\uff0c\u6c92\u6709\u4efb\u4f55\u8cc7\u6599\u6a6b\u5217\uff080 \u6a6b\u5217\uff09\u3002",
       # 原文：請確認匯出時有包含資料。
       "\u8acb\u78ba\u8a8d\u532f\u51fa\u6642\u6709\u5305\u542b\u8cc7\u6599\u3002"
     )
@@ -383,12 +383,12 @@ sav_fix_message <- function(written) {
   cols <- written$fixed
   if (is.null(cols) || length(cols) == 0) return(NULL)
   what <- switch(as.character(written$step),
-    # 原文：去掉了這些文字欄數值標籤裡的控制字元與多餘空白
-    "1" = "\u53bb\u6389\u4e86\u9019\u4e9b\u6587\u5b57\u6b04\u6578\u503c\u6a19\u7c64\u88e1\u7684\u63a7\u5236\u5b57\u5143\u8207\u591a\u9918\u7a7a\u767d",
-    # 原文：移除了這些文字欄的數值標籤
-    "2" = "\u79fb\u9664\u4e86\u9019\u4e9b\u6587\u5b57\u6b04\u7684\u6578\u503c\u6a19\u7c64",
-    # 原文：移除了這些欄的數值標籤
-    "\u79fb\u9664\u4e86\u9019\u4e9b\u6b04\u7684\u6578\u503c\u6a19\u7c64"
+    # 原文：去掉了這些文字直欄數值標籤裡的控制字元與多餘空白
+    "1" = "\u53bb\u6389\u4e86\u9019\u4e9b\u6587\u5b57\u76f4\u6b04\u6578\u503c\u6a19\u7c64\u88e1\u7684\u63a7\u5236\u5b57\u5143\u8207\u591a\u9918\u7a7a\u767d",
+    # 原文：移除了這些文字直欄的數值標籤
+    "2" = "\u79fb\u9664\u4e86\u9019\u4e9b\u6587\u5b57\u76f4\u6b04\u7684\u6578\u503c\u6a19\u7c64",
+    # 原文：移除了這些直欄的數值標籤
+    "\u79fb\u9664\u4e86\u9019\u4e9b\u76f4\u6b04\u7684\u6578\u503c\u6a19\u7c64"
   )
   paste0(
     # 原文：SAV 檔照原樣寫出後讀不回來（原檔的數值標籤有 SPSS 存不了的內容），
@@ -397,8 +397,8 @@ sav_fix_message <- function(written) {
     "\u6240\u4ee5", what, "\u518d\u91cd\u65b0\u5beb\u51fa\uff1a",
     # 原文：、
     paste(utils::head(cols, 10), collapse = "\u3001"),
-    # 原文： 等  |  欄
-    if (length(cols) > 10) paste0(" \u7b49 ", kit_num(length(cols)), " \u6b04") else "",
+    # 原文： 等  |  直欄
+    if (length(cols) > 10) paste0(" \u7b49 ", kit_num(length(cols)), " \u76f4\u6b04") else "",
     # 原文：。資料值與變項標籤都沒有改。
     "\u3002\u8cc7\u6599\u503c\u8207\u8b8a\u9805\u6a19\u7c64\u90fd\u6c92\u6709\u6539\u3002"
   )

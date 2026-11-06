@@ -127,7 +127,7 @@ test_that("app：多波寬檔按「轉成一列一個波次」後轉換；程式
     expect_match(kd_out(output, "shape_ui"), "像是多波寬檔")
     key <- files$keys()
     session$setInputs(`kitsdata-tf` = list(key = key, kind = "pivot"))
-    expect_match(kd_out(output, "shape_ui"), "已轉成一列一個孩子的一個波次")
+    expect_match(kd_out(output, "shape_ui"), "已轉成一個橫列一個孩子的一個波次")
     ids <- function(field) paste0("kitsdata-cell_", field, "_", key, "__pivot")
     do.call(session$setInputs, stats::setNames(list("A", "wave_m", "id"), ids(c("cohort", "wave_m", "subj_id"))))
     kd_click(session, "ok1")
@@ -227,7 +227,7 @@ test_that("app：三個檔案各一波、欄名帶 _w1 _w2 _w3：一組三波、
     kd_click(session, "ok1")
     expect_match(kd_out(output, "intro2"), "socC20_w1 → socC20")
     g <- kd_out(output, "groups_table")
-    expect_match(g, "9 欄")   # 一組 9 欄（3 題 × 3 波）
+    expect_match(g, "9 直欄")   # 一組 9 欄（3 題 × 3 波）
     kd_pick(session, "soc", "soc")
     kd_click(session, "ok2")
     kd_click(session, "run")

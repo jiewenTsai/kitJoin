@@ -43,16 +43,16 @@ test_that("第 1 步：每個檔案都填值（typed）；數字欄填的不是�
   expect_match(s$problems, "f2.csv：時間點（wave_m）要填數字（例如 18），現在是「x」", all = FALSE)
   # 孩子編號不能自己填
   s <- kits_step1_spec(kt_dfs(), kt_files, kt_cells(subj_id = c("abc", "abc")))
-  expect_match(s$problems, "孩子編號在哪一欄要選檔案裡的一欄（「abc」不是欄名）", all = FALSE)
+  expect_match(s$problems, "孩子編號在哪一個直欄要選檔案裡的一個直欄（「abc」不是直欄名稱）", all = FALSE)
 })
 
 test_that("第 1 步：有的選欄、有的填值；列次編號各檔不同名", {
   s <- kits_step1_spec(kt_dfs(), kt_files, kt_cells(wave_m = c("wave_m", "6")))
-  expect_match(s$problems, "波次（時間點）：有的檔案選了欄、有的填了值", all = FALSE)
+  expect_match(s$problems, "波次（時間點）：有的檔案選了直欄、有的填了值", all = FALSE)
   expect_equal(s$map$wave_m, "")
   expect_null(s$typed$wave_m)
   s <- kits_step1_spec(kt_dfs(), kt_files, kt_cells(visit_id = c("id", "kid")))
-  expect_match(s$problems, "列次編號：每個檔案要選同一個欄名", all = FALSE)
+  expect_match(s$problems, "列次編號：每個檔案要選同一個直欄名稱", all = FALSE)
 })
 
 test_that("第 1 步：沒填的格", {
@@ -61,7 +61,7 @@ test_that("第 1 步：沒填的格", {
   expect_match(s$problems, "波次（時間點）：每個檔案都要填", all = FALSE)
   s <- kits_step1_spec(kt_dfs(), kt_files, kt_cells(wave_m = c("wave_m", ""), subj_id = c("id", "")))
   expect_match(s$problems, "波次（時間點）還沒選：f2.csv", all = FALSE)
-  expect_match(s$problems, "孩子編號在哪一欄還沒選：f2.csv", all = FALSE)
+  expect_match(s$problems, "孩子編號在哪一個直欄還沒選：f2.csv", all = FALSE)
   s <- kits_step1_spec(kt_dfs(), kt_files, kt_cells(wave = c("m03", "")))
   expect_match(s$problems, "波次標籤還沒填：f2.csv", all = FALSE)
   # 選填的欄可以都空白；性別只有一個檔案有也可以
@@ -100,7 +100,7 @@ test_that("第 1 步收起來的一行", {
   cells <- list(cohort = c("TDCYP", "TDCYP", ""), wave_m = c("2009", "2011", "2013"),
                 subj_id = c("w1_id", "w2_id", "w3id"))
   expect_equal(kits_step1_summary(cells, 3, "year"),
-               "3 個檔案 · 世代 TDCYP · 2009、2011、2013（年） · 孩子編號 w1_id 等 3 欄")
+               "3 個檔案 · 世代 TDCYP · 2009、2011、2013（年） · 孩子編號 w1_id 等 3 直欄")
   one <- list(cohort = c("M03", "M06"), wave_m = c("3", "6"), subj_id = c("id", "id"))
   expect_equal(kits_step1_summary(one, 2, "month"), "2 個檔案 · 世代 M03、M06 · 3、6（月） · 孩子編號 id")
   expect_no_match(kits_step1_summary(one, 2, "other"), "（")
@@ -123,16 +123,16 @@ test_that("第 2 步：挑出幾欄、合成幾題、各領域幾題", {
   cnt <- kits_step2_counts(s)
   expect_equal(cnt$n_cols, 3)
   expect_equal(cnt$n_items, 3)
-  expect_equal(cnt$text, "挑出 3 欄（lan 2 題、cog 1 題）")
+  expect_equal(cnt$text, "挑出 3 直欄（lan 2 題、cog 1 題）")
   # q1、q2 輸出成同一個題號 x
   s$item_id_out[1:2] <- "x"
   cnt <- kits_step2_counts(s)
   expect_equal(cnt$n_items, 2)
   expect_equal(as.integer(cnt$by_domain[["lan"]]), 1)
-  expect_equal(cnt$text, "挑出 3 欄 → 合成 2 題（lan 1 題、cog 1 題）")
+  expect_equal(cnt$text, "挑出 3 直欄 → 合成 2 題（lan 1 題、cog 1 題）")
   # 沒有領域：只寫欄數
   s$domain <- NA_character_
-  expect_equal(kits_step2_counts(s)$text, "挑出 3 欄 → 合成 2 題")
+  expect_equal(kits_step2_counts(s)$text, "挑出 3 直欄 → 合成 2 題")
 })
 
 test_that("用欄名挑：開頭是這些字（不分大小寫，頓號、逗號、空白都可以隔開）", {
@@ -164,13 +164,13 @@ test_that("第 3 步：遺漏值代碼要決定；「它們是真的分數」之
   s <- kt_check_settings()
   ch <- kits_step3_checks(s)
   expect_equal(kt_state(ch, "codes"), "todo")
-  expect_equal(ch$codes$title, "1 欄有遺漏值代碼 9999（共 1 格）")
+  expect_equal(ch$codes$title, "1 直欄有遺漏值代碼 9999（共 1 格）")
   expect_match(ch$codes$text, "kits 會把 9999 當成分數")
   # 性別、wave_m、age_m 的代碼也算格數
   expect_match(kits_step3_checks(s, side_cells = 2)$codes$title, "（共 3 格）")
   ch <- kits_step3_checks(s, ack = list(codes = 1))
   expect_equal(kt_state(ch, "codes"), "ok")
-  expect_equal(ch$codes$title, "1 欄的 9999 照原樣當成分數（你選的）")
+  expect_equal(ch$codes$title, "1 直欄的 9999 照原樣當成分數（你選的）")
   expect_equal(kt_state(kits_step3_checks(s, side_cells = 1, ack = list(codes = 1)), "codes"),
                "todo")
   # 沒有代碼；用過「遺漏值處理」
@@ -185,7 +185,7 @@ test_that("第 3 步：都從 1 開始時建議減 1；「不用改」「已經�
   s <- kt_check_settings()
   ch <- kits_step3_checks(s)
   expect_equal(kt_state(ch, "shift"), "todo")
-  expect_equal(ch$shift$title, "2 欄的分數都從 1 開始")
+  expect_equal(ch$shift$title, "2 直欄的分數都從 1 開始")
   expect_equal(ch$shift$text, "kits 要從 0 開始。全部減 1 之後是 0–2。")
   ch <- kits_step3_checks(s, ack = list(shift = 1))
   expect_equal(kt_state(ch, "shift"), "ok")
@@ -198,7 +198,7 @@ test_that("第 3 步：都從 1 開始時建議減 1；「不用改」「已經�
   mixed <- kits_bulk_shift(s, "a", -1)
   ch <- kits_step3_checks(mixed)
   expect_equal(kt_state(ch, "shift"), "note")
-  expect_equal(ch$shift$title, "1 欄沒有 0 分")
+  expect_equal(ch$shift$title, "1 直欄沒有 0 分")
   # 負分只提醒
   neg <- kits_bulk_shift(s, "a", -2)
   expect_equal(kt_state(kits_step3_checks(neg), "neg"), "note")
@@ -210,9 +210,9 @@ test_that("第 3 步：還沒有領域、計分有缺、小數", {
   s <- kits_item_settings(list(df), c("a", "b", "c"))
   ch <- kits_step3_checks(s)
   expect_equal(kt_state(ch, "domain"), "todo")
-  expect_equal(ch$domain$title, "3 欄還沒有領域")
+  expect_equal(ch$domain$title, "3 直欄還沒有領域")
   expect_equal(kt_state(ch, "frac"), "todo")
-  expect_equal(ch$frac$title, "1 欄的分數有小數（可能不是題目）")
+  expect_equal(ch$frac$title, "1 直欄的分數有小數（可能不是題目）")
   expect_equal(ch$frac$text, "c")
   expect_null(ch$unscored)
   s <- kits_bulk_domain(s, c("a", "b", "c"), "lan")
@@ -222,7 +222,7 @@ test_that("第 3 步：還沒有領域、計分有缺、小數", {
   expect_equal(kt_state(ch, "domain"), "ok")
   expect_equal(kt_state(ch, "frac"), "ok")
   expect_equal(kt_state(ch, "unscored"), "todo")
-  expect_equal(ch$unscored$title, "1 欄有原分數沒有計分")
+  expect_equal(ch$unscored$title, "1 直欄有原分數沒有計分")
   # 沒有作答的欄不算
   s2 <- kits_item_settings(list(tibble::tibble(e = c(NA_real_, NA_real_))), "e")
   expect_equal(kits_step3_checks(s2), list())
@@ -236,7 +236,7 @@ test_that("第 3 步：反向題（用了題目表時才列）；收起來的一
   expect_true(all(s$include))                       # 題目表列到的（含反向題）才納入
   ch <- kits_step3_checks(s, reverse_used = TRUE)
   expect_equal(kt_state(ch, "reverse"), "ok")
-  expect_equal(ch$reverse$title, "1 欄是反向題，用原題的領域")
+  expect_equal(ch$reverse$title, "1 直欄是反向題，用原題的領域")
   expect_null(kits_step3_checks(s)$reverse)
   s <- kits_settings_apply(kits_item_settings(dfs, c("w1a8", "w1ra8"), include = FALSE), up,
                            reverse = "none")
@@ -245,7 +245,7 @@ test_that("第 3 步：反向題（用了題目表時才列）；收起來的一
 
   ch <- kits_step3_checks(kt_check_settings(), ack = list(codes = 1, shift = 1))
   expect_equal(kits_step3_summary(ch),
-               "1 欄的 9999 照原樣當成分數（你選的） · 分數從 1 開始，不改（你選的） · 每一題都有領域")
+               "1 直欄的 9999 照原樣當成分數（你選的） · 分數從 1 開始，不改（你選的） · 每一題都有領域")
   expect_equal(kits_step3_summary(kits_step3_checks(kt_check_settings())), "每一題都有領域")
   expect_equal(kits_step3_summary(list()), "都沒問題")
 })
@@ -303,7 +303,7 @@ test_that("逐題表一頁的 HTML：勾選框、跳脫、沒挑的列、輸出�
   expect_match(html, "<td>1 2</td>", fixed = TRUE)                  # 沒改計分
   # 沒有列
   empty <- as.character(kits_items_page_html("x", s[0, ]))
-  expect_match(empty, "沒有符合的欄")
+  expect_match(empty, "沒有符合的直欄")
   expect_no_match(empty, "checkbox")
 })
 
@@ -394,8 +394,8 @@ test_that("找組：組名、欄名、題目內容都找得到（不分大小寫
   expect_identical(kits_groups_filter(g, ""), g)
   expect_identical(kits_groups_filter(g, NULL), g)
   expect_equal(kits_group_cols_text("a1"), "a1")
-  expect_equal(kits_group_cols_text(c("a1", "a2")), "a1、a2（2 欄）")
-  expect_equal(kits_group_cols_text(paste0("w1d5_", 1:5)), "w1d5_1 … w1d5_5（5 欄）")
+  expect_equal(kits_group_cols_text(c("a1", "a2")), "a1、a2（2 直欄）")
+  expect_equal(kits_group_cols_text(paste0("w1d5_", 1:5)), "w1d5_1 … w1d5_5（5 直欄）")
 })
 
 test_that("組名：_數字、補零的數字、開頭沒有數字的同一組；TDCYP 的 w1a2、w1a3 一欄一組", {

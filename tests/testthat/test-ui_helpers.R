@@ -70,7 +70,7 @@ test_that("主要按鈕還不能按時停用，上面一行 .kit-ready.todo 寫�
   })
   shiny::testServer(mod_join_server, args = args(two), {
     session$setInputs(id_per_file = FALSE, by_vars = character(0))
-    expect_match(output$ready$html, "選 ID 欄")
+    expect_match(output$ready$html, "選 ID 直欄")
     session$setInputs(by_vars = "id")
     expect_null(output$ready)
   })

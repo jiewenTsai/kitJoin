@@ -60,7 +60,7 @@ test_that("依數值標籤：每一欄只轉換自己標成遺漏的值（A6）"
   expect_equal(attr(out$data$scale, "labels"), c(很不清楚 = 1, 不清楚 = 2, 清楚 = 3))
   expect_equal(out$data$plain, plain)
   expect_equal(out$data$w3id, df$w3id)
-  expect_equal(out$detail$欄位, c("weight", "scale"))
+  expect_equal(out$detail$直欄, c("weight", "scale"))
   expect_equal(out$detail$轉換的代碼[1], "999 遺漏值（1 格）")
   expect_equal(out$detail$合計, c(1L, 2L))
   # 使用者自己加上「不知道」時才轉 997
@@ -69,9 +69,9 @@ test_that("依數值標籤：每一欄只轉換自己標成遺漏的值（A6）"
   expect_equal(more$detail$轉換的代碼[1], "997 不知道或不清楚（1 格）、999 遺漏值（1 格）")
 
   tbl <- label_na_table(list(df), "a.sav", kw)
-  expect_equal(tbl$欄位, c("weight", "scale"))
+  expect_equal(tbl$直欄, c("weight", "scale"))
   expect_equal(tbl$資料中的格數, c(1L, 2L))
-  expect_equal(label_na_table(list(tibble::tibble(x = 1)), "a.csv", kw)$欄位, character())
+  expect_equal(label_na_table(list(tibble::tibble(x = 1)), "a.csv", kw)$直欄, character())
 })
 
 test_that("預設關鍵字不含「不知道」「不清楚」「don't know」", {

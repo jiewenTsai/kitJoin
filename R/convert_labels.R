@@ -105,10 +105,10 @@ read_variables_file <- function(path, name) {
   }
   if (!any(tolower(KIT_DICT_COLS$variable) %in% low)) {
     kit_abort(
-      # 原文：無法讀取變項檔  | ：找不到 variable 欄（或中文的「欄位」欄），
-      "\u7121\u6cd5\u8b80\u53d6\u8b8a\u9805\u6a94 ", name, "\uff1a\u627e\u4e0d\u5230 variable \u6b04\uff08\u6216\u4e2d\u6587\u7684\u300c\u6b04\u4f4d\u300d\u6b04\uff09\uff0c",
-      # 原文：不知道每一列是哪個欄位。可以在「變項檔（選填）」旁下載空白變項檔照著填。
-      "\u4e0d\u77e5\u9053\u6bcf\u4e00\u5217\u662f\u54ea\u500b\u6b04\u4f4d\u3002\u53ef\u4ee5\u5728\u300c\u8b8a\u9805\u6a94\uff08\u9078\u586b\uff09\u300d\u65c1\u4e0b\u8f09\u7a7a\u767d\u8b8a\u9805\u6a94\u7167\u8457\u586b\u3002"
+      # 原文：無法讀取變項檔  | ：找不到 variable 直欄（或中文的「欄位」直欄），
+      "\u7121\u6cd5\u8b80\u53d6\u8b8a\u9805\u6a94 ", name, "\uff1a\u627e\u4e0d\u5230 variable \u76f4\u6b04\uff08\u6216\u4e2d\u6587\u7684\u300c\u6b04\u4f4d\u300d\u76f4\u6b04\uff09\uff0c",
+      # 原文：不知道每一個橫列是哪個直欄。可以在「變項檔（選填）」旁下載空白變項檔照著填。
+      "\u4e0d\u77e5\u9053\u6bcf\u4e00\u500b\u6a6b\u5217\u662f\u54ea\u500b\u76f4\u6b04\u3002\u53ef\u4ee5\u5728\u300c\u8b8a\u9805\u6a94\uff08\u9078\u586b\uff09\u300d\u65c1\u4e0b\u8f09\u7a7a\u767d\u8b8a\u9805\u6a94\u7167\u8457\u586b\u3002"
     )
   }
   vars <- trimws(text("variable"))
@@ -198,23 +198,23 @@ apply_variables <- function(df, vars, dict_name) {
   }
   only_dict <- setdiff(names(vars), names(df))
   no_dict <- setdiff(names(df), names(vars))
-  # 原文：已用  |  貼上  |  個欄位的標籤。
-  notes <- paste0("\u5df2\u7528 ", dict_name, " \u8cbc\u4e0a ", kit_num(length(hit)), " \u500b\u6b04\u4f4d\u7684\u6a19\u7c64\u3002")
+  # 原文：已用  |  貼上  |  個直欄的標籤。
+  notes <- paste0("\u5df2\u7528 ", dict_name, " \u8cbc\u4e0a ", kit_num(length(hit)), " \u500b\u76f4\u6b04\u7684\u6a19\u7c64\u3002")
   if (length(skipped) > 0) {
     notes <- c(notes, paste0(
-      # 原文：這些欄位的數值標籤或遺漏值和資料的型別對不上（例如文字值配數字欄），沒有貼上：
-      "\u9019\u4e9b\u6b04\u4f4d\u7684\u6578\u503c\u6a19\u7c64\u6216\u907a\u6f0f\u503c\u548c\u8cc7\u6599\u7684\u578b\u5225\u5c0d\u4e0d\u4e0a\uff08\u4f8b\u5982\u6587\u5b57\u503c\u914d\u6578\u5b57\u6b04\uff09\uff0c\u6c92\u6709\u8cbc\u4e0a\uff1a",
+      # 原文：這些直欄的數值標籤或遺漏值和資料的型別對不上（例如文字值配數字直欄），沒有貼上：
+      "\u9019\u4e9b\u76f4\u6b04\u7684\u6578\u503c\u6a19\u7c64\u6216\u907a\u6f0f\u503c\u548c\u8cc7\u6599\u7684\u578b\u5225\u5c0d\u4e0d\u4e0a\uff08\u4f8b\u5982\u6587\u5b57\u503c\u914d\u6578\u5b57\u76f4\u6b04\uff09\uff0c\u6c92\u6709\u8cbc\u4e0a\uff1a",
       # 原文：。
       kit_name_list(skipped), "\u3002"
     ))
   }
   if (length(only_dict) > 0) {
-    # 原文：變項檔裡有、資料裡沒有的欄位（略過）： | 。
-    notes <- c(notes, paste0("\u8b8a\u9805\u6a94\u88e1\u6709\u3001\u8cc7\u6599\u88e1\u6c92\u6709\u7684\u6b04\u4f4d\uff08\u7565\u904e\uff09\uff1a", kit_name_list(only_dict), "\u3002"))
+    # 原文：變項檔裡有、資料裡沒有的直欄（略過）： | 。
+    notes <- c(notes, paste0("\u8b8a\u9805\u6a94\u88e1\u6709\u3001\u8cc7\u6599\u88e1\u6c92\u6709\u7684\u76f4\u6b04\uff08\u7565\u904e\uff09\uff1a", kit_name_list(only_dict), "\u3002"))
   }
   if (length(no_dict) > 0) {
-    # 原文：資料裡有、變項檔裡沒有的欄位（沒有標籤）： | 。
-    notes <- c(notes, paste0("\u8cc7\u6599\u88e1\u6709\u3001\u8b8a\u9805\u6a94\u88e1\u6c92\u6709\u7684\u6b04\u4f4d\uff08\u6c92\u6709\u6a19\u7c64\uff09\uff1a", kit_name_list(no_dict), "\u3002"))
+    # 原文：資料裡有、變項檔裡沒有的直欄（沒有標籤）： | 。
+    notes <- c(notes, paste0("\u8cc7\u6599\u88e1\u6709\u3001\u8b8a\u9805\u6a94\u88e1\u6c92\u6709\u7684\u76f4\u6b04\uff08\u6c92\u6709\u6a19\u7c64\uff09\uff1a", kit_name_list(no_dict), "\u3002"))
   }
   list(data = df, notes = notes)
 }
@@ -246,8 +246,8 @@ code_convert <- function(name, target, labels_as_text = FALSE, dict_name = NULL)
       # 原文：# user_na = TRUE：保留 SPSS 自訂遺漏值，變項檔才寫得出 na_values
       "# user_na = TRUE\uff1a\u4fdd\u7559 SPSS \u81ea\u8a02\u907a\u6f0f\u503c\uff0c\u8b8a\u9805\u6a94\u624d\u5beb\u5f97\u51fa na_values",
       paste0("data <- read_sav(", r_str(name), ", user_na = TRUE)"), "",
-      # 原文：# 變項檔：一個變項一列（變項標籤、數值標籤、自訂遺漏值）
-      "# \u8b8a\u9805\u6a94\uff1a\u4e00\u500b\u8b8a\u9805\u4e00\u5217\uff08\u8b8a\u9805\u6a19\u7c64\u3001\u6578\u503c\u6a19\u7c64\u3001\u81ea\u8a02\u907a\u6f0f\u503c\uff09",
+      # 原文：# 變項檔：一個變項一個橫列（變項標籤、數值標籤、自訂遺漏值）
+      "# \u8b8a\u9805\u6a94\uff1a\u4e00\u500b\u8b8a\u9805\u4e00\u500b\u6a6b\u5217\uff08\u8b8a\u9805\u6a19\u7c64\u3001\u6578\u503c\u6a19\u7c64\u3001\u81ea\u8a02\u907a\u6f0f\u503c\uff09",
       "vars <- generate_dictionary(data, details = \"full\")",
       # 原文：# 測量水準（名義、次序、尺度）：R 的套件讀不到，app 自己從 SAV 檔讀；這裡留空白
       # 原文：# 測量水準（名義、次序、尺度）：R 的套件讀不到，app 自己從 SAV 檔讀；這裡留空白
@@ -283,8 +283,8 @@ code_convert <- function(name, target, labels_as_text = FALSE, dict_name = NULL)
   code_lines(
     "library(readr)", "library(haven)", "library(labelled)", "",
     read,
-    # 原文：# 變項檔：英文欄名 variable、label、value_labels、na_values、na_range
-    "# \u8b8a\u9805\u6a94\uff1a\u82f1\u6587\u6b04\u540d variable\u3001label\u3001value_labels\u3001na_values\u3001na_range",
+    # 原文：# 變項檔：英文直欄名稱 variable、label、value_labels、na_values、na_range
+    "# \u8b8a\u9805\u6a94\uff1a\u82f1\u6587\u76f4\u6b04\u540d\u7a31 variable\u3001label\u3001value_labels\u3001na_values\u3001na_range",
     paste0("vars <- read_csv(", r_str(dict_name), ", col_types = cols(.default = \"c\"))"),
     "for (col in c(\"label\", \"value_labels\", \"na_values\", \"na_range\")) {",
     "  if (!col %in% names(vars)) vars[[col]] <- NA_character_",

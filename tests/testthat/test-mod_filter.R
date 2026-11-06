@@ -43,9 +43,9 @@ test_that("模組：每個檔案各自設定，執行後下游拿到篩選後的
     expect_match(output$settings_line$html, "t1（w1.csv）")
     session$setInputs(run = 1)
     expect_match(output$status$html, "篩選完成")
-    expect_match(output$status$html, "6 列 → 保留 4 列（排除 2 列）")
+    expect_match(output$status$html, "6 橫列 → 保留 4 橫列（排除 2 橫列）")
     # score 空白的那一列判斷不了：狀態框寫出來
-    expect_match(output$status$html, "有 1 列因為條件用到的欄是空白")
+    expect_match(output$status$html, "有 1 橫列因為條件用到的直欄是空白")
     expect_match(output$status$html, "t2（w2.csv）：沒有設定，原樣往後傳")
     expect_true(session$returned$filtered())
     expect_equal(session$returned$filter_state(), "on")
@@ -99,7 +99,7 @@ test_that("模組：沒填完的條件不能執行；篩選後沒有任何列時
     expect_match(output$ready$html, "還沒填數字")
     session$setInputs(c1_num = 1000)
     session$setInputs(run = 1)
-    expect_match(output$status$html, "篩選後沒有任何列")
+    expect_match(output$status$html, "篩選後沒有任何橫列")
     expect_equal(nrow(session$returned$data()[[1]]), 0)
   })
 })
@@ -125,7 +125,7 @@ test_that("模組：摘要用篩選後的資料，按「計算摘要」才算，
                       sum_stats = c("n_valid", "mean"))
     expect_match(output$sum_source$html, "篩選前的資料")
     session$setInputs(sum_run = 1)
-    expect_match(output$sum_result$html, "共 3 列")
+    expect_match(output$sum_result$html, "共 3 橫列")
     expect_match(output$sum_table, "\\[1\\] 男")
     csv <- readr::read_csv(kit_test_download_file(session, "sum_csv"), show_col_types = FALSE)
     expect_named(csv, c("sex", "variable", "n", "n_valid", "mean"))
@@ -170,12 +170,12 @@ test_that("整個 app：疊加拿到篩選後的資料；勾掉或設定改了�
     session$setInputs(`filter-file` = "f1", `filter-add_cond` = 1)
     session$setInputs(`filter-c1_col` = "sex", `filter-c1_op` = "eq", `filter-c1_num` = 1)
     session$setInputs(`filter-run` = 1)
-    expect_match(output[["filter-status"]]$html, "4 列 → 保留 2 列")
+    expect_match(output[["filter-status"]]$html, "4 橫列 → 保留 2 橫列")
     expect_equal(filter_tab_state(tab_states()), "done")
     expect_match(output[["stack-source_note"]]$html, "再經過「篩選與摘要」的資料")
 
     session$setInputs(`stack-run` = 1)
-    expect_match(output[["stack-status"]]$html, "結果共 6 列")
+    expect_match(output[["stack-status"]]$html, "結果共 6 橫列")
     expect_match(output[["stack-settings_line"]]$html, "遺漏值處理、篩選後的資料")
     csv <- readr::read_csv(kit_test_download_file(session, "stack-download_csv"),
                            show_col_types = FALSE)
@@ -187,7 +187,7 @@ test_that("整個 app：疊加拿到篩選後的資料；勾掉或設定改了�
     expect_match(output[["stack-status"]]$html, "要重新執行")
     expect_match(output[["stack-source_note"]]$html, "「遺漏值處理」處理後的資料")
     session$setInputs(`stack-run` = 2)
-    expect_match(output[["stack-status"]]$html, "結果共 8 列")
+    expect_match(output[["stack-status"]]$html, "結果共 8 橫列")
 
     # 勾回來、改了條件：篩選結果過期，疊加用沒篩選的資料並提醒
     session$setInputs(`filter-use_downstream` = TRUE)
@@ -195,7 +195,7 @@ test_that("整個 app：疊加拿到篩選後的資料；勾掉或設定改了�
     expect_equal(filter_tab_state(tab_states()), "stale")
     expect_match(output[["stack-source_note"]]$html, "請回「篩選與摘要」重新按「執行篩選」")
     session$setInputs(`stack-run` = 3)
-    expect_match(output[["stack-status"]]$html, "結果共 8 列")
+    expect_match(output[["stack-status"]]$html, "結果共 8 橫列")
 
     # ② 重新執行：篩選結果也過期
     session$setInputs(`filter-run` = 2)

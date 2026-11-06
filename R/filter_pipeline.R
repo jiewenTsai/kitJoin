@@ -108,13 +108,13 @@ filter_cond_clean <- function(cond, df, i = 1L) {
   # 原文：條件 
   label <- paste0("\u689d\u4ef6 ", i)
   if (!nzchar(col)) {
-    # 原文：：還沒選欄
-    out$problem <- paste0(label, "\uff1a\u9084\u6c92\u9078\u6b04")
+    # 原文：：還沒選直欄
+    out$problem <- paste0(label, "\uff1a\u9084\u6c92\u9078\u76f4\u6b04")
     return(out)
   }
   if (!col %in% names(df)) {
-    # 原文：：檔案裡沒有  |  這一欄
-    out$problem <- paste0(label, "\uff1a\u6a94\u6848\u88e1\u6c92\u6709 ", col, " \u9019\u4e00\u6b04")
+    # 原文：：檔案裡沒有  |  這一個直欄
+    out$problem <- paste0(label, "\uff1a\u6a94\u6848\u88e1\u6c92\u6709 ", col, " \u9019\u4e00\u500b\u76f4\u6b04")
     return(out)
   }
   x <- df[[col]]
@@ -154,8 +154,8 @@ filter_cond_clean <- function(cond, df, i = 1L) {
     } else if (is_num) {
       nums <- suppressWarnings(as.numeric(vals))
       if (anyNA(nums)) {
-        # 原文：這一欄是數字，請輸入數字
-        out$problem <- missing_value("\u9019\u4e00\u6b04\u662f\u6578\u5b57\uff0c\u8acb\u8f38\u5165\u6578\u5b57")
+        # 原文：這一個直欄是數字，請輸入數字
+        out$problem <- missing_value("\u9019\u4e00\u500b\u76f4\u6b04\u662f\u6578\u5b57\uff0c\u8acb\u8f38\u5165\u6578\u5b57")
       } else {
         out$value <- unique(nums)
       }
@@ -270,8 +270,8 @@ filter_spec_clean <- function(raw, df) {
   spec$active <- !is.null(spec$keep_cols) || length(conds) > 0 || length(sort_cols) > 0
   spec$problems <- unlist(c(
     purrr::map(conds, "problem"),
-    # 原文：每一欄都拿掉了，至少要保留一欄
-    if (length(kept) == 0) "\u6bcf\u4e00\u6b04\u90fd\u62ff\u6389\u4e86\uff0c\u81f3\u5c11\u8981\u4fdd\u7559\u4e00\u6b04"
+    # 原文：每一個直欄都拿掉了，至少要保留一個直欄
+    if (length(kept) == 0) "\u6bcf\u4e00\u500b\u76f4\u6b04\u90fd\u62ff\u6389\u4e86\uff0c\u81f3\u5c11\u8981\u4fdd\u7559\u4e00\u500b\u76f4\u6b04"
   ))
   spec
 }
@@ -296,8 +296,8 @@ filter_spec_short <- function(spec, n_cols) {
              if (n > 1) if (spec$combine == "or") "\uff08\u4efb\u4e00\u7b26\u5408\uff09" else "\uff08\u5168\u90e8\u7b26\u5408\uff09")
     },
     if (!is.null(spec$keep_cols)) {
-      # 原文：保留  | ／ |  欄
-      paste0("\u4fdd\u7559 ", kit_num(length(spec$keep_cols)), "\uff0f", kit_num(n_cols), " \u6b04")
+      # 原文：保留  | ／ |  直欄
+      paste0("\u4fdd\u7559 ", kit_num(length(spec$keep_cols)), "\uff0f", kit_num(n_cols), " \u76f4\u6b04")
     },
     if (length(spec$sort_cols) > 0) {
       # 原文：依  | 、
@@ -389,8 +389,8 @@ filter_files <- function(dfs, specs, shown) {
   }
   active <- purrr::map_lgl(specs, function(spec) isTRUE(spec$active))
   if (!any(active)) {
-    # 原文：還沒有設定：至少替一個檔案選要保留的欄、加一個條件，或選排序的欄。
-    kit_abort("\u9084\u6c92\u6709\u8a2d\u5b9a\uff1a\u81f3\u5c11\u66ff\u4e00\u500b\u6a94\u6848\u9078\u8981\u4fdd\u7559\u7684\u6b04\u3001\u52a0\u4e00\u500b\u689d\u4ef6\uff0c\u6216\u9078\u6392\u5e8f\u7684\u6b04\u3002")
+    # 原文：還沒有設定：至少替一個檔案選要保留的直欄、加一個條件，或選排序的直欄。
+    kit_abort("\u9084\u6c92\u6709\u8a2d\u5b9a\uff1a\u81f3\u5c11\u66ff\u4e00\u500b\u6a94\u6848\u9078\u8981\u4fdd\u7559\u7684\u76f4\u6b04\u3001\u52a0\u4e00\u500b\u689d\u4ef6\uff0c\u6216\u9078\u6392\u5e8f\u7684\u76f4\u6b04\u3002")
   }
   out <- purrr::map2(dfs, specs, function(df, spec) {
     if (is.null(spec) || !isTRUE(spec$active)) return(NULL)
@@ -407,45 +407,45 @@ filter_files <- function(dfs, specs, shown) {
     "\u6a94\u6848" = shown,
     # 原文：有設定 | 是 | 否（原樣往後傳）
     "\u6709\u8a2d\u5b9a" = ifelse(active, "\u662f", "\u5426\uff08\u539f\u6a23\u5f80\u5f8c\u50b3\uff09"),
-    # 原文：原列數
-    "\u539f\u5217\u6578" = num("rows_in"),
-    # 原文：保留列數
-    "\u4fdd\u7559\u5217\u6578" = num("rows_out"),
-    # 原文：被條件排除的列數
-    "\u88ab\u689d\u4ef6\u6392\u9664\u7684\u5217\u6578" = num("excluded"),
+    # 原文：原橫列數
+    "\u539f\u6a6b\u5217\u6578" = num("rows_in"),
+    # 原文：保留橫列數
+    "\u4fdd\u7559\u6a6b\u5217\u6578" = num("rows_out"),
+    # 原文：被條件排除的橫列數
+    "\u88ab\u689d\u4ef6\u6392\u9664\u7684\u6a6b\u5217\u6578" = num("excluded"),
     # 原文：其中因為空白（判斷不了）而排除
     "\u5176\u4e2d\u56e0\u70ba\u7a7a\u767d\uff08\u5224\u65b7\u4e0d\u4e86\uff09\u800c\u6392\u9664" = num("excluded_na"),
-    # 原文：原欄數
-    "\u539f\u6b04\u6578" = num("cols_in"),
-    # 原文：保留欄數
-    "\u4fdd\u7559\u6b04\u6578" = num("cols_out")
+    # 原文：原直欄數
+    "\u539f\u76f4\u6b04\u6578" = num("cols_in"),
+    # 原文：保留直欄數
+    "\u4fdd\u7559\u76f4\u6b04\u6578" = num("cols_out")
   )
   points <- purrr::pmap_chr(list(shown, counts, active), function(name, x, on) {
     # 原文：：沒有設定，原樣往後傳（ | ）。
     if (!on) return(paste0(name, "\uff1a\u6c92\u6709\u8a2d\u5b9a\uff0c\u539f\u6a23\u5f80\u5f8c\u50b3\uff08", kit_dims(x$rows_in, x$cols_in), "\uff09\u3002"))
     paste0(
-      # 原文：： |  列 → 保留  |  列
-      name, "\uff1a", kit_num(x$rows_in), " \u5217 \u2192 \u4fdd\u7559 ", kit_num(x$rows_out), " \u5217",
-      # 原文：（排除  |  列）
-      if (x$excluded > 0) paste0("\uff08\u6392\u9664 ", kit_num(x$excluded), " \u5217\uff09"),
-      # 原文：； |  欄 → 保留  |  欄。
-      "\uff1b", kit_num(x$cols_in), " \u6b04 \u2192 \u4fdd\u7559 ", kit_num(x$cols_out), " \u6b04\u3002"
+      # 原文：： |  橫列 → 保留  |  橫列
+      name, "\uff1a", kit_num(x$rows_in), " \u6a6b\u5217 \u2192 \u4fdd\u7559 ", kit_num(x$rows_out), " \u6a6b\u5217",
+      # 原文：（排除  |  橫列）
+      if (x$excluded > 0) paste0("\uff08\u6392\u9664 ", kit_num(x$excluded), " \u6a6b\u5217\uff09"),
+      # 原文：； |  直欄 → 保留  |  直欄。
+      "\uff1b", kit_num(x$cols_in), " \u76f4\u6b04 \u2192 \u4fdd\u7559 ", kit_num(x$cols_out), " \u76f4\u6b04\u3002"
     )
   })
   warnings <- c(
     unlist(purrr::pmap(list(shown, counts, active), function(name, x, on) {
       if (!on || x$excluded_na == 0) return(NULL)
       paste0(
-        # 原文：：有  |  列因為條件用到的欄是空白、判斷不了，
-        name, "\uff1a\u6709 ", kit_num(x$excluded_na), " \u5217\u56e0\u70ba\u689d\u4ef6\u7528\u5230\u7684\u6b04\u662f\u7a7a\u767d\u3001\u5224\u65b7\u4e0d\u4e86\uff0c",
-        # 原文：所以排除（已算在排除的列數裡）。要留下這些列，請加「是空白」的條件並選「任一條件符合」。
-        "\u6240\u4ee5\u6392\u9664\uff08\u5df2\u7b97\u5728\u6392\u9664\u7684\u5217\u6578\u88e1\uff09\u3002\u8981\u7559\u4e0b\u9019\u4e9b\u5217\uff0c\u8acb\u52a0\u300c\u662f\u7a7a\u767d\u300d\u7684\u689d\u4ef6\u4e26\u9078\u300c\u4efb\u4e00\u689d\u4ef6\u7b26\u5408\u300d\u3002"
+        # 原文：：有  |  橫列因為條件用到的直欄是空白、判斷不了，
+        name, "\uff1a\u6709 ", kit_num(x$excluded_na), " \u6a6b\u5217\u56e0\u70ba\u689d\u4ef6\u7528\u5230\u7684\u76f4\u6b04\u662f\u7a7a\u767d\u3001\u5224\u65b7\u4e0d\u4e86\uff0c",
+        # 原文：所以排除（已算在排除的橫列數裡）。要留下這些橫列，請加「是空白」的條件並選「任一條件符合」。
+        "\u6240\u4ee5\u6392\u9664\uff08\u5df2\u7b97\u5728\u6392\u9664\u7684\u6a6b\u5217\u6578\u88e1\uff09\u3002\u8981\u7559\u4e0b\u9019\u4e9b\u6a6b\u5217\uff0c\u8acb\u52a0\u300c\u662f\u7a7a\u767d\u300d\u7684\u689d\u4ef6\u4e26\u9078\u300c\u4efb\u4e00\u689d\u4ef6\u7b26\u5408\u300d\u3002"
       )
     })),
     unlist(purrr::pmap(list(shown, counts, active), function(name, x, on) {
       if (!on || x$rows_out > 0 || x$rows_in == 0) return(NULL)
-      # 原文：：篩選後沒有任何列。請檢查條件（例如數字是不是填錯、是不是該選「任一條件符合」）。
-      paste0(name, "\uff1a\u7be9\u9078\u5f8c\u6c92\u6709\u4efb\u4f55\u5217\u3002\u8acb\u6aa2\u67e5\u689d\u4ef6\uff08\u4f8b\u5982\u6578\u5b57\u662f\u4e0d\u662f\u586b\u932f\u3001\u662f\u4e0d\u662f\u8a72\u9078\u300c\u4efb\u4e00\u689d\u4ef6\u7b26\u5408\u300d\uff09\u3002")
+      # 原文：：篩選後沒有任何橫列。請檢查條件（例如數字是不是填錯、是不是該選「任一條件符合」）。
+      paste0(name, "\uff1a\u7be9\u9078\u5f8c\u6c92\u6709\u4efb\u4f55\u6a6b\u5217\u3002\u8acb\u6aa2\u67e5\u689d\u4ef6\uff08\u4f8b\u5982\u6578\u5b57\u662f\u4e0d\u662f\u586b\u932f\u3001\u662f\u4e0d\u662f\u8a72\u9078\u300c\u4efb\u4e00\u689d\u4ef6\u7b26\u5408\u300d\uff09\u3002")
     }))
   )
   list(
@@ -505,8 +505,8 @@ code_filter_one <- function(spec, obj, target, name) {
     how,
     paste0(target, " <- ", obj, " |>"),
     unlist(steps),
-    # 原文：)   # 篩選後的列數、欄數
-    paste0("dim(", target, ")   # \u7be9\u9078\u5f8c\u7684\u5217\u6578\u3001\u6b04\u6578"),
+    # 原文：)   # 篩選後的橫列數、直欄數
+    paste0("dim(", target, ")   # \u7be9\u9078\u5f8c\u7684\u6a6b\u5217\u6578\u3001\u76f4\u6b04\u6578"),
     ""
   )
 }
@@ -527,8 +527,8 @@ code_filter <- function(f, specs, shown, in_place = TRUE) {
     code_filter_one(specs[[i]], f$obj[i], target, shown[i])
   })
   c(
-    # 原文：# 空白（NA）的處理和 filter() 一樣：條件算出來是 NA 的列不會留下
-    "# \u7a7a\u767d\uff08NA\uff09\u7684\u8655\u7406\u548c filter() \u4e00\u6a23\uff1a\u689d\u4ef6\u7b97\u51fa\u4f86\u662f NA \u7684\u5217\u4e0d\u6703\u7559\u4e0b",
+    # 原文：# 空白（NA）的處理和 filter() 一樣：條件算出來是 NA 的橫列不會留下
+    "# \u7a7a\u767d\uff08NA\uff09\u7684\u8655\u7406\u548c filter() \u4e00\u6a23\uff1a\u689d\u4ef6\u7b97\u51fa\u4f86\u662f NA \u7684\u6a6b\u5217\u4e0d\u6703\u7559\u4e0b",
     unlist(blocks)
   )
 }
@@ -557,28 +557,28 @@ summary_numeric_cols <- function(df) {
 #' 摘要前的檢查；沒問題時 NULL
 #' @noRd
 summary_problem <- function(df, groups, vars) {
-  # 原文：請選要摘要的變項（數值欄）。
-  if (length(vars) == 0) return("\u8acb\u9078\u8981\u6458\u8981\u7684\u8b8a\u9805\uff08\u6578\u503c\u6b04\uff09\u3002")
+  # 原文：請選要摘要的變項（數值直欄）。
+  if (length(vars) == 0) return("\u8acb\u9078\u8981\u6458\u8981\u7684\u8b8a\u9805\uff08\u6578\u503c\u76f4\u6b04\uff09\u3002")
   miss <- setdiff(c(groups, vars), names(df))
-  # 原文：資料裡沒有這些欄： | 、 | 。
-  if (length(miss) > 0) return(paste0("\u8cc7\u6599\u88e1\u6c92\u6709\u9019\u4e9b\u6b04\uff1a", paste(miss, collapse = "\u3001"), "\u3002"))
+  # 原文：資料裡沒有這些直欄： | 、 | 。
+  if (length(miss) > 0) return(paste0("\u8cc7\u6599\u88e1\u6c92\u6709\u9019\u4e9b\u76f4\u6b04\uff1a", paste(miss, collapse = "\u3001"), "\u3002"))
   not_num <- vars[!purrr::map_lgl(df[vars], is.numeric)]
   if (length(not_num) > 0) {
-    # 原文：這些欄不是數字，不能算平均數： | 、 | 。
-    return(paste0("\u9019\u4e9b\u6b04\u4e0d\u662f\u6578\u5b57\uff0c\u4e0d\u80fd\u7b97\u5e73\u5747\u6578\uff1a", paste(not_num, collapse = "\u3001"), "\u3002"))
+    # 原文：這些直欄不是數字，不能算平均數： | 、 | 。
+    return(paste0("\u9019\u4e9b\u76f4\u6b04\u4e0d\u662f\u6578\u5b57\uff0c\u4e0d\u80fd\u7b97\u5e73\u5747\u6578\uff1a", paste(not_num, collapse = "\u3001"), "\u3002"))
   }
   both <- intersect(groups, vars)
   if (length(both) > 0) {
-    # 原文：同一欄不能同時是分組欄和要摘要的變項： | 、 | 。
-    return(paste0("\u540c\u4e00\u6b04\u4e0d\u80fd\u540c\u6642\u662f\u5206\u7d44\u6b04\u548c\u8981\u6458\u8981\u7684\u8b8a\u9805\uff1a", paste(both, collapse = "\u3001"), "\u3002"))
+    # 原文：同一個直欄不能同時是分組直欄和要摘要的變項： | 、 | 。
+    return(paste0("\u540c\u4e00\u500b\u76f4\u6b04\u4e0d\u80fd\u540c\u6642\u662f\u5206\u7d44\u76f4\u6b04\u548c\u8981\u6458\u8981\u7684\u8b8a\u9805\uff1a", paste(both, collapse = "\u3001"), "\u3002"))
   }
   reserved <- intersect(groups, c("variable", "value", "n", names(SUMMARY_STATS)))
   if (length(reserved) > 0) {
     return(paste0(
-      # 原文：分組欄的名稱和摘要表的欄名撞名了： | 、
-      "\u5206\u7d44\u6b04\u7684\u540d\u7a31\u548c\u6458\u8981\u8868\u7684\u6b04\u540d\u649e\u540d\u4e86\uff1a", paste(reserved, collapse = "\u3001"),
-      # 原文：。請先改欄名再摘要。
-      "\u3002\u8acb\u5148\u6539\u6b04\u540d\u518d\u6458\u8981\u3002"
+      # 原文：分組直欄的名稱和摘要表的直欄名稱撞名了： | 、
+      "\u5206\u7d44\u76f4\u6b04\u7684\u540d\u7a31\u548c\u6458\u8981\u8868\u7684\u76f4\u6b04\u540d\u7a31\u649e\u540d\u4e86\uff1a", paste(reserved, collapse = "\u3001"),
+      # 原文：。請先改直欄名稱再摘要。
+      "\u3002\u8acb\u5148\u6539\u76f4\u6b04\u540d\u7a31\u518d\u6458\u8981\u3002"
     ))
   }
   NULL
@@ -607,8 +607,8 @@ summary_table <- function(df, groups = character(0), vars, stats = SUMMARY_STATS
     kit_abort(
       # 原文：分組太多： |  組 ×  |  個變項。
       "\u5206\u7d44\u592a\u591a\uff1a", kit_num(n_groups), " \u7d44 \u00d7 ", kit_num(length(vars)), " \u500b\u8b8a\u9805\u3002",
-      # 原文：分組欄是不是選到 ID 這類每個人都不一樣的欄？
-      "\u5206\u7d44\u6b04\u662f\u4e0d\u662f\u9078\u5230 ID \u9019\u985e\u6bcf\u500b\u4eba\u90fd\u4e0d\u4e00\u6a23\u7684\u6b04\uff1f"
+      # 原文：分組直欄是不是選到 ID 這類每個人都不一樣的直欄？
+      "\u5206\u7d44\u76f4\u6b04\u662f\u4e0d\u662f\u9078\u5230 ID \u9019\u985e\u6bcf\u500b\u4eba\u90fd\u4e0d\u4e00\u6a23\u7684\u76f4\u6b04\uff1f"
     )
   }
   guard <- function(f) function(x) if (any(!is.na(x))) f(x, na.rm = TRUE) else NA_real_
@@ -666,8 +666,8 @@ code_summary <- function(obj, target, groups, vars, stats, labelled_groups = cha
     paste0("# \u6458\u8981", if (!is.null(name)) paste0("\uff1a", name),
            # 原文：，依  | 、 |  分組
            if (length(groups) > 0) paste0("\uff0c\u4f9d ", paste(groups, collapse = "\u3001"), " \u5206\u7d44")),
-    # 原文：# 一列 = 一組 × 一個變項；整組都是空白時是 NA
-    "# \u4e00\u5217 = \u4e00\u7d44 \u00d7 \u4e00\u500b\u8b8a\u9805\uff1b\u6574\u7d44\u90fd\u662f\u7a7a\u767d\u6642\u662f NA",
+    # 原文：# 一個橫列 = 一組 × 一個變項；整組都是空白時是 NA
+    "# \u4e00\u500b\u6a6b\u5217 = \u4e00\u7d44 \u00d7 \u4e00\u500b\u8b8a\u9805\uff1b\u6574\u7d44\u90fd\u662f\u7a7a\u767d\u6642\u662f NA",
     paste0("summary_vars <- ", r_wrap_c(r_str_each(vars), "  ")),
     paste0(target, " <- ", obj, " |>"),
     if (length(labelled_groups) > 0) {

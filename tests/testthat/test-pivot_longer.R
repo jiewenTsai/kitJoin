@@ -61,8 +61,8 @@ test_that("模組：控制項對應參數；固定的參數不能改", {
       expect_true(session$returned()$cols_exclude)
       expect_equal(session$returned()$cols, "id")
       expect_equal(nrow(pivot_longer_run(wide, session$returned())), 3)
-      expect_match(output$cols_count$html, "會轉 2 欄")
-      expect_match(output$cols_quick$html, "score_ 開頭（2 欄）")
+      expect_match(output$cols_count$html, "會轉 2 直欄")
+      expect_match(output$cols_quick$html, "score_ 開頭（2 直欄）")
     }
   )
 })
@@ -133,11 +133,11 @@ test_that("快速選欄：全選、清除、加入一組（照資料的欄位順
 test_that("選欄的效果：會轉幾欄、保留幾欄", {
   all <- names(wide2)
   txt <- pivot_cols_count_text
-  expect_match(txt(all, c("id", "sex"), TRUE), "會轉 7 欄")
-  expect_match(txt(all, c("id", "sex"), TRUE), "保留 2 欄不動（id、sex）")
-  expect_match(txt(all, "lan01", FALSE), "會轉 1 欄（lan01）")
+  expect_match(txt(all, c("id", "sex"), TRUE), "會轉 7 直欄")
+  expect_match(txt(all, c("id", "sex"), TRUE), "保留 2 直欄不動（id、sex）")
+  expect_match(txt(all, "lan01", FALSE), "會轉 1 直欄（lan01）")
   expect_match(txt(all, NULL, FALSE), "還沒選")
-  expect_match(txt(all, all, TRUE), "沒有欄可以轉")
+  expect_match(txt(all, all, TRUE), "沒有直欄可以轉")
 })
 
 test_that("挑要轉的欄 / 挑不轉的欄：轉出來一樣", {
@@ -214,9 +214,9 @@ test_that("模組：分組按鈕、選欄效果；挑要轉的和挑不轉的結
     args = list(data = shiny::reactive(wide2)),
     {
       session$setInputs(cols_mode = "include", cols = c("lan01", "lan02", "lan03"))
-      expect_match(output$cols_quick$html, "score_ 開頭（3 欄）")
-      expect_match(output$cols_quick$html, "lan 開頭（3 欄）")
-      expect_match(output$cols_count$html, "保留 6 欄不動")
+      expect_match(output$cols_quick$html, "score_ 開頭（3 直欄）")
+      expect_match(output$cols_quick$html, "lan 開頭（3 直欄）")
+      expect_match(output$cols_count$html, "保留 6 直欄不動")
       args <- session$returned()
       expect_equal(
         nrow(pivot_longer_run(wide2, args)),

@@ -25,7 +25,7 @@ test_that("套用預設後：每次施測一列，各領域依 slowest 並排", 
       "d_score_motor", "d_score_se_motor", "scale_motor")
   )
   expect_length(out$warnings, 0)
-  expect_match(out$summary[1], "11 列 × 17 欄.*6 列 × 13 欄")
+  expect_match(out$summary[1], "11 橫列 × 17 直欄.*6 橫列 × 13 直欄")
 })
 
 test_that("d_score 空白分得出：沒有這一列 vs 有列但空白", {
@@ -38,10 +38,10 @@ test_that("d_score 空白分得出：沒有這一列 vs 有列但空白", {
   expect_equal(not_d$scale_motor, "motor M36")
 
   motor <- out$empty[out$empty$domain == "motor", ]
-  expect_equal(motor$轉換後列數, 6)
-  expect_equal(motor$沒有這一列, 1)
-  expect_equal(motor$`有列但空白：d_score`, 2)
-  expect_equal(motor$`有列但空白：scale`, 0)
+  expect_equal(motor$轉換後橫列數, 6)
+  expect_equal(motor$沒有這一個橫列, 1)
+  expect_equal(motor$`有橫列但空白：d_score`, 2)
+  expect_equal(motor$`有橫列但空白：scale`, 0)
 })
 
 test_that("check_key_unique：id × names_from 重複時列出重複列", {
@@ -74,7 +74,7 @@ test_that("check_id_constant：同一個 visit 的 round 不同會被拆成兩�
 
   out <- reshape_wider(mixed, preset)
   expect_equal(nrow(out$result), 7)
-  expect_match(out$warnings, "round.*visit_id.*要填進新欄的值")
+  expect_match(out$warnings, "round.*visit_id.*要填進新直欄的值")
 
   ok <- check_id_constant(scores, "visit_id", preset$id_cols)
   expect_true(ok$ok)
@@ -150,11 +150,11 @@ test_that("pivot_longer：基本轉換與檢查", {
   out <- reshape_longer(wide, longer_args(cols = c("score_t1", "score_t2")))
   expect_equal(dim(out$result), c(4, 3))
   expect_named(out$result, c("id", "name", "value"))
-  expect_match(out$summary[2], "每一列變成 2 列")
+  expect_match(out$summary[2], "每一個橫列變成 2 橫列")
   # 挑不轉的欄（其餘全部轉）
   out <- reshape_longer(wide, longer_args(cols = "id", cols_exclude = TRUE))
   expect_equal(dim(out$result), c(4, 3))
-  expect_match(out$summary[2], "轉換 2 欄")
+  expect_match(out$summary[2], "轉換 2 直欄")
 
   args <- longer_args(
     cols = c("score_t1", "score_t2"), names_to = c(".value", "wave"),
@@ -217,8 +217,8 @@ test_that("轉換前猜格式：寬格式", {
   expect_equal(g$n_ids, 5)
   expect_equal(g$groups$prefix, c("lan", "score_"))
   txt <- reshape_guess_text(g)
-  expect_match(txt, "寬格式：每個 subj_id 一列（5 個）")
-  expect_match(txt, "lan 開頭 3 欄、score_ 開頭 2 欄")
+  expect_match(txt, "寬格式：每個 subj_id 一個橫列（5 個）")
+  expect_match(txt, "lan 開頭 3 直欄、score_ 開頭 2 直欄")
   expect_match(txt, "寬轉長")
 })
 
@@ -232,7 +232,7 @@ test_that("轉換前猜格式：長格式（kitsUI 分數表）", {
   expect_equal(g$n_rows, 11)
   expect_equal(g$varying, c("domain", "wave_m", "visit_id"))
   txt <- reshape_guess_text(g)
-  expect_match(txt, "長格式：同一個 subj_id 有好幾列（11 列、4 個 subj_id，平均每個 2.8 列）")
+  expect_match(txt, "長格式：同一個 subj_id 有好幾橫列（11 橫列、4 個 subj_id，平均每個 2.8 橫列）")
   expect_match(txt, "domain、wave_m、visit_id")
   expect_match(txt, "長轉寬")
 
@@ -250,11 +250,11 @@ test_that("轉換前猜格式：看不出來", {
   g <- reshape_guess_format(tibble::tibble(a = 1:3, b = 4:6))
   expect_equal(g$format, "unknown")
   expect_null(g$suggest)
-  expect_match(reshape_guess_text(g), "找不到像 ID 的欄")
+  expect_match(reshape_guess_text(g), "找不到像 ID 的直欄")
   # 每個 ID 一列，但沒有成組的欄
   g <- reshape_guess_format(tibble::tibble(id = 1:3, sex = 1, age = 2))
   expect_equal(g$format, "unknown")
-  expect_match(reshape_guess_text(g), "沒有成組的欄名")
+  expect_match(reshape_guess_text(g), "沒有成組的直欄名稱")
   # ID 欄全是空白
   g <- reshape_guess_format(tibble::tibble(id = NA, x1 = 1, x2 = 2))
   expect_equal(g$format, "unknown")
@@ -273,9 +273,9 @@ test_that("猜 ID 欄：subj_id、id 優先，item_id 不算", {
 test_that("錯誤訊息用主畫面的中文名稱，不用 tidyr 的參數名", {
   df <- tibble::tibble(id = c(1, 1), k = c("a", "b"), x = 1:2)
   expect_error(reshape_wider(df, wider_args(names_from = character(0), values_from = "x")),
-               "哪一欄的值變成新的欄名")
+               "哪一個直欄的值變成新的直欄名稱")
   expect_error(reshape_wider(df, wider_args(names_from = "k", values_from = character(0))),
-               "要填進新欄的值")
+               "要填進新直欄的值")
 })
 
 test_that("names_sort：預設照第一次出現的順序（同 tidyr）；勾了照值排序，教學程式碼寫出 names_sort = TRUE", {

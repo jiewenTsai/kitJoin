@@ -256,7 +256,7 @@ test_that("② 依數值標籤轉換；沒有 KIT 代碼時自動建議這個方
     expect_match(output[["upload-next_step"]]$html, "遺漏值代碼")
     session$setInputs(`missing-na_mode` = "labels", `missing-keywords` = kit_na_label_keywords_default(),
                       `missing-exclude_cols` = "w3id")
-    expect_match(output[["missing-label_found"]]$html, "1 個欄位")
+    expect_match(output[["missing-label_found"]]$html, "1 個直欄")
     expect_match(output[["missing-code"]]$html, "na_words")
     session$setInputs(`missing-use_downstream` = TRUE, `missing-run` = 1)
     expect_match(output[["missing-status"]]$html, "共替換 2 格")
@@ -373,8 +373,8 @@ test_that("③④ 有結果後重新執行 ②：結果清掉，預覽列數說�
       `join-by_vars` = "release_id", `join-method` = "left_join", `join-keys_as_text` = TRUE
     )
     session$setInputs(`join-run` = 1, `stack-run` = 1)
-    expect_match(output[["join-preview_meta"]], "共 3 列")
-    expect_match(output[["stack-preview_meta"]], "共 6 列")
+    expect_match(output[["join-preview_meta"]], "共 3 橫列")
+    expect_match(output[["stack-preview_meta"]], "共 6 橫列")
 
     session$setInputs(`missing-codes` = "9999,3", `missing-run` = 2)
     expect_match(output[["join-status"]]$html, "要重新執行")

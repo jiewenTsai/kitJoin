@@ -205,8 +205,8 @@ code_read <- function(f) {
   obj_note <- c("# \u6bcf\u500b\u6a94\u6848\u4e00\u500b\u7269\u4ef6\uff1a", code_obj_notes(f))
   csv_note <- if (any(is_csv)) {
     c(
-      # 原文：# read.csv() 的設定和 read_csv() 一致：check.names = FALSE 欄名保持原樣（空白不改成點）；
-      "# read.csv() \u7684\u8a2d\u5b9a\u548c read_csv() \u4e00\u81f4\uff1acheck.names = FALSE \u6b04\u540d\u4fdd\u6301\u539f\u6a23\uff08\u7a7a\u767d\u4e0d\u6539\u6210\u9ede\uff09\uff1b",
+      # 原文：# read.csv() 的設定和 read_csv() 一致：check.names = FALSE 直欄名稱保持原樣（空白不改成點）；
+      "# read.csv() \u7684\u8a2d\u5b9a\u548c read_csv() \u4e00\u81f4\uff1acheck.names = FALSE \u76f4\u6b04\u540d\u7a31\u4fdd\u6301\u539f\u6a23\uff08\u7a7a\u767d\u4e0d\u6539\u6210\u9ede\uff09\uff1b",
       # 原文：# 空白格當成 NA；去掉前後空白
       "# \u7a7a\u767d\u683c\u7576\u6210 NA\uff1b\u53bb\u6389\u524d\u5f8c\u7a7a\u767d"
     )
@@ -222,8 +222,8 @@ code_read <- function(f) {
       obj_note,
       tidy_lines,
       "",
-      # 原文：)   # 看前 6 列
-      paste0("head(", f$obj[1], ")   # \u770b\u524d 6 \u5217")
+      # 原文：)   # 看前 6 橫列
+      paste0("head(", f$obj[1], ")   # \u770b\u524d 6 \u6a6b\u5217")
     ),
     base = code_lines(
       setwd_note,
@@ -231,8 +231,8 @@ code_read <- function(f) {
       csv_note,
       base_lines,
       "",
-      # 原文：)   # 看前 6 列
-      paste0("head(", f$obj[1], ")   # \u770b\u524d 6 \u5217")
+      # 原文：)   # 看前 6 橫列
+      paste0("head(", f$obj[1], ")   # \u770b\u524d 6 \u6a6b\u5217")
     )
   )
 }
@@ -305,20 +305,20 @@ code_missing <- function(f, codes, exclude = character(0), match_text = TRUE,
     paste0("na_codes <- ", r_num(codes)),
     "",
     if (match_text) {
-      # 原文：# 文字欄（例如被讀成文字的 "9999"）去掉前後空白後也比對
-      '# \u6587\u5b57\u6b04\uff08\u4f8b\u5982\u88ab\u8b80\u6210\u6587\u5b57\u7684 "9999"\uff09\u53bb\u6389\u524d\u5f8c\u7a7a\u767d\u5f8c\u4e5f\u6bd4\u5c0d'
+      # 原文：# 文字直欄（例如被讀成文字的 "9999"）去掉前後空白後也比對
+      '# \u6587\u5b57\u76f4\u6b04\uff08\u4f8b\u5982\u88ab\u8b80\u6210\u6587\u5b57\u7684 "9999"\uff09\u53bb\u6389\u524d\u5f8c\u7a7a\u767d\u5f8c\u4e5f\u6bd4\u5c0d'
     } else {
-      # 原文：# 只處理數值欄
-      "# \u53ea\u8655\u7406\u6578\u503c\u6b04"
+      # 原文：# 只處理數值直欄
+      "# \u53ea\u8655\u7406\u6578\u503c\u76f4\u6b04"
     },
     if (length(exclude) > 0) {
-      # 原文：# 不處理： | 、 | （如 ID 欄）
-      paste0("# \u4e0d\u8655\u7406\uff1a", paste(exclude, collapse = "\u3001"), "\uff08\u5982 ID \u6b04\uff09")
+      # 原文：# 不處理： | 、 | （如 ID 直欄）
+      paste0("# \u4e0d\u8655\u7406\uff1a", paste(exclude, collapse = "\u3001"), "\uff08\u5982 ID \u76f4\u6b04\uff09")
     }
   )
-  # 原文：))   # 檢查：各欄 NA 數
-  # 原文：))   # 檢查：各欄 NA 數
-  check <- paste0("colSums(is.na(", f$obj[1], "))   # \u6aa2\u67e5\uff1a\u5404\u6b04 NA \u6578")
+  # 原文：))   # 檢查：各直欄 NA 數
+  # 原文：))   # 檢查：各直欄 NA 數
+  check <- paste0("colSums(is.na(", f$obj[1], "))   # \u6aa2\u67e5\uff1a\u5404\u76f4\u6b04 NA \u6578")
   has_global <- length(codes) > 0
 
   list(
@@ -362,8 +362,8 @@ code_by_col_codes <- function(f, codes_by_col, exclude) {
   codes_by_col <- codes_by_col[setdiff(names(codes_by_col), exclude)]
   codes_by_col <- codes_by_col[lengths(codes_by_col) > 0]
   if (length(codes_by_col) == 0) return(list(tidy = NULL, base = NULL))
-  # 原文：# 各欄自己的遺漏值代碼（這些欄不套用上面的 na_codes）
-  note <- "# \u5404\u6b04\u81ea\u5df1\u7684\u907a\u6f0f\u503c\u4ee3\u78bc\uff08\u9019\u4e9b\u6b04\u4e0d\u5957\u7528\u4e0a\u9762\u7684 na_codes\uff09"
+  # 原文：# 各直欄自己的遺漏值代碼（這些直欄不套用上面的 na_codes）
+  note <- "# \u5404\u76f4\u6b04\u81ea\u5df1\u7684\u907a\u6f0f\u503c\u4ee3\u78bc\uff08\u9019\u4e9b\u76f4\u6b04\u4e0d\u5957\u7528\u4e0a\u9762\u7684 na_codes\uff09"
   has <- function(i, col) is.null(f$cols) || col %in% f$cols[[i]]
   tidy <- unlist(lapply(seq_along(f$obj), function(i) {
     cols <- Filter(function(col) has(i, col), names(codes_by_col))
@@ -424,13 +424,13 @@ code_missing_labels <- function(f, keywords, exclude) {
     "# \u6578\u503c\u6a19\u7c64\u542b\u9019\u4e9b\u5b57\u7684\u503c\uff0c\u8996\u70ba\u907a\u6f0f\u503c\u4ee3\u78bc\uff08\u7528 | \u63a5\u8d77\u4f86\uff0c\u8868\u793a\u300c\u6216\u300d\uff09",
     paste0("na_words <- paste(", r_str(words), ", collapse = \"|\")"),
     if (length(exclude) > 0) {
-      # 原文：# 不處理： | 、 | （如 ID 欄）
-      paste0("# \u4e0d\u8655\u7406\uff1a", paste(exclude, collapse = "\u3001"), "\uff08\u5982 ID \u6b04\uff09")
+      # 原文：# 不處理： | 、 | （如 ID 直欄）
+      paste0("# \u4e0d\u8655\u7406\uff1a", paste(exclude, collapse = "\u3001"), "\uff08\u5982 ID \u76f4\u6b04\uff09")
     }
   )
   body <- paste(vapply(seq_along(f$obj), one, character(1)), collapse = "\n\n")
-  # 原文：))   # 檢查：各欄 NA 數
-  check <- paste0("colSums(is.na(", f$obj[1], "))   # \u6aa2\u67e5\uff1a\u5404\u6b04 NA \u6578")
+  # 原文：))   # 檢查：各直欄 NA 數
+  check <- paste0("colSums(is.na(", f$obj[1], "))   # \u6aa2\u67e5\uff1a\u5404\u76f4\u6b04 NA \u6578")
   list(
     tidy = code_lines("library(haven)", "", header, "", body, "", check),
     base = code_lines(header, "", body, "", check)
@@ -454,8 +454,8 @@ code_rename_ids <- function(f, by_vars, id_cols) {
       r_str(by_vars)
     )
   }, character(1))
-  # 原文：# 0. 各檔的 ID 欄名不同：先改成相同的名稱（ | 、 | ）
-  note <- paste0("# 0. \u5404\u6a94\u7684 ID \u6b04\u540d\u4e0d\u540c\uff1a\u5148\u6539\u6210\u76f8\u540c\u7684\u540d\u7a31\uff08", paste(by_vars, collapse = "\u3001"), "\uff09")
+  # 原文：# 0. 各檔的 ID 直欄名稱不同：先改成相同的名稱（ | 、 | ）
+  note <- paste0("# 0. \u5404\u6a94\u7684 ID \u76f4\u6b04\u540d\u7a31\u4e0d\u540c\uff1a\u5148\u6539\u6210\u76f8\u540c\u7684\u540d\u7a31\uff08", paste(by_vars, collapse = "\u3001"), "\uff09")
   list(tidy = c(note, tidy, ""), base = c(note, base, ""))
 }
 
@@ -572,11 +572,11 @@ code_join <- function(f, by_vars, join_method, id_cols = NULL,
       "# \u4e0d\u52a0 all \u53c3\u6578\u76f8\u7576\u65bc inner_join\uff1bmerge() \u6703\u4f9d key \u91cd\u65b0\u6392\u5e8f"
     ),
     if (length(by_vars) == 1) {
-      # 原文：# incomparables = NA：ID 空白的列不互相配對（和 app 一樣）
-      "# incomparables = NA\uff1aID \u7a7a\u767d\u7684\u5217\u4e0d\u4e92\u76f8\u914d\u5c0d\uff08\u548c app \u4e00\u6a23\uff09"
+      # 原文：# incomparables = NA：ID 空白的橫列不互相配對（和 app 一樣）
+      "# incomparables = NA\uff1aID \u7a7a\u767d\u7684\u6a6b\u5217\u4e0d\u4e92\u76f8\u914d\u5c0d\uff08\u548c app \u4e00\u6a23\uff09"
     } else {
-      # 原文：# 注意：多個 ID 欄時 merge() 會把 ID 空白的列互相配對；請先刪掉 ID 空白的列
-      "# \u6ce8\u610f\uff1a\u591a\u500b ID \u6b04\u6642 merge() \u6703\u628a ID \u7a7a\u767d\u7684\u5217\u4e92\u76f8\u914d\u5c0d\uff1b\u8acb\u5148\u522a\u6389 ID \u7a7a\u767d\u7684\u5217"
+      # 原文：# 注意：多個 ID 直欄時 merge() 會把 ID 空白的橫列互相配對；請先刪掉 ID 空白的橫列
+      "# \u6ce8\u610f\uff1a\u591a\u500b ID \u76f4\u6b04\u6642 merge() \u6703\u628a ID \u7a7a\u767d\u7684\u6a6b\u5217\u4e92\u76f8\u914d\u5c0d\uff1b\u8acb\u5148\u522a\u6389 ID \u7a7a\u767d\u7684\u6a6b\u5217"
     }
   )
 
@@ -585,29 +585,29 @@ code_join <- function(f, by_vars, join_method, id_cols = NULL,
       "library(dplyr)", "",
       renames$tidy,
       to_text,
-      # 原文：# 1. 非 ID 欄位加上波次後綴，避免同名欄衝突
-      "# 1. \u975e ID \u6b04\u4f4d\u52a0\u4e0a\u6ce2\u6b21\u5f8c\u7db4\uff0c\u907f\u514d\u540c\u540d\u6b04\u885d\u7a81",
+      # 原文：# 1. 非 ID 直欄加上波次後綴，避免同名直欄衝突
+      "# 1. \u975e ID \u76f4\u6b04\u52a0\u4e0a\u6ce2\u6b21\u5f8c\u7db4\uff0c\u907f\u514d\u540c\u540d\u76f4\u6b04\u885d\u7a81",
       tidy_rename, "",
-      # 原文：# 2. 依序合併；na_matches = \"never\"：ID 空白的列不互相配對（和 app 一樣）
-      "# 2. \u4f9d\u5e8f\u5408\u4f75\uff1bna_matches = \"never\"\uff1aID \u7a7a\u767d\u7684\u5217\u4e0d\u4e92\u76f8\u914d\u5c0d\uff08\u548c app \u4e00\u6a23\uff09",
+      # 原文：# 2. 依序合併；na_matches = \"never\"：ID 空白的橫列不互相配對（和 app 一樣）
+      "# 2. \u4f9d\u5e8f\u5408\u4f75\uff1bna_matches = \"never\"\uff1aID \u7a7a\u767d\u7684\u6a6b\u5217\u4e0d\u4e92\u76f8\u914d\u5c0d\uff08\u548c app \u4e00\u6a23\uff09",
       tidy_join, "",
       constant$tidy,
-      # 原文：dim(joined)   # 列數、欄數
-      "dim(joined)   # \u5217\u6578\u3001\u6b04\u6578"
+      # 原文：dim(joined)   # 橫列數、直欄數
+      "dim(joined)   # \u6a6b\u5217\u6578\u3001\u76f4\u6b04\u6578"
     ),
     base = code_lines(
       renames$base,
       to_text,
-      # 原文：# 1. 非 ID 欄位加上波次後綴，避免同名欄衝突
-      "# 1. \u975e ID \u6b04\u4f4d\u52a0\u4e0a\u6ce2\u6b21\u5f8c\u7db4\uff0c\u907f\u514d\u540c\u540d\u6b04\u885d\u7a81",
+      # 原文：# 1. 非 ID 直欄加上波次後綴，避免同名直欄衝突
+      "# 1. \u975e ID \u76f4\u6b04\u52a0\u4e0a\u6ce2\u6b21\u5f8c\u7db4\uff0c\u907f\u514d\u540c\u540d\u76f4\u6b04\u885d\u7a81",
       paste(base_rename, collapse = "\n\n"), "",
       # 原文：# 2. 依序合併
       "# 2. \u4f9d\u5e8f\u5408\u4f75",
       merge_note,
       base_join, "",
       constant$base,
-      # 原文：dim(joined)   # 列數、欄數
-      "dim(joined)   # \u5217\u6578\u3001\u6b04\u6578"
+      # 原文：dim(joined)   # 橫列數、直欄數
+      "dim(joined)   # \u6a6b\u5217\u6578\u3001\u76f4\u6b04\u6578"
     )
   )
 }
@@ -635,8 +635,8 @@ code_normalize_ids <- function(f, by_vars, how) {
 #' @noRd
 code_constant_cols <- function(cols, suffix) {
   if (length(cols) == 0) return(list(tidy = NULL, base = NULL))
-  # 原文：# 3. 不分波次的欄位只留一欄：取最早有值的那一波（app 另外會列出各波值不一樣的人數）
-  note <- "# 3. \u4e0d\u5206\u6ce2\u6b21\u7684\u6b04\u4f4d\u53ea\u7559\u4e00\u6b04\uff1a\u53d6\u6700\u65e9\u6709\u503c\u7684\u90a3\u4e00\u6ce2\uff08app \u53e6\u5916\u6703\u5217\u51fa\u5404\u6ce2\u503c\u4e0d\u4e00\u6a23\u7684\u4eba\u6578\uff09"
+  # 原文：# 3. 不分波次的直欄只留一個直欄：取最早有值的那一波（app 另外會列出各波值不一樣的人數）
+  note <- "# 3. \u4e0d\u5206\u6ce2\u6b21\u7684\u76f4\u6b04\u53ea\u7559\u4e00\u500b\u76f4\u6b04\uff1a\u53d6\u6700\u65e9\u6709\u503c\u7684\u90a3\u4e00\u6ce2\uff08app \u53e6\u5916\u6703\u5217\u51fa\u5404\u6ce2\u503c\u4e0d\u4e00\u6a23\u7684\u4eba\u6578\uff09"
   tidy <- unlist(lapply(cols, function(col) {
     wide <- paste0(col, suffix)
     c(
@@ -682,8 +682,8 @@ code_stack_to_text <- function(f) {
     }
   }
   if (length(lines) == 0) return(NULL)
-  # 原文：# 這些欄在各波的型別不同（一波數字、一波文字）：先都轉成文字
-  c("# \u9019\u4e9b\u6b04\u5728\u5404\u6ce2\u7684\u578b\u5225\u4e0d\u540c\uff08\u4e00\u6ce2\u6578\u5b57\u3001\u4e00\u6ce2\u6587\u5b57\uff09\uff1a\u5148\u90fd\u8f49\u6210\u6587\u5b57", lines, "")
+  # 原文：# 這些直欄在各波的型別不同（一波數字、一波文字）：先都轉成文字
+  c("# \u9019\u4e9b\u76f4\u6b04\u5728\u5404\u6ce2\u7684\u578b\u5225\u4e0d\u540c\uff08\u4e00\u6ce2\u6578\u5b57\u3001\u4e00\u6ce2\u6587\u5b57\uff09\uff1a\u5148\u90fd\u8f49\u6210\u6587\u5b57", lines, "")
 }
 
 code_stack <- function(f) {
@@ -696,8 +696,8 @@ code_stack <- function(f) {
     tidy = code_lines(
       "library(dplyr)", "",
       to_text,
-      # 原文：：用 list() 裡的名稱（波次）建立  |  欄
-      paste0("# .id = ", wave_str, "\uff1a\u7528 list() \u88e1\u7684\u540d\u7a31\uff08\u6ce2\u6b21\uff09\u5efa\u7acb ", wave_col, " \u6b04"),
+      # 原文：：用 list() 裡的名稱（波次）建立  |  直欄
+      paste0("# .id = ", wave_str, "\uff1a\u7528 list() \u88e1\u7684\u540d\u7a31\uff08\u6ce2\u6b21\uff09\u5efa\u7acb ", wave_col, " \u76f4\u6b04"),
       "stacked <- bind_rows(",
       "  list(",
       paste0("    ", waves, " = ", f$obj, c(rep(",", length(f$obj) - 1), "")),
@@ -705,17 +705,17 @@ code_stack <- function(f) {
       paste0("  .id = ", wave_str),
       ")",
       "",
-      # 原文：)   # 各波次列數
-      paste0("count(stacked, ", r_col(wave_col), ")   # \u5404\u6ce2\u6b21\u5217\u6578")
+      # 原文：)   # 各波次橫列數
+      paste0("count(stacked, ", r_col(wave_col), ")   # \u5404\u6ce2\u6b21\u6a6b\u5217\u6578")
     ),
     base = code_lines(
       to_text,
-      # 原文：# 1. 每個檔案加上  |  欄
-      paste0("# 1. \u6bcf\u500b\u6a94\u6848\u52a0\u4e0a ", wave_col, " \u6b04"),
+      # 原文：# 1. 每個檔案加上  |  直欄
+      paste0("# 1. \u6bcf\u500b\u6a94\u6848\u52a0\u4e0a ", wave_col, " \u76f4\u6b04"),
       paste0(long, " <- ", f$obj, "\n", long, "[[", wave_str, "]] <- ", waves),
       "",
-      # 原文：# 2. rbind() 需要欄位相同：先補上缺少的欄位（填 NA）
-      "# 2. rbind() \u9700\u8981\u6b04\u4f4d\u76f8\u540c\uff1a\u5148\u88dc\u4e0a\u7f3a\u5c11\u7684\u6b04\u4f4d\uff08\u586b NA\uff09",
+      # 原文：# 2. rbind() 需要直欄相同：先補上缺少的直欄（填 NA）
+      "# 2. rbind() \u9700\u8981\u76f4\u6b04\u76f8\u540c\uff1a\u5148\u88dc\u4e0a\u7f3a\u5c11\u7684\u76f4\u6b04\uff08\u586b NA\uff09",
       paste0(
         "all_cols <- unique(c(",
         paste0("names(", long, ")", collapse = ", "),
@@ -723,13 +723,13 @@ code_stack <- function(f) {
       ),
       paste0(long, "[setdiff(all_cols, names(", long, "))] <- NA"),
       "",
-      # 原文：# 3. 上下疊起來，波次欄放第一欄
-      "# 3. \u4e0a\u4e0b\u758a\u8d77\u4f86\uff0c\u6ce2\u6b21\u6b04\u653e\u7b2c\u4e00\u6b04",
+      # 原文：# 3. 上下疊起來，波次直欄放第一個直欄
+      "# 3. \u4e0a\u4e0b\u758a\u8d77\u4f86\uff0c\u6ce2\u6b21\u76f4\u6b04\u653e\u7b2c\u4e00\u500b\u76f4\u6b04",
       paste0("stacked <- rbind(", paste(long, collapse = ", "), ")"),
       paste0("stacked <- stacked[c(", wave_str, ", setdiff(names(stacked), ", wave_str, "))]"),
       "",
-      # 原文：]])   # 各波次列數
-      paste0("table(stacked[[", wave_str, "]])   # \u5404\u6ce2\u6b21\u5217\u6578")
+      # 原文：]])   # 各波次橫列數
+      paste0("table(stacked[[", wave_str, "]])   # \u5404\u6ce2\u6b21\u6a6b\u5217\u6578")
     )
   )
 }
@@ -790,8 +790,8 @@ code_attrition <- function(f, base_i, follow_i, id_vars, follow_id_vars = id_var
       paste(paste0("is.na(", r_dollar(obj, cols), ")"), collapse = " | ")
     }
     lead <- c(
-      # 原文：# 多個 ID 欄位：先用 paste() 黏成一個比對用的鍵；ID 有空白的列不算
-      "# \u591a\u500b ID \u6b04\u4f4d\uff1a\u5148\u7528 paste() \u9ecf\u6210\u4e00\u500b\u6bd4\u5c0d\u7528\u7684\u9375\uff1bID \u6709\u7a7a\u767d\u7684\u5217\u4e0d\u7b97",
+      # 原文：# 多個 ID 直欄：先用 paste() 黏成一個比對用的鍵；ID 有空白的橫列不算
+      "# \u591a\u500b ID \u76f4\u6b04\uff1a\u5148\u7528 paste() \u9ecf\u6210\u4e00\u500b\u6bd4\u5c0d\u7528\u7684\u9375\uff1bID \u6709\u7a7a\u767d\u7684\u6a6b\u5217\u4e0d\u7b97",
       paste0("followup_key <- ", key_of(follow_obj, follow_id_vars)),
       paste0("followup_na <- ", any_na(follow_obj, follow_id_vars)),
       "followup_key <- followup_key[!followup_na]",

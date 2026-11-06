@@ -7,10 +7,10 @@
 
 # 選欄框的標題（跟著模式換）
 FILTER_KEEP_LABEL <- c(
-  # 原文：要保留的欄（點選；沒挑＝全部保留）
-  include = "\u8981\u4fdd\u7559\u7684\u6b04\uff08\u9ede\u9078\uff1b\u6c92\u6311\uff1d\u5168\u90e8\u4fdd\u7559\uff09",
-  # 原文：要拿掉的欄（點選；其餘全部保留）
-  exclude = "\u8981\u62ff\u6389\u7684\u6b04\uff08\u9ede\u9078\uff1b\u5176\u9918\u5168\u90e8\u4fdd\u7559\uff09"
+  # 原文：要保留的直欄（點選；沒挑＝全部保留）
+  include = "\u8981\u4fdd\u7559\u7684\u76f4\u6b04\uff08\u9ede\u9078\uff1b\u6c92\u6311\uff1d\u5168\u90e8\u4fdd\u7559\uff09",
+  # 原文：要拿掉的直欄（點選；其餘全部保留）
+  exclude = "\u8981\u62ff\u6389\u7684\u76f4\u6b04\uff08\u9ede\u9078\uff1b\u5176\u9918\u5168\u90e8\u4fdd\u7559\uff09"
 )
 
 # 摘要的表在畫面上最多列幾列（下載的檔案是全部）
@@ -26,22 +26,22 @@ mod_filter_ui <- function(id) {
       id, "\u57f7\u884c\u7be9\u9078",
       guide = kit_tab_guide(
         goal = paste0(
-          # 原文：依條件留下需要的列與欄（例如只留男生、只留有語言分數的人），也可以排序；
-          "\u4f9d\u689d\u4ef6\u7559\u4e0b\u9700\u8981\u7684\u5217\u8207\u6b04\uff08\u4f8b\u5982\u53ea\u7559\u7537\u751f\u3001\u53ea\u7559\u6709\u8a9e\u8a00\u5206\u6578\u7684\u4eba\uff09\uff0c\u4e5f\u53ef\u4ee5\u6392\u5e8f\uff1b",
+          # 原文：依條件留下需要的橫列與直欄（例如只留男生、只留有語言分數的人），也可以排序；
+          "\u4f9d\u689d\u4ef6\u7559\u4e0b\u9700\u8981\u7684\u6a6b\u5217\u8207\u76f4\u6b04\uff08\u4f8b\u5982\u53ea\u7559\u7537\u751f\u3001\u53ea\u7559\u6709\u8a9e\u8a00\u5206\u6578\u7684\u4eba\uff09\uff0c\u4e5f\u53ef\u4ee5\u6392\u5e8f\uff1b",
           # 原文：下面還可以看各組的人數、平均數。這一步是選用的。
           "\u4e0b\u9762\u9084\u53ef\u4ee5\u770b\u5404\u7d44\u7684\u4eba\u6578\u3001\u5e73\u5747\u6578\u3002\u9019\u4e00\u6b65\u662f\u9078\u7528\u7684\u3002"
         ),
         steps = kit_steps(
           # 原文：有好幾個檔案時，先選要設定的檔案（每個檔案各自設定；沒設定的檔案原樣往後傳）
           "\u6709\u597d\u5e7e\u500b\u6a94\u6848\u6642\uff0c\u5148\u9078\u8981\u8a2d\u5b9a\u7684\u6a94\u6848\uff08\u6bcf\u500b\u6a94\u6848\u5404\u81ea\u8a2d\u5b9a\uff1b\u6c92\u8a2d\u5b9a\u7684\u6a94\u6848\u539f\u6a23\u5f80\u5f8c\u50b3\uff09",
-          # 原文：選要保留的欄（不選＝全部保留）
-          "\u9078\u8981\u4fdd\u7559\u7684\u6b04\uff08\u4e0d\u9078\uff1d\u5168\u90e8\u4fdd\u7559\uff09",
-          # 原文：按「加一個條件」：選欄 → 選比較方式 → 選或填值
-          "\u6309\u300c\u52a0\u4e00\u500b\u689d\u4ef6\u300d\uff1a\u9078\u6b04 \u2192 \u9078\u6bd4\u8f03\u65b9\u5f0f \u2192 \u9078\u6216\u586b\u503c",
-          # 原文：（選用）選排序的欄
-          "\uff08\u9078\u7528\uff09\u9078\u6392\u5e8f\u7684\u6b04",
-          # 原文：按「執行篩選」，看每個檔案留下幾列、有幾列是因為空白而排除
-          "\u6309\u300c\u57f7\u884c\u7be9\u9078\u300d\uff0c\u770b\u6bcf\u500b\u6a94\u6848\u7559\u4e0b\u5e7e\u5217\u3001\u6709\u5e7e\u5217\u662f\u56e0\u70ba\u7a7a\u767d\u800c\u6392\u9664",
+          # 原文：選要保留的直欄（不選＝全部保留）
+          "\u9078\u8981\u4fdd\u7559\u7684\u76f4\u6b04\uff08\u4e0d\u9078\uff1d\u5168\u90e8\u4fdd\u7559\uff09",
+          # 原文：按「加一個條件」：選直欄 → 選比較方式 → 選或填值
+          "\u6309\u300c\u52a0\u4e00\u500b\u689d\u4ef6\u300d\uff1a\u9078\u76f4\u6b04 \u2192 \u9078\u6bd4\u8f03\u65b9\u5f0f \u2192 \u9078\u6216\u586b\u503c",
+          # 原文：（選用）選排序的直欄
+          "\uff08\u9078\u7528\uff09\u9078\u6392\u5e8f\u7684\u76f4\u6b04",
+          # 原文：按「執行篩選」，看每個檔案留下幾橫列、有幾橫列是因為空白而排除
+          "\u6309\u300c\u57f7\u884c\u7be9\u9078\u300d\uff0c\u770b\u6bcf\u500b\u6a94\u6848\u7559\u4e0b\u5e7e\u6a6b\u5217\u3001\u6709\u5e7e\u6a6b\u5217\u662f\u56e0\u70ba\u7a7a\u767d\u800c\u6392\u9664",
           # 原文：最下面的「摘要」可以算各組的人數、平均數；摘要只用來看，不會傳到後面的分頁
           "\u6700\u4e0b\u9762\u7684\u300c\u6458\u8981\u300d\u53ef\u4ee5\u7b97\u5404\u7d44\u7684\u4eba\u6578\u3001\u5e73\u5747\u6578\uff1b\u6458\u8981\u53ea\u7528\u4f86\u770b\uff0c\u4e0d\u6703\u50b3\u5230\u5f8c\u9762\u7684\u5206\u9801"
         ),
@@ -52,22 +52,22 @@ mod_filter_ui <- function(id) {
           "\u6703\u7528\u7be9\u9078\u5f8c\u7684\u8cc7\u6599\u3002\u4e5f\u53ef\u4ee5\u76f4\u63a5\u4e0b\u8f09\u7be9\u9078\u5f8c\u7684\u6a94\u6848\u3002"
         ),
         note = paste0(
-          # 原文：條件用到的欄是空白時，「大於」「等於」這類比較判斷不了，那一列不會留下；
-          "\u689d\u4ef6\u7528\u5230\u7684\u6b04\u662f\u7a7a\u767d\u6642\uff0c\u300c\u5927\u65bc\u300d\u300c\u7b49\u65bc\u300d\u9019\u985e\u6bd4\u8f03\u5224\u65b7\u4e0d\u4e86\uff0c\u90a3\u4e00\u5217\u4e0d\u6703\u7559\u4e0b\uff1b",
-          # 原文：狀態框會寫出有幾列是這樣排除的。要留下空白的列，加一個「是空白」的條件，
-          "\u72c0\u614b\u6846\u6703\u5beb\u51fa\u6709\u5e7e\u5217\u662f\u9019\u6a23\u6392\u9664\u7684\u3002\u8981\u7559\u4e0b\u7a7a\u767d\u7684\u5217\uff0c\u52a0\u4e00\u500b\u300c\u662f\u7a7a\u767d\u300d\u7684\u689d\u4ef6\uff0c",
+          # 原文：條件用到的直欄是空白時，「大於」「等於」這類比較判斷不了，那一個橫列不會留下；
+          "\u689d\u4ef6\u7528\u5230\u7684\u76f4\u6b04\u662f\u7a7a\u767d\u6642\uff0c\u300c\u5927\u65bc\u300d\u300c\u7b49\u65bc\u300d\u9019\u985e\u6bd4\u8f03\u5224\u65b7\u4e0d\u4e86\uff0c\u90a3\u4e00\u500b\u6a6b\u5217\u4e0d\u6703\u7559\u4e0b\uff1b",
+          # 原文：狀態框會寫出有幾橫列是這樣排除的。要留下空白的橫列，加一個「是空白」的條件，
+          "\u72c0\u614b\u6846\u6703\u5beb\u51fa\u6709\u5e7e\u6a6b\u5217\u662f\u9019\u6a23\u6392\u9664\u7684\u3002\u8981\u7559\u4e0b\u7a7a\u767d\u7684\u6a6b\u5217\uff0c\u52a0\u4e00\u500b\u300c\u662f\u7a7a\u767d\u300d\u7684\u689d\u4ef6\uff0c",
           # 原文：再選「任一條件符合」。
           "\u518d\u9078\u300c\u4efb\u4e00\u689d\u4ef6\u7b26\u5408\u300d\u3002"
         ),
         technical = paste0(
-          # 原文：照 dplyr 的順序：filter() 篩列（全部符合用逗號，任一符合用 |；條件算出 NA 的列不留下），
-          "\u7167 dplyr \u7684\u9806\u5e8f\uff1afilter() \u7be9\u5217\uff08\u5168\u90e8\u7b26\u5408\u7528\u9017\u865f\uff0c\u4efb\u4e00\u7b26\u5408\u7528 |\uff1b\u689d\u4ef6\u7b97\u51fa NA \u7684\u5217\u4e0d\u7559\u4e0b\uff09\uff0c",
-          # 原文：arrange() 排序（desc() 是由大到小，空白排最後），select() 選欄。
-          "arrange() \u6392\u5e8f\uff08desc() \u662f\u7531\u5927\u5230\u5c0f\uff0c\u7a7a\u767d\u6392\u6700\u5f8c\uff09\uff0cselect() \u9078\u6b04\u3002",
+          # 原文：照 dplyr 的順序：filter() 篩橫列（全部符合用逗號，任一符合用 |；條件算出 NA 的橫列不留下），
+          "\u7167 dplyr \u7684\u9806\u5e8f\uff1afilter() \u7be9\u6a6b\u5217\uff08\u5168\u90e8\u7b26\u5408\u7528\u9017\u865f\uff0c\u4efb\u4e00\u7b26\u5408\u7528 |\uff1b\u689d\u4ef6\u7b97\u51fa NA \u7684\u6a6b\u5217\u4e0d\u7559\u4e0b\uff09\uff0c",
+          # 原文：arrange() 排序（desc() 是由大到小，空白排最後），select() 選直欄。
+          "arrange() \u6392\u5e8f\uff08desc() \u662f\u7531\u5927\u5230\u5c0f\uff0c\u7a7a\u767d\u6392\u6700\u5f8c\uff09\uff0cselect() \u9078\u76f4\u6b04\u3002",
           # 原文：「包含文字」用 grepl(fixed = TRUE)，照字面比對，不是正規表示式。
           "\u300c\u5305\u542b\u6587\u5b57\u300d\u7528 grepl(fixed = TRUE)\uff0c\u7167\u5b57\u9762\u6bd4\u5c0d\uff0c\u4e0d\u662f\u6b63\u898f\u8868\u793a\u5f0f\u3002",
-          # 原文：「是其中之一」用 %in%：空白不屬於任何一個值，所以「不是其中之一」會留下空白的列。
-          "\u300c\u662f\u5176\u4e2d\u4e4b\u4e00\u300d\u7528 %in%\uff1a\u7a7a\u767d\u4e0d\u5c6c\u65bc\u4efb\u4f55\u4e00\u500b\u503c\uff0c\u6240\u4ee5\u300c\u4e0d\u662f\u5176\u4e2d\u4e4b\u4e00\u300d\u6703\u7559\u4e0b\u7a7a\u767d\u7684\u5217\u3002",
+          # 原文：「是其中之一」用 %in%：空白不屬於任何一個值，所以「不是其中之一」會留下空白的橫列。
+          "\u300c\u662f\u5176\u4e2d\u4e4b\u4e00\u300d\u7528 %in%\uff1a\u7a7a\u767d\u4e0d\u5c6c\u65bc\u4efb\u4f55\u4e00\u500b\u503c\uff0c\u6240\u4ee5\u300c\u4e0d\u662f\u5176\u4e2d\u4e4b\u4e00\u300d\u6703\u7559\u4e0b\u7a7a\u767d\u7684\u6a6b\u5217\u3002",
           # 原文：SPSS 的數值標籤、變項標籤會保留。摘要用 group_by() 與 summarise()，na.rm = TRUE。
           "SPSS \u7684\u6578\u503c\u6a19\u7c64\u3001\u8b8a\u9805\u6a19\u7c64\u6703\u4fdd\u7559\u3002\u6458\u8981\u7528 group_by() \u8207 summarise()\uff0cna.rm = TRUE\u3002"
         ),
@@ -76,13 +76,13 @@ mod_filter_ui <- function(id) {
       shiny::uiOutput(ns("source_note")),
       shiny::uiOutput(ns("file_ui")),
       shiny::uiOutput(ns("file_note")),
-      # 原文：1. 保留哪些欄
-      section("1. \u4fdd\u7559\u54ea\u4e9b\u6b04"),
+      # 原文：1. 保留哪些直欄
+      section("1. \u4fdd\u7559\u54ea\u4e9b\u76f4\u6b04"),
       shiny::uiOutput(ns("keep_ui")),
       shiny::uiOutput(ns("keep_quick")),
       shiny::uiOutput(ns("keep_count")),
-      # 原文：2. 保留哪些列
-      section("2. \u4fdd\u7559\u54ea\u4e9b\u5217"),
+      # 原文：2. 保留哪些橫列
+      section("2. \u4fdd\u7559\u54ea\u4e9b\u6a6b\u5217"),
       shiny::uiOutput(ns("conds_hint")),
       # 條件一列一列用 insertUI() 加進各檔案的區塊（加、拿掉條件時，其他條件不重畫，選好的值不會不見）
       shiny::tags$div(id = ns("conds_area")),
@@ -115,15 +115,15 @@ filter_summary_ui <- function(ns) {
     ),
     shiny::uiOutput(ns("sum_source")),
     shiny::selectizeInput(
-      # 原文：分組欄（可以不選；選好幾欄就是交叉分組）
-      ns("sum_groups"), "\u5206\u7d44\u6b04\uff08\u53ef\u4ee5\u4e0d\u9078\uff1b\u9078\u597d\u5e7e\u6b04\u5c31\u662f\u4ea4\u53c9\u5206\u7d44\uff09",
+      # 原文：分組直欄（可以不選；選好幾直欄就是交叉分組）
+      ns("sum_groups"), "\u5206\u7d44\u76f4\u6b04\uff08\u53ef\u4ee5\u4e0d\u9078\uff1b\u9078\u597d\u5e7e\u76f4\u6b04\u5c31\u662f\u4ea4\u53c9\u5206\u7d44\uff09",
       choices = NULL, multiple = TRUE, width = "100%",
       # 原文：不分組
       options = list(placeholder = "\u4e0d\u5206\u7d44", plugins = list("remove_button"))
     ),
     shiny::selectizeInput(
-      # 原文：要摘要的變項（數值欄，可多選）
-      ns("sum_vars"), "\u8981\u6458\u8981\u7684\u8b8a\u9805\uff08\u6578\u503c\u6b04\uff0c\u53ef\u591a\u9078\uff09",
+      # 原文：要摘要的變項（數值直欄，可多選）
+      ns("sum_vars"), "\u8981\u6458\u8981\u7684\u8b8a\u9805\uff08\u6578\u503c\u76f4\u6b04\uff0c\u53ef\u591a\u9078\uff09",
       choices = NULL, multiple = TRUE, width = "100%",
       # 原文：點這裡選變項
       options = list(placeholder = "\u9ede\u9019\u88e1\u9078\u8b8a\u9805", plugins = list("remove_button"))
@@ -201,8 +201,8 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
       shiny::tagList(
         shiny::radioButtons(
           ns(fid("keep_mode", key)), NULL,
-          # 原文：挑要保留的欄 | 挑要拿掉的欄
-          choices = c("\u6311\u8981\u4fdd\u7559\u7684\u6b04" = "include", "\u6311\u8981\u62ff\u6389\u7684\u6b04" = "exclude"),
+          # 原文：挑要保留的直欄 | 挑要拿掉的直欄
+          choices = c("\u6311\u8981\u4fdd\u7559\u7684\u76f4\u6b04" = "include", "\u6311\u8981\u62ff\u6389\u7684\u76f4\u6b04" = "exclude"),
           selected = mode, inline = TRUE
         ),
         shiny::selectizeInput(
@@ -286,8 +286,8 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
       }
       output[[cid(n, "op_ui")]] <- shiny::renderUI({
         x <- col_x()
-        # 原文：先選欄
-        if (is.null(x)) return(shiny::tags$span(class = "kit-hint d-inline-block pt-2", "\u5148\u9078\u6b04"))
+        # 原文：先選直欄
+        if (is.null(x)) return(shiny::tags$span(class = "kit-hint d-inline-block pt-2", "\u5148\u9078\u76f4\u6b04"))
         ops <- filter_ops_for(filter_col_kind(x), many = is.null(filter_value_choices(x)))
         shiny::selectInput(
           ns(cid(n, "op")), NULL, choices = ops,
@@ -334,9 +334,9 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
         id = ns(cid(n, "row")),
         class = "kit-filter-cond d-flex flex-wrap align-items-start gap-2",
         shiny::selectizeInput(
-          # 原文：（選欄）
-          # 原文：（選欄）
-          ns(cid(n, "col")), NULL, choices = c("\uff08\u9078\u6b04\uff09" = "", cols), selected = "",
+          # 原文：（選直欄）
+          # 原文：（選直欄）
+          ns(cid(n, "col")), NULL, choices = c("\uff08\u9078\u76f4\u6b04\uff09" = "", cols), selected = "",
           width = "14rem"
         ),
         shiny::uiOutput(ns(cid(n, "op_ui"))),
@@ -354,9 +354,9 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
         for (n in ids[[key]]) {
           col <- input[[cid(n, "col")]] %||% ""
           shiny::updateSelectizeInput(
-            # 原文：（選欄）
-            # 原文：（選欄）
-            session, cid(n, "col"), choices = c("\uff08\u9078\u6b04\uff09" = "", cols),
+            # 原文：（選直欄）
+            # 原文：（選直欄）
+            session, cid(n, "col"), choices = c("\uff08\u9078\u76f4\u6b04\uff09" = "", cols),
             selected = if (col %in% cols) col else ""
           )
         }
@@ -365,9 +365,9 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
     output$conds_hint <- shiny::renderUI({
       key <- cur()
       if (is.null(key) || length(cond_ids()[[key]] %||% integer(0)) > 0) return(NULL)
-      # 原文：還沒有條件：全部的列都保留。
-      # 原文：還沒有條件：全部的列都保留。
-      shiny::tags$p(class = "kit-hint", "\u9084\u6c92\u6709\u689d\u4ef6\uff1a\u5168\u90e8\u7684\u5217\u90fd\u4fdd\u7559\u3002")
+      # 原文：還沒有條件：全部的橫列都保留。
+      # 原文：還沒有條件：全部的橫列都保留。
+      shiny::tags$p(class = "kit-hint", "\u9084\u6c92\u6709\u689d\u4ef6\uff1a\u5168\u90e8\u7684\u6a6b\u5217\u90fd\u4fdd\u7559\u3002")
     })
     output$combine_ui <- shiny::renderUI({
       key <- cur()
@@ -387,8 +387,8 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
       if (is.null(key)) return(NULL)
       shiny::tagList(
         shiny::selectizeInput(
-          # 原文：依哪些欄排序（照點選的順序；不選＝不排序）
-          ns(fid("sort_cols", key)), "\u4f9d\u54ea\u4e9b\u6b04\u6392\u5e8f\uff08\u7167\u9ede\u9078\u7684\u9806\u5e8f\uff1b\u4e0d\u9078\uff1d\u4e0d\u6392\u5e8f\uff09",
+          # 原文：依哪些直欄排序（照點選的順序；不選＝不排序）
+          ns(fid("sort_cols", key)), "\u4f9d\u54ea\u4e9b\u76f4\u6b04\u6392\u5e8f\uff08\u7167\u9ede\u9078\u7684\u9806\u5e8f\uff1b\u4e0d\u9078\uff1d\u4e0d\u6392\u5e8f\uff09",
           choices = cur_cols(), selected = shiny::isolate(input[[fid("sort_cols", key)]]),
           multiple = TRUE, width = "100%",
           # 原文：不排序
@@ -402,8 +402,8 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
       sort_cols <- if (is.null(key)) NULL else input[[fid("sort_cols", key)]]
       if (length(sort_cols) == 0) return(NULL)
       shiny::checkboxGroupInput(
-        # 原文：由大到小排的欄（沒勾的由小到大；空白一律排最後）
-        ns(fid("sort_desc", key)), "\u7531\u5927\u5230\u5c0f\u6392\u7684\u6b04\uff08\u6c92\u52fe\u7684\u7531\u5c0f\u5230\u5927\uff1b\u7a7a\u767d\u4e00\u5f8b\u6392\u6700\u5f8c\uff09",
+        # 原文：由大到小排的直欄（沒勾的由小到大；空白一律排最後）
+        ns(fid("sort_desc", key)), "\u7531\u5927\u5230\u5c0f\u6392\u7684\u76f4\u6b04\uff08\u6c92\u52fe\u7684\u7531\u5c0f\u5230\u5927\uff1b\u7a7a\u767d\u4e00\u5f8b\u6392\u6700\u5f8c\uff09",
         choices = sort_cols,
         selected = intersect(shiny::isolate(input[[fid("sort_desc", key)]]), sort_cols),
         inline = TRUE
@@ -463,8 +463,8 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
           if (isTRUE(sp$active) && length(sp$problems) > 0) paste0(shown_of(key), "\uff1a", sp$problems)
         }))
         if (length(probs) > 0) return(utils::head(unname(probs), 3))
-        # 原文：選要保留的欄、加一個條件，或選排序的欄
-        if (!any(purrr::map_lgl(s, "active"))) return("\u9078\u8981\u4fdd\u7559\u7684\u6b04\u3001\u52a0\u4e00\u500b\u689d\u4ef6\uff0c\u6216\u9078\u6392\u5e8f\u7684\u6b04")
+        # 原文：選要保留的直欄、加一個條件，或選排序的直欄
+        if (!any(purrr::map_lgl(s, "active"))) return("\u9078\u8981\u4fdd\u7559\u7684\u76f4\u6b04\u3001\u52a0\u4e00\u500b\u689d\u4ef6\uff0c\u6216\u9078\u6392\u5e8f\u7684\u76f4\u6b04")
         character(0)
       }),
       ready_link = function() {
@@ -502,8 +502,8 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
         kept <- sum(purrr::map_int(res$counts[res$active], "rows_out"))
         kit_done_status(
           paste0(
-            # 原文：篩選完成： |  個檔案有設定，共保留  |  列。
-            "\u7be9\u9078\u5b8c\u6210\uff1a", kit_num(sum(res$active)), " \u500b\u6a94\u6848\u6709\u8a2d\u5b9a\uff0c\u5171\u4fdd\u7559 ", kit_num(kept), " \u5217\u3002"
+            # 原文：篩選完成： |  個檔案有設定，共保留  |  橫列。
+            "\u7be9\u9078\u5b8c\u6210\uff1a", kit_num(sum(res$active)), " \u500b\u6a94\u6848\u6709\u8a2d\u5b9a\uff0c\u5171\u4fdd\u7559 ", kit_num(kept), " \u6a6b\u5217\u3002"
           ),
           warnings = res$warnings, points = res$points,
           notes = if (use_downstream()) {
@@ -524,8 +524,8 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
           shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("report"))),
           shiny::tags$p(
             class = "kit-hint",
-            # 原文：「被條件排除的列數」已經包含「因為空白（判斷不了）而排除」的列。
-            "\u300c\u88ab\u689d\u4ef6\u6392\u9664\u7684\u5217\u6578\u300d\u5df2\u7d93\u5305\u542b\u300c\u56e0\u70ba\u7a7a\u767d\uff08\u5224\u65b7\u4e0d\u4e86\uff09\u800c\u6392\u9664\u300d\u7684\u5217\u3002",
+            # 原文：「被條件排除的橫列數」已經包含「因為空白（判斷不了）而排除」的橫列。
+            "\u300c\u88ab\u689d\u4ef6\u6392\u9664\u7684\u6a6b\u5217\u6578\u300d\u5df2\u7d93\u5305\u542b\u300c\u56e0\u70ba\u7a7a\u767d\uff08\u5224\u65b7\u4e0d\u4e86\uff09\u800c\u6392\u9664\u300d\u7684\u6a6b\u5217\u3002",
             # 原文：下面的下載、預覽是上面選的檔案。
             "\u4e0b\u9762\u7684\u4e0b\u8f09\u3001\u9810\u89bd\u662f\u4e0a\u9762\u9078\u7684\u6a94\u6848\u3002"
           )
@@ -540,8 +540,8 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
             shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("preview")))
           ),
           kit_detail(
-            # 原文：每個條件各有幾列符合（上面選的檔案）
-            "\u6bcf\u500b\u689d\u4ef6\u5404\u6709\u5e7e\u5217\u7b26\u5408\uff08\u4e0a\u9762\u9078\u7684\u6a94\u6848\uff09",
+            # 原文：每個條件各有幾橫列符合（上面選的檔案）
+            "\u6bcf\u500b\u689d\u4ef6\u5404\u6709\u5e7e\u6a6b\u5217\u7b26\u5408\uff08\u4e0a\u9762\u9078\u7684\u6a94\u6848\uff09",
             shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("cond_table")))
           )
         )
@@ -600,8 +600,8 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
     }, striped = TRUE, spacing = "s")
     output$cond_table <- shiny::renderTable({
       v <- shiny::req(view())
-      # 原文：說明 | 這個檔案沒有條件（所有的列都保留）
-      v$conds %||% data.frame("\u8aaa\u660e" = "\u9019\u500b\u6a94\u6848\u6c92\u6709\u689d\u4ef6\uff08\u6240\u6709\u7684\u5217\u90fd\u4fdd\u7559\uff09", check.names = FALSE)
+      # 原文：說明 | 這個檔案沒有條件（所有的橫列都保留）
+      v$conds %||% data.frame("\u8aaa\u660e" = "\u9019\u500b\u6a94\u6848\u6c92\u6709\u689d\u4ef6\uff08\u6240\u6709\u7684\u6a6b\u5217\u90fd\u4fdd\u7559\uff09", check.names = FALSE)
     }, digits = 0, format.args = list(big.mark = ","))
 
     kit_download_server(
@@ -716,12 +716,12 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
         shiny::tags$p(
           class = "kit-hint",
           paste0(
-            # 原文：共  |  列（一列 = 一組 × 一個變項）
-            "\u5171 ", kit_num(n), " \u5217\uff08\u4e00\u5217 = \u4e00\u7d44 \u00d7 \u4e00\u500b\u8b8a\u9805\uff09",
-            # 原文：，畫面上只列出前  |  列
-            if (n > SUMMARY_SHOW_ROWS) paste0("\uff0c\u756b\u9762\u4e0a\u53ea\u5217\u51fa\u524d ", kit_num(SUMMARY_SHOW_ROWS), " \u5217"),
-            # 原文：。n 是這一組的列數；n_valid 是有效值個數；n_missing 是遺漏數。
-            "\u3002n \u662f\u9019\u4e00\u7d44\u7684\u5217\u6578\uff1bn_valid \u662f\u6709\u6548\u503c\u500b\u6578\uff1bn_missing \u662f\u907a\u6f0f\u6578\u3002",
+            # 原文：共  |  橫列（一個橫列 = 一組 × 一個變項）
+            "\u5171 ", kit_num(n), " \u6a6b\u5217\uff08\u4e00\u500b\u6a6b\u5217 = \u4e00\u7d44 \u00d7 \u4e00\u500b\u8b8a\u9805\uff09",
+            # 原文：，畫面上只列出前  |  橫列
+            if (n > SUMMARY_SHOW_ROWS) paste0("\uff0c\u756b\u9762\u4e0a\u53ea\u5217\u51fa\u524d ", kit_num(SUMMARY_SHOW_ROWS), " \u6a6b\u5217"),
+            # 原文：。n 是這一組的橫列數；n_valid 是有效值個數；n_missing 是遺漏數。
+            "\u3002n \u662f\u9019\u4e00\u7d44\u7684\u6a6b\u5217\u6578\uff1bn_valid \u662f\u6709\u6548\u503c\u500b\u6578\uff1bn_missing \u662f\u907a\u6f0f\u6578\u3002",
             # 原文：畫面上四捨五入到小數 3 位，下載的檔案是完整的數字。
             "\u756b\u9762\u4e0a\u56db\u6368\u4e94\u5165\u5230\u5c0f\u6578 3 \u4f4d\uff0c\u4e0b\u8f09\u7684\u6a94\u6848\u662f\u5b8c\u6574\u7684\u6578\u5b57\u3002"
           )
@@ -832,8 +832,8 @@ filter_value_ui <- function(id, op, choices, now) {
     }
     return(shiny::tags$div(
       widget,
-      # 原文：空白的列不算符合。 | 空白的列會留下（空白不屬於任何一個值）。
-      hint(if (op == "in") "\u7a7a\u767d\u7684\u5217\u4e0d\u7b97\u7b26\u5408\u3002" else "\u7a7a\u767d\u7684\u5217\u6703\u7559\u4e0b\uff08\u7a7a\u767d\u4e0d\u5c6c\u65bc\u4efb\u4f55\u4e00\u500b\u503c\uff09\u3002")
+      # 原文：空白的橫列不算符合。 | 空白的橫列會留下（空白不屬於任何一個值）。
+      hint(if (op == "in") "\u7a7a\u767d\u7684\u6a6b\u5217\u4e0d\u7b97\u7b26\u5408\u3002" else "\u7a7a\u767d\u7684\u6a6b\u5217\u6703\u7559\u4e0b\uff08\u7a7a\u767d\u4e0d\u5c6c\u65bc\u4efb\u4f55\u4e00\u500b\u503c\uff09\u3002")
     ))
   }
   if (op == "contains") {
@@ -843,8 +843,8 @@ filter_value_ui <- function(id, op, choices, now) {
         # 原文：例如 臺北
         placeholder = "\u4f8b\u5982 \u81fa\u5317"
       ),
-      # 原文：照字面比對，要一模一樣（全形、半形不同）；空白的列不算符合。
-      hint("\u7167\u5b57\u9762\u6bd4\u5c0d\uff0c\u8981\u4e00\u6a21\u4e00\u6a23\uff08\u5168\u5f62\u3001\u534a\u5f62\u4e0d\u540c\uff09\uff1b\u7a7a\u767d\u7684\u5217\u4e0d\u7b97\u7b26\u5408\u3002")
+      # 原文：照字面比對，要一模一樣（全形、半形不同）；空白的橫列不算符合。
+      hint("\u7167\u5b57\u9762\u6bd4\u5c0d\uff0c\u8981\u4e00\u6a21\u4e00\u6a23\uff08\u5168\u5f62\u3001\u534a\u5f62\u4e0d\u540c\uff09\uff1b\u7a7a\u767d\u7684\u6a6b\u5217\u4e0d\u7b97\u7b26\u5408\u3002")
     ))
   }
   NULL
@@ -857,13 +857,13 @@ filter_keep_count_text <- function(all, mode, picked) {
   if (length(all) == 0) return("\u9084\u6c92\u6709\u8cc7\u6599\u3002")
   kept <- filter_keep_cols(all, mode, intersect(picked %||% character(0), all))
   dropped <- setdiff(all, kept)
-  # 原文：每一欄都拿掉了，至少要保留一欄。
-  if (length(kept) == 0) return("\u6bcf\u4e00\u6b04\u90fd\u62ff\u6389\u4e86\uff0c\u81f3\u5c11\u8981\u4fdd\u7559\u4e00\u6b04\u3002")
-  # 原文：全部  |  欄都保留。
-  if (length(dropped) == 0) return(paste0("\u5168\u90e8 ", kit_num(length(all)), " \u6b04\u90fd\u4fdd\u7559\u3002"))
+  # 原文：每一個直欄都拿掉了，至少要保留一個直欄。
+  if (length(kept) == 0) return("\u6bcf\u4e00\u500b\u76f4\u6b04\u90fd\u62ff\u6389\u4e86\uff0c\u81f3\u5c11\u8981\u4fdd\u7559\u4e00\u500b\u76f4\u6b04\u3002")
+  # 原文：全部  |  直欄都保留。
+  if (length(dropped) == 0) return(paste0("\u5168\u90e8 ", kit_num(length(all)), " \u76f4\u6b04\u90fd\u4fdd\u7559\u3002"))
   paste0(
-    # 原文：保留  |  欄，拿掉  |  欄（
-    "\u4fdd\u7559 ", kit_num(length(kept)), " \u6b04\uff0c\u62ff\u6389 ", kit_num(length(dropped)), " \u6b04\uff08",
+    # 原文：保留  |  直欄，拿掉  |  直欄（
+    "\u4fdd\u7559 ", kit_num(length(kept)), " \u76f4\u6b04\uff0c\u62ff\u6389 ", kit_num(length(dropped)), " \u76f4\u6b04\uff08",
     # 原文：、 | … | ）。
     paste(utils::head(dropped, 6), collapse = "\u3001"), if (length(dropped) > 6) "\u2026", "\uff09\u3002"
   )
@@ -885,8 +885,8 @@ filter_diagram <- function() {
     ),
     # 原文：sex 等於 1，拿掉 sex
     after = kit_dg_table(data.frame(id = c(1, 3), score = c(52, 61)), "sex \u7b49\u65bc 1\uff0c\u62ff\u6389 sex"),
-    # 原文：留下符合條件的列與要的欄；沒有設定的檔案原樣往後傳
-    caption = "\u7559\u4e0b\u7b26\u5408\u689d\u4ef6\u7684\u5217\u8207\u8981\u7684\u6b04\uff1b\u6c92\u6709\u8a2d\u5b9a\u7684\u6a94\u6848\u539f\u6a23\u5f80\u5f8c\u50b3"
+    # 原文：留下符合條件的橫列與要的直欄；沒有設定的檔案原樣往後傳
+    caption = "\u7559\u4e0b\u7b26\u5408\u689d\u4ef6\u7684\u6a6b\u5217\u8207\u8981\u7684\u76f4\u6b04\uff1b\u6c92\u6709\u8a2d\u5b9a\u7684\u6a94\u6848\u539f\u6a23\u5f80\u5f8c\u50b3"
   )
 }
 

@@ -243,12 +243,12 @@ kit_download_server <- function(session, output, data_fn, filename_fn, run_label
         "CSV \u7684\u907a\u6f0f\u503c\u70ba\u7a7a\u767d\u5132\u5b58\u683c\uff0c\u53ef\u76f4\u63a5\u7528 Excel \u958b\u555f\u3002",
         # 原文：CSV.GZ 是壓縮過的 CSV，檔案較小，可直接上傳 kitsUI；Excel 不能直接開。
         "CSV.GZ \u662f\u58d3\u7e2e\u904e\u7684 CSV\uff0c\u6a94\u6848\u8f03\u5c0f\uff0c\u53ef\u76f4\u63a5\u4e0a\u50b3 kitsUI\uff1bExcel \u4e0d\u80fd\u76f4\u63a5\u958b\u3002",
-        # 原文：codebook 是資料字典：每個欄位一列，有變項標籤、數值標籤、遺漏值設定與有效筆數（CSV，Excel 可以開）。
-        "codebook \u662f\u8cc7\u6599\u5b57\u5178\uff1a\u6bcf\u500b\u6b04\u4f4d\u4e00\u5217\uff0c\u6709\u8b8a\u9805\u6a19\u7c64\u3001\u6578\u503c\u6a19\u7c64\u3001\u907a\u6f0f\u503c\u8a2d\u5b9a\u8207\u6709\u6548\u7b46\u6578\uff08CSV\uff0cExcel \u53ef\u4ee5\u958b\uff09\u3002",
+        # 原文：codebook 是資料字典：每個直欄一個橫列，有變項標籤、數值標籤、遺漏值設定與有效筆數（CSV，Excel 可以開）。
+        "codebook \u662f\u8cc7\u6599\u5b57\u5178\uff1a\u6bcf\u500b\u76f4\u6b04\u4e00\u500b\u6a6b\u5217\uff0c\u6709\u8b8a\u9805\u6a19\u7c64\u3001\u6578\u503c\u6a19\u7c64\u3001\u907a\u6f0f\u503c\u8a2d\u5b9a\u8207\u6709\u6548\u7b46\u6578\uff08CSV\uff0cExcel \u53ef\u4ee5\u958b\uff09\u3002",
         if (length(renamed) > 0) {
           paste0(
-            # 原文：匯出 SAV 時，有  |  個欄名不符合 SPSS 規則，會自動改名：
-            "\u532f\u51fa SAV \u6642\uff0c\u6709 ", kit_num(length(renamed)), " \u500b\u6b04\u540d\u4e0d\u7b26\u5408 SPSS \u898f\u5247\uff0c\u6703\u81ea\u52d5\u6539\u540d\uff1a",
+            # 原文：匯出 SAV 時，有  |  個直欄名稱不符合 SPSS 規則，會自動改名：
+            "\u532f\u51fa SAV \u6642\uff0c\u6709 ", kit_num(length(renamed)), " \u500b\u76f4\u6b04\u540d\u7a31\u4e0d\u7b26\u5408 SPSS \u898f\u5247\uff0c\u6703\u81ea\u52d5\u6539\u540d\uff1a",
             paste(
               # 原文：→
               utils::head(paste(names(renamed), "\u2192", renamed), 5),

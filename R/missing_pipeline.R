@@ -113,8 +113,8 @@ label_na_table <- function(dfs, file_names, keywords, exclude = character(0)) {
     tibble::tibble(
       # 原文：檔案
       "\u6a94\u6848" = name,
-      # 原文：欄位
-      "\u6b04\u4f4d" = names(found),
+      # 原文：直欄
+      "\u76f4\u6b04" = names(found),
       # 原文：遺漏值代碼
       "\u907a\u6f0f\u503c\u4ee3\u78bc" = vapply(found, format_label_codes, character(1), USE.NAMES = FALSE),
       # 原文：資料中的格數
@@ -126,8 +126,8 @@ label_na_table <- function(dfs, file_names, keywords, exclude = character(0)) {
   rows <- purrr::compact(rows)
   if (length(rows) == 0) {
     return(tibble::tibble(
-      # 原文：檔案 | 欄位 | 遺漏值代碼 | 資料中的格數
-      "\u6a94\u6848" = character(), "\u6b04\u4f4d" = character(), "\u907a\u6f0f\u503c\u4ee3\u78bc" = character(), "\u8cc7\u6599\u4e2d\u7684\u683c\u6578" = integer()
+      # 原文：檔案 | 直欄 | 遺漏值代碼 | 資料中的格數
+      "\u6a94\u6848" = character(), "\u76f4\u6b04" = character(), "\u907a\u6f0f\u503c\u4ee3\u78bc" = character(), "\u8cc7\u6599\u4e2d\u7684\u683c\u6578" = integer()
     ))
   }
   dplyr::bind_rows(rows)
@@ -276,8 +276,8 @@ replace_na_codes <- function(
     tibble::as_tibble(
       # 原文：合計
       as.data.frame(cbind(m, "\u5408\u8a08" = rowSums(m)), check.names = FALSE),
-      # 原文：欄位
-      rownames = "\u6b04\u4f4d"
+      # 原文：直欄
+      rownames = "\u76f4\u6b04"
     )
   }
   list(data = df, detail = detail)
@@ -332,8 +332,8 @@ replace_user_na <- function(df, exclude = character(0)) {
     df[[col]] <- haven::zap_missing(x)
     if (any(user)) {
       rows[[col]] <- tibble::tibble(
-        # 原文：欄位
-        "\u6b04\u4f4d" = col,
+        # 原文：直欄
+        "\u76f4\u6b04" = col,
         # 原文：轉換的代碼 | 、
         "\u8f49\u63db\u7684\u4ee3\u78bc" = paste(num_to_text(sort(vals)), collapse = "\u3001"),
         # 原文：合計
@@ -377,8 +377,8 @@ replace_na_by_labels <- function(df, keywords, exclude = character(0)) {
     if (any(hit)) {
       shown <- counts > 0
       rows[[col]] <- tibble::tibble(
-        # 原文：欄位
-        "\u6b04\u4f4d" = col,
+        # 原文：直欄
+        "\u76f4\u6b04" = col,
         # 原文：轉換的代碼
         "\u8f49\u63db\u7684\u4ee3\u78bc" = format_label_codes(codes[shown], counts[shown]),
         # 原文：合計

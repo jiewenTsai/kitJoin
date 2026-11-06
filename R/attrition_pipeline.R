@@ -17,13 +17,13 @@ KIT_ID_MIN_UNIQUE <- 0.5
 build_attrition <- function(baseline_df, followup_df, id_vars,
                             follow_id_vars = id_vars) {
   if (length(id_vars) == 0) {
-    # 原文：請先選擇用來辨識同一個人的 ID 欄位。
-    kit_abort("\u8acb\u5148\u9078\u64c7\u7528\u4f86\u8fa8\u8b58\u540c\u4e00\u500b\u4eba\u7684 ID \u6b04\u4f4d\u3002")
+    # 原文：請先選擇用來辨識同一個人的 ID 直欄。
+    kit_abort("\u8acb\u5148\u9078\u64c7\u7528\u4f86\u8fa8\u8b58\u540c\u4e00\u500b\u4eba\u7684 ID \u76f4\u6b04\u3002")
   }
   if (length(follow_id_vars) != length(id_vars)) {
     kit_abort(
-      # 原文：前期與後期要選一樣多個 ID 欄：前期選了  |  個，
-      "\u524d\u671f\u8207\u5f8c\u671f\u8981\u9078\u4e00\u6a23\u591a\u500b ID \u6b04\uff1a\u524d\u671f\u9078\u4e86 ", length(id_vars), " \u500b\uff0c",
+      # 原文：前期與後期要選一樣多個 ID 直欄：前期選了  |  個，
+      "\u524d\u671f\u8207\u5f8c\u671f\u8981\u9078\u4e00\u6a23\u591a\u500b ID \u76f4\u6b04\uff1a\u524d\u671f\u9078\u4e86 ", length(id_vars), " \u500b\uff0c",
       # 原文：後期選了  |  個。
       "\u5f8c\u671f\u9078\u4e86 ", length(follow_id_vars), " \u500b\u3002"
     )
@@ -32,8 +32,8 @@ build_attrition <- function(baseline_df, followup_df, id_vars,
   for (side in list(list("\u524d\u671f", baseline_df, id_vars), list("\u5f8c\u671f", followup_df, follow_id_vars))) {
     missing_by <- setdiff(side[[3]], names(side[[2]]))
     if (length(missing_by) > 0) {
-      # 原文：樣本沒有  | 、 |  欄位。請重新選 ID 欄。
-      kit_abort(side[[1]], "\u6a23\u672c\u6c92\u6709 ", paste(missing_by, collapse = "\u3001"), " \u6b04\u4f4d\u3002\u8acb\u91cd\u65b0\u9078 ID \u6b04\u3002")
+      # 原文：樣本沒有  | 、 |  直欄。請重新選 ID 直欄。
+      kit_abort(side[[1]], "\u6a23\u672c\u6c92\u6709 ", paste(missing_by, collapse = "\u3001"), " \u76f4\u6b04\u3002\u8acb\u91cd\u65b0\u9078 ID \u76f4\u6b04\u3002")
     }
   }
   # 後期只用來比對 ID：只留 ID 欄並改成前期的欄名
@@ -78,12 +78,12 @@ build_attrition <- function(baseline_df, followup_df, id_vars,
   n_base_unique <- length(unique(base_ok))
   if (length(base_ok) > 0 && n_base_unique / length(base_ok) < KIT_ID_MIN_UNIQUE) {
     kit_abort(
-      # 原文：前期的  |  有  |  列，卻只有 
-      "\u524d\u671f\u7684 ", id_text, " \u6709 ", kit_num(length(base_ok)), " \u5217\uff0c\u537b\u53ea\u6709 ", kit_num(n_base_unique),
+      # 原文：前期的  |  有  |  橫列，卻只有 
+      "\u524d\u671f\u7684 ", id_text, " \u6709 ", kit_num(length(base_ok)), " \u6a6b\u5217\uff0c\u537b\u53ea\u6709 ", kit_num(n_base_unique),
       # 原文： 種值，看起來不是用來辨識每個人的 ID（例如出生年、權數）。
       " \u7a2e\u503c\uff0c\u770b\u8d77\u4f86\u4e0d\u662f\u7528\u4f86\u8fa8\u8b58\u6bcf\u500b\u4eba\u7684 ID\uff08\u4f8b\u5982\u51fa\u751f\u5e74\u3001\u6b0a\u6578\uff09\u3002",
-      # 原文：請改選每個人都不同的編號欄。
-      "\u8acb\u6539\u9078\u6bcf\u500b\u4eba\u90fd\u4e0d\u540c\u7684\u7de8\u865f\u6b04\u3002"
+      # 原文：請改選每個人都不同的編號直欄。
+      "\u8acb\u6539\u9078\u6bcf\u500b\u4eba\u90fd\u4e0d\u540c\u7684\u7de8\u865f\u76f4\u6b04\u3002"
     )
   }
   n_base_dup <- sum(table(base_ok) > 1)
@@ -102,8 +102,8 @@ build_attrition <- function(baseline_df, followup_df, id_vars,
   summary_tbl <- tibble::tibble(
     # 原文：項目
     "\u9805\u76ee" = c(
-      # 原文：前期樣本列數
-      "\u524d\u671f\u6a23\u672c\u5217\u6578",
+      # 原文：前期樣本橫列數
+      "\u524d\u671f\u6a23\u672c\u6a6b\u5217\u6578",
       # 原文：後期樣本不重複 ID 數
       "\u5f8c\u671f\u6a23\u672c\u4e0d\u91cd\u8907 ID \u6578",
       # 原文：留存（ |  = 0）
@@ -112,8 +112,8 @@ build_attrition <- function(baseline_df, followup_df, id_vars,
       paste0("\u6d41\u5931\uff08", flag_col, " = 1\uff09"),
       # 原文：ID 空白無法比對（ |  空白）
       paste0("ID \u7a7a\u767d\u7121\u6cd5\u6bd4\u5c0d\uff08", flag_col, " \u7a7a\u767d\uff09"),
-      # 原文：輸出欄位數（前期全部欄位 +  | ）
-      paste0("\u8f38\u51fa\u6b04\u4f4d\u6578\uff08\u524d\u671f\u5168\u90e8\u6b04\u4f4d + ", flag_col, "\uff09")
+      # 原文：輸出直欄數（前期全部直欄 +  | ）
+      paste0("\u8f38\u51fa\u76f4\u6b04\u6578\uff08\u524d\u671f\u5168\u90e8\u76f4\u6b04 + ", flag_col, "\uff09")
     ),
     # 原文：數值
     "\u6578\u503c" = c(
@@ -137,34 +137,34 @@ build_attrition <- function(baseline_df, followup_df, id_vars,
           "\u524d\u671f\u6709 ", kit_num(n_base_dup), " \u500b ID \u51fa\u73fe\u4e0d\u53ea\u4e00\u6b21\uff08\u4f8b\uff1a",
           # 原文：； | ），
           paste(dup_key_examples(baseline_df, id_vars), collapse = "\uff1b"), "\uff09\uff0c",
-          # 原文：所以「人數」其實是列數。請確認檔案是否重複匯出，或改選能唯一辨識每個人的欄位。
-          "\u6240\u4ee5\u300c\u4eba\u6578\u300d\u5176\u5be6\u662f\u5217\u6578\u3002\u8acb\u78ba\u8a8d\u6a94\u6848\u662f\u5426\u91cd\u8907\u532f\u51fa\uff0c\u6216\u6539\u9078\u80fd\u552f\u4e00\u8fa8\u8b58\u6bcf\u500b\u4eba\u7684\u6b04\u4f4d\u3002"
+          # 原文：所以「人數」其實是橫列數。請確認檔案是否重複匯出，或改選能唯一辨識每個人的直欄。
+          "\u6240\u4ee5\u300c\u4eba\u6578\u300d\u5176\u5be6\u662f\u6a6b\u5217\u6578\u3002\u8acb\u78ba\u8a8d\u6a94\u6848\u662f\u5426\u91cd\u8907\u532f\u51fa\uff0c\u6216\u6539\u9078\u80fd\u552f\u4e00\u8fa8\u8b58\u6bcf\u500b\u4eba\u7684\u76f4\u6b04\u3002"
         )
       },
       if (length(follow_keys) > 0 &&
             length(unique(follow_keys)) / length(follow_keys) < KIT_ID_MIN_UNIQUE) {
         paste0(
-          # 原文：後期的  |  有  |  列，卻只有 
-          "\u5f8c\u671f\u7684 ", id_text, " \u6709 ", kit_num(length(follow_keys)), " \u5217\uff0c\u537b\u53ea\u6709 ",
-          # 原文： 種值，可能選錯了欄位。
-          kit_num(length(unique(follow_keys))), " \u7a2e\u503c\uff0c\u53ef\u80fd\u9078\u932f\u4e86\u6b04\u4f4d\u3002"
+          # 原文：後期的  |  有  |  橫列，卻只有 
+          "\u5f8c\u671f\u7684 ", id_text, " \u6709 ", kit_num(length(follow_keys)), " \u6a6b\u5217\uff0c\u537b\u53ea\u6709 ",
+          # 原文： 種值，可能選錯了直欄。
+          kit_num(length(unique(follow_keys))), " \u7a2e\u503c\uff0c\u53ef\u80fd\u9078\u932f\u4e86\u76f4\u6b04\u3002"
         )
       },
       if (length(base_ok) > 0 && sum(flag == 0L, na.rm = TRUE) == 0) {
         paste0(
           # 原文：前期和後期沒有任何相同的 ID，所以每個人都被標成流失。
           "\u524d\u671f\u548c\u5f8c\u671f\u6c92\u6709\u4efb\u4f55\u76f8\u540c\u7684 ID\uff0c\u6240\u4ee5\u6bcf\u500b\u4eba\u90fd\u88ab\u6a19\u6210\u6d41\u5931\u3002",
-          # 原文：請確認兩個檔案的 ID 欄是同一套編號（格式也相同，例如都有或都沒有前導 0）。
-          "\u8acb\u78ba\u8a8d\u5169\u500b\u6a94\u6848\u7684 ID \u6b04\u662f\u540c\u4e00\u5957\u7de8\u865f\uff08\u683c\u5f0f\u4e5f\u76f8\u540c\uff0c\u4f8b\u5982\u90fd\u6709\u6216\u90fd\u6c92\u6709\u524d\u5c0e 0\uff09\u3002"
+          # 原文：請確認兩個檔案的 ID 直欄是同一套編號（格式也相同，例如都有或都沒有前導 0）。
+          "\u8acb\u78ba\u8a8d\u5169\u500b\u6a94\u6848\u7684 ID \u76f4\u6b04\u662f\u540c\u4e00\u5957\u7de8\u865f\uff08\u683c\u5f0f\u4e5f\u76f8\u540c\uff0c\u4f8b\u5982\u90fd\u6709\u6216\u90fd\u6c92\u6709\u524d\u5c0e 0\uff09\u3002"
         )
       },
       if (n_na > 0) {
-        # 原文：前期有  |  列的 ID 是空白，無法判斷是否流失， |  欄留空。
-        paste0("\u524d\u671f\u6709 ", kit_num(n_na), " \u5217\u7684 ID \u662f\u7a7a\u767d\uff0c\u7121\u6cd5\u5224\u65b7\u662f\u5426\u6d41\u5931\uff0c", flag_col, " \u6b04\u7559\u7a7a\u3002")
+        # 原文：前期有  |  橫列的 ID 是空白，無法判斷是否流失， |  直欄留空。
+        paste0("\u524d\u671f\u6709 ", kit_num(n_na), " \u6a6b\u5217\u7684 ID \u662f\u7a7a\u767d\uff0c\u7121\u6cd5\u5224\u65b7\u662f\u5426\u6d41\u5931\uff0c", flag_col, " \u76f4\u6b04\u7559\u7a7a\u3002")
       },
       if (flag_col != "attrition") {
-        # 原文：前期檔案已經有 attrition 欄，為了不覆蓋原資料，結果放在新的  |  欄。
-        paste0("\u524d\u671f\u6a94\u6848\u5df2\u7d93\u6709 attrition \u6b04\uff0c\u70ba\u4e86\u4e0d\u8986\u84cb\u539f\u8cc7\u6599\uff0c\u7d50\u679c\u653e\u5728\u65b0\u7684 ", flag_col, " \u6b04\u3002")
+        # 原文：前期檔案已經有 attrition 直欄，為了不覆蓋原資料，結果放在新的  |  直欄。
+        paste0("\u524d\u671f\u6a94\u6848\u5df2\u7d93\u6709 attrition \u76f4\u6b04\uff0c\u70ba\u4e86\u4e0d\u8986\u84cb\u539f\u8cc7\u6599\uff0c\u7d50\u679c\u653e\u5728\u65b0\u7684 ", flag_col, " \u76f4\u6b04\u3002")
       }
     ),
     notes = c(

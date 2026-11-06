@@ -12,19 +12,19 @@ mod_attrition_ui <- function(id) {
       steps = kit_steps(
         # 原文：選擇前期樣本（基準）與後期樣本（比對）
         "\u9078\u64c7\u524d\u671f\u6a23\u672c\uff08\u57fa\u6e96\uff09\u8207\u5f8c\u671f\u6a23\u672c\uff08\u6bd4\u5c0d\uff09",
-        # 原文：選擇用來辨識同一個人的 ID 欄位（前後期欄名不同時，可以分別指定）
-        "\u9078\u64c7\u7528\u4f86\u8fa8\u8b58\u540c\u4e00\u500b\u4eba\u7684 ID \u6b04\u4f4d\uff08\u524d\u5f8c\u671f\u6b04\u540d\u4e0d\u540c\u6642\uff0c\u53ef\u4ee5\u5206\u5225\u6307\u5b9a\uff09",
+        # 原文：選擇用來辨識同一個人的 ID 直欄（前後期直欄名稱不同時，可以分別指定）
+        "\u9078\u64c7\u7528\u4f86\u8fa8\u8b58\u540c\u4e00\u500b\u4eba\u7684 ID \u76f4\u6b04\uff08\u524d\u5f8c\u671f\u76f4\u6b04\u540d\u7a31\u4e0d\u540c\u6642\uff0c\u53ef\u4ee5\u5206\u5225\u6307\u5b9a\uff09",
         # 原文：按「建立流失樣本」，看結果與預覽
         "\u6309\u300c\u5efa\u7acb\u6d41\u5931\u6a23\u672c\u300d\uff0c\u770b\u7d50\u679c\u8207\u9810\u89bd",
         # 原文：下載 CSV 或 SAV
         "\u4e0b\u8f09 CSV \u6216 SAV"
       ),
-      # 原文：前期的全部資料，加上一個 attrition 欄：0 = 留存，1 = 流失。列數等於前期樣本列數。
-      output = "\u524d\u671f\u7684\u5168\u90e8\u8cc7\u6599\uff0c\u52a0\u4e0a\u4e00\u500b attrition \u6b04\uff1a0 = \u7559\u5b58\uff0c1 = \u6d41\u5931\u3002\u5217\u6578\u7b49\u65bc\u524d\u671f\u6a23\u672c\u5217\u6578\u3002",
+      # 原文：前期的全部資料，加上一個 attrition 直欄：0 = 留存，1 = 流失。橫列數等於前期樣本橫列數。
+      output = "\u524d\u671f\u7684\u5168\u90e8\u8cc7\u6599\uff0c\u52a0\u4e0a\u4e00\u500b attrition \u76f4\u6b04\uff1a0 = \u7559\u5b58\uff0c1 = \u6d41\u5931\u3002\u6a6b\u5217\u6578\u7b49\u65bc\u524d\u671f\u6a23\u672c\u6a6b\u5217\u6578\u3002",
       # 原文：後期樣本只用來比對 ID，後期的其他變項不會出現在結果中。
       note = "\u5f8c\u671f\u6a23\u672c\u53ea\u7528\u4f86\u6bd4\u5c0d ID\uff0c\u5f8c\u671f\u7684\u5176\u4ed6\u8b8a\u9805\u4e0d\u6703\u51fa\u73fe\u5728\u7d50\u679c\u4e2d\u3002",
-      # 原文：前期的每一列，若其 ID 出現在後期樣本中則為留存；ID 空白的列無法比對，attrition 留空。
-      technical = "\u524d\u671f\u7684\u6bcf\u4e00\u5217\uff0c\u82e5\u5176 ID \u51fa\u73fe\u5728\u5f8c\u671f\u6a23\u672c\u4e2d\u5247\u70ba\u7559\u5b58\uff1bID \u7a7a\u767d\u7684\u5217\u7121\u6cd5\u6bd4\u5c0d\uff0cattrition \u7559\u7a7a\u3002",
+      # 原文：前期的每一個橫列，若其 ID 出現在後期樣本中則為留存；ID 空白的橫列無法比對，attrition 留空。
+      technical = "\u524d\u671f\u7684\u6bcf\u4e00\u500b\u6a6b\u5217\uff0c\u82e5\u5176 ID \u51fa\u73fe\u5728\u5f8c\u671f\u6a23\u672c\u4e2d\u5247\u70ba\u7559\u5b58\uff1bID \u7a7a\u767d\u7684\u6a6b\u5217\u7121\u6cd5\u6bd4\u5c0d\uff0cattrition \u7559\u7a7a\u3002",
       diagram = attrition_diagram()
     ),
     shiny::uiOutput(ns("source_note")),
@@ -42,19 +42,19 @@ mod_attrition_ui <- function(id) {
     ),
     shiny::checkboxInput(
       ns("id_per_file"),
-      # 原文：前期與後期的 ID 欄名不同（例如 w1_id、w4id），分別指定
-      "\u524d\u671f\u8207\u5f8c\u671f\u7684 ID \u6b04\u540d\u4e0d\u540c\uff08\u4f8b\u5982 w1_id\u3001w4id\uff09\uff0c\u5206\u5225\u6307\u5b9a",
+      # 原文：前期與後期的 ID 直欄名稱不同（例如 w1_id、w4id），分別指定
+      "\u524d\u671f\u8207\u5f8c\u671f\u7684 ID \u76f4\u6b04\u540d\u7a31\u4e0d\u540c\uff08\u4f8b\u5982 w1_id\u3001w4id\uff09\uff0c\u5206\u5225\u6307\u5b9a",
       value = FALSE, width = "100%"
     ),
     shiny::fluidRow(
       shiny::column(
         5,
         shiny::selectizeInput(
-          # 原文：用哪個欄位辨識同一個人？（ID，可多選）
-          ns("id_vars"), "\u7528\u54ea\u500b\u6b04\u4f4d\u8fa8\u8b58\u540c\u4e00\u500b\u4eba\uff1f\uff08ID\uff0c\u53ef\u591a\u9078\uff09",
+          # 原文：用哪個直欄辨識同一個人？（ID，可多選）
+          ns("id_vars"), "\u7528\u54ea\u500b\u76f4\u6b04\u8fa8\u8b58\u540c\u4e00\u500b\u4eba\uff1f\uff08ID\uff0c\u53ef\u591a\u9078\uff09",
           choices = NULL, multiple = TRUE,
-          # 原文：請選擇 ID 欄位，例如 id
-          options = list(create = FALSE, placeholder = "\u8acb\u9078\u64c7 ID \u6b04\u4f4d\uff0c\u4f8b\u5982 id"),
+          # 原文：請選擇 ID 直欄，例如 id
+          options = list(create = FALSE, placeholder = "\u8acb\u9078\u64c7 ID \u76f4\u6b04\uff0c\u4f8b\u5982 id"),
           width = "100%"
         )
       ),
@@ -63,11 +63,11 @@ mod_attrition_ui <- function(id) {
         shiny::conditionalPanel(
           "input.id_per_file", ns = ns,
           shiny::selectizeInput(
-            # 原文：後期樣本的 ID 欄
-            ns("follow_id_vars"), "\u5f8c\u671f\u6a23\u672c\u7684 ID \u6b04",
+            # 原文：後期樣本的 ID 直欄
+            ns("follow_id_vars"), "\u5f8c\u671f\u6a23\u672c\u7684 ID \u76f4\u6b04",
             choices = NULL, multiple = TRUE,
-            # 原文：請選擇後期的 ID 欄
-            options = list(create = FALSE, placeholder = "\u8acb\u9078\u64c7\u5f8c\u671f\u7684 ID \u6b04"),
+            # 原文：請選擇後期的 ID 直欄
+            options = list(create = FALSE, placeholder = "\u8acb\u9078\u64c7\u5f8c\u671f\u7684 ID \u76f4\u6b04"),
             width = "100%"
           )
         )
@@ -75,8 +75,8 @@ mod_attrition_ui <- function(id) {
     ),
     shiny::tags$small(
       class = "kit-hint",
-      # 原文：沒有勾選上面的選項時，只列出前期與後期樣本都有的欄位。
-      "\u6c92\u6709\u52fe\u9078\u4e0a\u9762\u7684\u9078\u9805\u6642\uff0c\u53ea\u5217\u51fa\u524d\u671f\u8207\u5f8c\u671f\u6a23\u672c\u90fd\u6709\u7684\u6b04\u4f4d\u3002",
+      # 原文：沒有勾選上面的選項時，只列出前期與後期樣本都有的直欄。
+      "\u6c92\u6709\u52fe\u9078\u4e0a\u9762\u7684\u9078\u9805\u6642\uff0c\u53ea\u5217\u51fa\u524d\u671f\u8207\u5f8c\u671f\u6a23\u672c\u90fd\u6709\u7684\u76f4\u6b04\u3002",
       # 原文：括號裡是「不重複的比例」，ID 應該接近 100%。
       "\u62ec\u865f\u88e1\u662f\u300c\u4e0d\u91cd\u8907\u7684\u6bd4\u4f8b\u300d\uff0cID \u61c9\u8a72\u63a5\u8fd1 100%\u3002"
     ),
@@ -196,11 +196,11 @@ mod_attrition_server <- function(id, files, working, goto) {
         # 原文：前期與後期要選不同的檔案
         if (pos[1] == pos[2]) return("\u524d\u671f\u8207\u5f8c\u671f\u8981\u9078\u4e0d\u540c\u7684\u6a94\u6848")
         ids <- input$id_vars %||% character(0)
-        # 原文：選 ID 欄
-        if (length(ids) == 0) return("\u9078 ID \u6b04")
+        # 原文：選 ID 直欄
+        if (length(ids) == 0) return("\u9078 ID \u76f4\u6b04")
         if (length(follow_ids() %||% character(0)) != length(ids)) {
-          # 原文：後期要選一樣多個 ID 欄
-          return("\u5f8c\u671f\u8981\u9078\u4e00\u6a23\u591a\u500b ID \u6b04")
+          # 原文：後期要選一樣多個 ID 直欄
+          return("\u5f8c\u671f\u8981\u9078\u4e00\u6a23\u591a\u500b ID \u76f4\u6b04")
         }
         character(0)
       }),

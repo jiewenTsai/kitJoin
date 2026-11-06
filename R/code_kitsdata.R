@@ -49,8 +49,8 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, text_fix = NULL, read_lin
     "# \u984c\u76ee\u8868\uff1a\u300ckits \u4f5c\u7b54\u6a94\u300d\u7b2c 3 \u6b65\u4e0b\u8f09\u7684 kits_item_settings.csv\uff08item_id\u3001include\u3001domain\u3001",
     # 原文：# map_raw_to_score = 計分對照，寫成「原分數=計分」；item_id_out = 輸出的題號）。
     "# map_raw_to_score = \u8a08\u5206\u5c0d\u7167\uff0c\u5beb\u6210\u300c\u539f\u5206\u6578=\u8a08\u5206\u300d\uff1bitem_id_out = \u8f38\u51fa\u7684\u984c\u865f\uff09\u3002",
-    # 原文：# include 是 TRUE/FALSE，其他欄都當文字讀
-    "# include \u662f TRUE/FALSE\uff0c\u5176\u4ed6\u6b04\u90fd\u7576\u6587\u5b57\u8b80",
+    # 原文：# include 是 TRUE/FALSE，其他直欄都當文字讀
+    "# include \u662f TRUE/FALSE\uff0c\u5176\u4ed6\u76f4\u6b04\u90fd\u7576\u6587\u5b57\u8b80",
     paste0("item_settings <- read_csv(", r_str(KITS_SETTINGS_FILE),
            ", col_types = cols(include = \"l\", .default = \"c\"))"),
     "items <- item_settings$item_id[item_settings$include]",
@@ -58,8 +58,8 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, text_fix = NULL, read_lin
     code_kitsdata_codes(spec$items),
     code_kitsdata_maps(f, spec$items),
     "",
-    # 原文：# 轉成長格式：一列一個孩子的一個波次的一題
-    "# \u8f49\u6210\u9577\u683c\u5f0f\uff1a\u4e00\u5217\u4e00\u500b\u5b69\u5b50\u7684\u4e00\u500b\u6ce2\u6b21\u7684\u4e00\u984c",
+    # 原文：# 轉成長格式：一個橫列一個孩子的一個波次的一題
+    "# \u8f49\u6210\u9577\u683c\u5f0f\uff1a\u4e00\u500b\u6a6b\u5217\u4e00\u500b\u5b69\u5b50\u7684\u4e00\u500b\u6ce2\u6b21\u7684\u4e00\u984c",
     per_file_code(function(i) {
       code_kitsdata_long(f$obj[i], long[i], spec$cohort[[i]], kits_file_map(map, per_file, i),
                          purrr::map(typed, i), identical(spec$value_labels, "label"))
@@ -77,12 +77,12 @@ code_kitsdata <- function(f, spec, na_applied = FALSE, text_fix = NULL, read_lin
     "",
     code_kitsdata_finish(map_out),
     "",
-    # 原文：# 檢查：同一列次同一題只能有一列（應該是 0 列）
-    "# \u6aa2\u67e5\uff1a\u540c\u4e00\u5217\u6b21\u540c\u4e00\u984c\u53ea\u80fd\u6709\u4e00\u5217\uff08\u61c9\u8a72\u662f 0 \u5217\uff09",
+    # 原文：# 檢查：同一列次同一題只能有一個橫列（應該是 0 橫列）
+    "# \u6aa2\u67e5\uff1a\u540c\u4e00\u5217\u6b21\u540c\u4e00\u984c\u53ea\u80fd\u6709\u4e00\u500b\u6a6b\u5217\uff08\u61c9\u8a72\u662f 0 \u6a6b\u5217\uff09",
     "count(kits_long, visit_id, item_id) |> filter(n > 1)",
     "",
-    # 原文：# app 為了省記憶體，是一段一段（每 5,000 列寬資料）轉換、寫進 .csv.gz；結果和這裡相同
-    "# app \u70ba\u4e86\u7701\u8a18\u61b6\u9ad4\uff0c\u662f\u4e00\u6bb5\u4e00\u6bb5\uff08\u6bcf 5,000 \u5217\u5bec\u8cc7\u6599\uff09\u8f49\u63db\u3001\u5beb\u9032 .csv.gz\uff1b\u7d50\u679c\u548c\u9019\u88e1\u76f8\u540c",
+    # 原文：# app 為了省記憶體，是一段一段（每 5,000 橫列的寬資料）轉換、寫進 .csv.gz；結果和這裡相同
+    "# app \u70ba\u4e86\u7701\u8a18\u61b6\u9ad4\uff0c\u662f\u4e00\u6bb5\u4e00\u6bb5\uff08\u6bcf 5,000 \u6a6b\u5217\u7684\u5bec\u8cc7\u6599\uff09\u8f49\u63db\u3001\u5beb\u9032 .csv.gz\uff1b\u7d50\u679c\u548c\u9019\u88e1\u76f8\u540c",
     # 原文：write_csv(kits_long, "kits_long.csv.gz")   # 副檔名 .gz 會自動壓縮
     'write_csv(kits_long, "kits_long.csv.gz")   # \u526f\u6a94\u540d .gz \u6703\u81ea\u52d5\u58d3\u7e2e'
   )
@@ -109,8 +109,8 @@ code_kitsdata_text_fix <- function(f, text_fix) {
   })
   per_file <- per_file[!is.na(per_file)]
   if (length(per_file) == 0) return(NULL)
-  # 原文：# 文字的題目欄：內容都是數字的轉成數字；有一般文字的，這個檔案不轉這一題
-  c("", "# \u6587\u5b57\u7684\u984c\u76ee\u6b04\uff1a\u5167\u5bb9\u90fd\u662f\u6578\u5b57\u7684\u8f49\u6210\u6578\u5b57\uff1b\u6709\u4e00\u822c\u6587\u5b57\u7684\uff0c\u9019\u500b\u6a94\u6848\u4e0d\u8f49\u9019\u4e00\u984c", per_file)
+  # 原文：# 文字的題目直欄：內容都是數字的轉成數字；有一般文字的，這個檔案不轉這一題
+  c("", "# \u6587\u5b57\u7684\u984c\u76ee\u76f4\u6b04\uff1a\u5167\u5bb9\u90fd\u662f\u6578\u5b57\u7684\u8f49\u6210\u6578\u5b57\uff1b\u6709\u4e00\u822c\u6587\u5b57\u7684\uff0c\u9019\u500b\u6a94\u6848\u4e0d\u8f49\u9019\u4e00\u984c", per_file)
 }
 
 # 疑似遺漏值代碼：⑥ 不改，照原樣寫進作答檔；有的話加一段註解，說要先用「遺漏值處理」改成 NA
@@ -263,8 +263,8 @@ code_kitsdata_helpers <- function(labels = FALSE) {
     "}",
     if (labels) {
       c(
-        # 原文：# 有值標籤的欄（世代、性別）用標籤；沒有標籤的值用代碼
-        "# \u6709\u503c\u6a19\u7c64\u7684\u6b04\uff08\u4e16\u4ee3\u3001\u6027\u5225\uff09\u7528\u6a19\u7c64\uff1b\u6c92\u6709\u6a19\u7c64\u7684\u503c\u7528\u4ee3\u78bc",
+        # 原文：# 有值標籤的直欄（世代、性別）用標籤；沒有標籤的值用代碼
+        "# \u6709\u503c\u6a19\u7c64\u7684\u76f4\u6b04\uff08\u4e16\u4ee3\u3001\u6027\u5225\uff09\u7528\u6a19\u7c64\uff1b\u6c92\u6709\u6a19\u7c64\u7684\u503c\u7528\u4ee3\u78bc",
         "as_label <- function(x) {",
         "  out <- as_id(x)",
         "  labels <- attr(x, \"labels\", exact = TRUE)",
@@ -305,8 +305,8 @@ code_kitsdata_finish <- function(map) {
     }
   }
   code_lines(
-    # 原文：# 固定 9 欄（名稱、順序、型別和 kits 相同）；沒有對應的欄寫成空白
-    "# \u56fa\u5b9a 9 \u6b04\uff08\u540d\u7a31\u3001\u9806\u5e8f\u3001\u578b\u5225\u548c kits \u76f8\u540c\uff09\uff1b\u6c92\u6709\u5c0d\u61c9\u7684\u6b04\u5beb\u6210\u7a7a\u767d",
+    # 原文：# 固定 9 直欄（名稱、順序、型別和 kits 相同）；沒有對應的直欄寫成空白
+    "# \u56fa\u5b9a 9 \u76f4\u6b04\uff08\u540d\u7a31\u3001\u9806\u5e8f\u3001\u578b\u5225\u548c kits \u76f8\u540c\uff09\uff1b\u6c92\u6709\u5c0d\u61c9\u7684\u76f4\u6b04\u5beb\u6210\u7a7a\u767d",
     "kits_long <- kits_long |>",
     "  transmute(",
     paste0("    ", c(lines, line)),

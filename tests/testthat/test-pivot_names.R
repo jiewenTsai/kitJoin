@@ -146,7 +146,7 @@ test_that("預覽：每個欄名會變成什麼（和 tidyr 算的一樣）", {
   a <- click_args(names(raw3)[3:5], start = "score_t", end = "_raw", numeric = TRUE,
                   names_to = "wave")
   chk <- pivot_names_check(a$cols, a)
-  expect_equal(chk$preview[["原本的欄名"]], names(raw3)[3:5])
+  expect_equal(chk$preview[["原本的直欄名稱"]], names(raw3)[3:5])
   expect_equal(chk$preview$wave, c("1", "2", "3"))
   expect_null(chk$problem)
   # 對不上規則的欄名（自己寫的規則）
@@ -212,7 +212,7 @@ test_that("模組：選欄後列出可以去掉的開頭、結尾；點了就有
     session$setInputs(name_start = "score_")
     expect_match(output$names_split$html, "文字和數字分開")
     session$setInputs(name_split = "digits")
-    expect_match(output$names_parts$html, "第 2 段放到哪一欄")
+    expect_match(output$names_parts$html, "第 2 段放到哪一個直欄")
     session$setInputs(part_1 = "letter", part_2 = "wave")
     args <- session$returned()
     expect_equal(args$names_to, c("letter", "wave"))

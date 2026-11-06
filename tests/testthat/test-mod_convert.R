@@ -14,7 +14,7 @@ test_that("⑧ 只列出另外兩種格式，轉換後可下載", {
     session$setInputs(target = "csv", run = 1)
     expect_match(output$status$html, "w1.csv.gz → w1.csv")
     expect_match(output$result$html, "下載 w1.csv")
-    expect_match(output$summary_table, "2 列 × 2 欄")
+    expect_match(output$summary_table, "2 橫列 × 2 直欄")
     path <- kit_test_download_file(session, "download_file")
     back <- readr::read_csv(path, col_types = "cc")
     expect_equal(back$id, c("0012", "0013"))

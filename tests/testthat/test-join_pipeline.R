@@ -142,7 +142,7 @@ test_that("多對多會暴增時先停下，確認後才執行；太大直接拒
   expect_equal(join_size_estimate(list(a, b), "birth", "left_join"), 1200)
   expect_error(
     join_waves(list(a, b), c("a", "b"), c("t1", "t2"), "birth"),
-    "1,200 列",
+    "1,200 橫列",
     class = "kit_join_too_large"
   )
   out <- join_waves(list(a, b), c("a", "b"), c("t1", "t2"), "birth", confirm_large = TRUE)
@@ -205,7 +205,7 @@ test_that("各檔用自己的 ID 欄（w1_id、w2_id、w3id），改名成共同
   expect_error(
     join_waves(list(a, b), c("a", "b"), c("t1", "t2"), "w1_id",
                id_cols = list("w1_id", c("w2_id", "x"))),
-    "一樣多個 ID 欄", class = "kit_user_error"
+    "一樣多個 ID 直欄", class = "kit_user_error"
   )
   expect_error(
     join_waves(list(a, b), c("a", "b"), c("t1", "t2"), "w1_id",
@@ -220,7 +220,7 @@ test_that("各檔用自己的 ID 欄（w1_id、w2_id、w3id），改名成共同
     "不是這個檔案的 ID", class = "kit_user_error"
   )
   tbl <- id_check_table(list(a, b), c("t1", "t2"), "w1_id", list("w1_id", "w2_id"))
-  expect_equal(tbl$ID欄, c("w1_id", "w2_id"))
+  expect_equal(tbl$ID直欄, c("w1_id", "w2_id"))
 })
 
 test_that("TDCYP jsq w1–w5：各檔 ID 欄名不同也能串接（C1）", {

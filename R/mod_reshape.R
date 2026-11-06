@@ -19,28 +19,28 @@ mod_reshape_ui <- function(id) {
       goal = paste0(
         # 原文：把一個檔案在長格式與寬格式之間互轉。
         "\u628a\u4e00\u500b\u6a94\u6848\u5728\u9577\u683c\u5f0f\u8207\u5bec\u683c\u5f0f\u4e4b\u9593\u4e92\u8f49\u3002",
-        # 原文：例如 kitsUI 分數表（每次施測 × 每個領域一列）轉成每次施測一列、各領域並排。
-        "\u4f8b\u5982 kitsUI \u5206\u6578\u8868\uff08\u6bcf\u6b21\u65bd\u6e2c \u00d7 \u6bcf\u500b\u9818\u57df\u4e00\u5217\uff09\u8f49\u6210\u6bcf\u6b21\u65bd\u6e2c\u4e00\u5217\u3001\u5404\u9818\u57df\u4e26\u6392\u3002"
+        # 原文：例如 kitsUI 分數表（每次施測 × 每個領域一個橫列）轉成每次施測一個橫列、各領域並排。
+        "\u4f8b\u5982 kitsUI \u5206\u6578\u8868\uff08\u6bcf\u6b21\u65bd\u6e2c \u00d7 \u6bcf\u500b\u9818\u57df\u4e00\u500b\u6a6b\u5217\uff09\u8f49\u6210\u6bcf\u6b21\u65bd\u6e2c\u4e00\u500b\u6a6b\u5217\u3001\u5404\u9818\u57df\u4e26\u6392\u3002"
       ),
       steps = kit_steps(
         # 原文：選要轉換的檔案與方向（會先依資料的樣子幫你選好）
         "\u9078\u8981\u8f49\u63db\u7684\u6a94\u6848\u8207\u65b9\u5411\uff08\u6703\u5148\u4f9d\u8cc7\u6599\u7684\u6a23\u5b50\u5e6b\u4f60\u9078\u597d\uff09",
-        # 原文：設定欄位（R 的參數名稱在「進階設定」與「用 R 怎麼做」裡）
-        "\u8a2d\u5b9a\u6b04\u4f4d\uff08R \u7684\u53c3\u6578\u540d\u7a31\u5728\u300c\u9032\u968e\u8a2d\u5b9a\u300d\u8207\u300c\u7528 R \u600e\u9ebc\u505a\u300d\u88e1\uff09",
+        # 原文：設定直欄（R 的參數名稱在「進階設定」與「用 R 怎麼做」裡）
+        "\u8a2d\u5b9a\u76f4\u6b04\uff08R \u7684\u53c3\u6578\u540d\u7a31\u5728\u300c\u9032\u968e\u8a2d\u5b9a\u300d\u8207\u300c\u7528 R \u600e\u9ebc\u505a\u300d\u88e1\uff09",
         # 原文：按「執行轉換」，看結果、檢查與預覽
         "\u6309\u300c\u57f7\u884c\u8f49\u63db\u300d\uff0c\u770b\u7d50\u679c\u3001\u6aa2\u67e5\u8207\u9810\u89bd",
         # 原文：下載 CSV 或 SAV
         "\u4e0b\u8f09 CSV \u6216 SAV"
       ),
-      # 原文：轉換後的一個資料檔；轉換前後的列數 × 欄數會並列在摘要中。
-      output = "\u8f49\u63db\u5f8c\u7684\u4e00\u500b\u8cc7\u6599\u6a94\uff1b\u8f49\u63db\u524d\u5f8c\u7684\u5217\u6578 \u00d7 \u6b04\u6578\u6703\u4e26\u5217\u5728\u6458\u8981\u4e2d\u3002",
+      # 原文：轉換後的一個資料檔；轉換前後的橫列數 × 直欄數會並列在摘要中。
+      output = "\u8f49\u63db\u5f8c\u7684\u4e00\u500b\u8cc7\u6599\u6a94\uff1b\u8f49\u63db\u524d\u5f8c\u7684\u6a6b\u5217\u6578 \u00d7 \u76f4\u6b04\u6578\u6703\u4e26\u5217\u5728\u6458\u8981\u4e2d\u3002",
       technical = paste0(
         # 原文：長轉寬用 tidyr::pivot_wider()，寬轉長用 tidyr::pivot_longer()，預設值同 tidyr。
         "\u9577\u8f49\u5bec\u7528 tidyr::pivot_wider()\uff0c\u5bec\u8f49\u9577\u7528 tidyr::pivot_longer()\uff0c\u9810\u8a2d\u503c\u540c tidyr\u3002",
-        # 原文：長轉寬不做 values_fn：id_cols × names_from 有重複時停下並列出重複列，
-        "\u9577\u8f49\u5bec\u4e0d\u505a values_fn\uff1aid_cols \u00d7 names_from \u6709\u91cd\u8907\u6642\u505c\u4e0b\u4e26\u5217\u51fa\u91cd\u8907\u5217\uff0c",
-        # 原文：不會默默彙總，也不會產生 list 欄。
-        "\u4e0d\u6703\u9ed8\u9ed8\u5f59\u7e3d\uff0c\u4e5f\u4e0d\u6703\u7522\u751f list \u6b04\u3002"
+        # 原文：長轉寬不做 values_fn：id_cols × names_from 有重複時停下並列出重複橫列，
+        "\u9577\u8f49\u5bec\u4e0d\u505a values_fn\uff1aid_cols \u00d7 names_from \u6709\u91cd\u8907\u6642\u505c\u4e0b\u4e26\u5217\u51fa\u91cd\u8907\u6a6b\u5217\uff0c",
+        # 原文：不會默默彙總，也不會產生 list 直欄。
+        "\u4e0d\u6703\u9ed8\u9ed8\u5f59\u7e3d\uff0c\u4e5f\u4e0d\u6703\u7522\u751f list \u76f4\u6b04\u3002"
       ),
       diagram = reshape_diagram()
     ),
@@ -57,10 +57,10 @@ mod_reshape_ui <- function(id) {
           # 原文：方向
           ns("direction"), "\u65b9\u5411",
           choices = c(
-            # 原文：長轉寬（每人一列、各題並排）
-            "\u9577\u8f49\u5bec\uff08\u6bcf\u4eba\u4e00\u5217\u3001\u5404\u984c\u4e26\u6392\uff09" = "wider",
-            # 原文：寬轉長（每人每題一列）
-            "\u5bec\u8f49\u9577\uff08\u6bcf\u4eba\u6bcf\u984c\u4e00\u5217\uff09" = "longer"
+            # 原文：長轉寬（每人一個橫列、各題並排）
+            "\u9577\u8f49\u5bec\uff08\u6bcf\u4eba\u4e00\u500b\u6a6b\u5217\u3001\u5404\u984c\u4e26\u6392\uff09" = "wider",
+            # 原文：寬轉長（每人每題一個橫列）
+            "\u5bec\u8f49\u9577\uff08\u6bcf\u4eba\u6bcf\u984c\u4e00\u500b\u6a6b\u5217\uff09" = "longer"
           ),
           selected = "wider", inline = TRUE
         )
@@ -69,11 +69,11 @@ mod_reshape_ui <- function(id) {
     # 一個提示：資料看起來是長或寬格式；和方向相反時是黃色，「改選…」的按鈕在框外面
     shiny::uiOutput(ns("guess")),
     kit_advanced(
-      # 原文：判斷錯了？換一欄當 ID 再看一次
-      title = "\u5224\u65b7\u932f\u4e86\uff1f\u63db\u4e00\u6b04\u7576 ID \u518d\u770b\u4e00\u6b21",
+      # 原文：判斷錯了？換一個直欄當 ID 再看一次
+      title = "\u5224\u65b7\u932f\u4e86\uff1f\u63db\u4e00\u500b\u76f4\u6b04\u7576 ID \u518d\u770b\u4e00\u6b21",
       shiny::selectizeInput(
-        # 原文：判斷長、寬格式時，用哪一欄當 ID
-        ns("guess_id"), "\u5224\u65b7\u9577\u3001\u5bec\u683c\u5f0f\u6642\uff0c\u7528\u54ea\u4e00\u6b04\u7576 ID",
+        # 原文：判斷長、寬格式時，用哪一個直欄當 ID
+        ns("guess_id"), "\u5224\u65b7\u9577\u3001\u5bec\u683c\u5f0f\u6642\uff0c\u7528\u54ea\u4e00\u500b\u76f4\u6b04\u7576 ID",
         # 原文：（請選）
         choices = c("\uff08\u8acb\u9078\uff09" = ""), width = "16rem"
       )
@@ -89,12 +89,12 @@ mod_reshape_ui <- function(id) {
 
 # 長轉寬控制項的白話名稱（主畫面、設定摘要、錯誤訊息用同一套）
 WIDER_LABELS <- c(
-  # 原文：哪一欄的值變成新的欄名
-  names_from = "\u54ea\u4e00\u6b04\u7684\u503c\u8b8a\u6210\u65b0\u7684\u6b04\u540d",
-  # 原文：要填進新欄的值
-  values_from = "\u8981\u586b\u9032\u65b0\u6b04\u7684\u503c",
-  # 原文：辨認同一列的欄
-  id_cols = "\u8fa8\u8a8d\u540c\u4e00\u5217\u7684\u6b04"
+  # 原文：哪一個直欄的值變成新的直欄名稱
+  names_from = "\u54ea\u4e00\u500b\u76f4\u6b04\u7684\u503c\u8b8a\u6210\u65b0\u7684\u76f4\u6b04\u540d\u7a31",
+  # 原文：要填進新直欄的值
+  values_from = "\u8981\u586b\u9032\u65b0\u76f4\u6b04\u7684\u503c",
+  # 原文：辨認同一個橫列的直欄
+  id_cols = "\u8fa8\u8a8d\u540c\u4e00\u500b\u6a6b\u5217\u7684\u76f4\u6b04"
 )
 
 # 長轉寬的控制項（參數一對一對應 tidyr::pivot_wider()；參數名在進階設定裡）
@@ -124,8 +124,8 @@ wider_controls_ui <- function(ns) {
     ),
     shiny::checkboxInput(
       ns("id_auto"),
-      # 原文：其餘的欄都用來辨認同一列（預設）
-      "\u5176\u9918\u7684\u6b04\u90fd\u7528\u4f86\u8fa8\u8a8d\u540c\u4e00\u5217\uff08\u9810\u8a2d\uff09",
+      # 原文：其餘的直欄都用來辨認同一個橫列（預設）
+      "\u5176\u9918\u7684\u76f4\u6b04\u90fd\u7528\u4f86\u8fa8\u8a8d\u540c\u4e00\u500b\u6a6b\u5217\uff08\u9810\u8a2d\uff09",
       value = TRUE, width = "100%"
     ),
     shiny::conditionalPanel(
@@ -139,8 +139,8 @@ wider_controls_ui <- function(ns) {
     shiny::uiOutput(ns("id_note")),
     kit_advanced(
       id = ns("advanced"),
-      # 原文：進階設定：欄名格式、欄位排列、缺的格子、R 的參數名稱
-      title = "\u9032\u968e\u8a2d\u5b9a\uff1a\u6b04\u540d\u683c\u5f0f\u3001\u6b04\u4f4d\u6392\u5217\u3001\u7f3a\u7684\u683c\u5b50\u3001R \u7684\u53c3\u6578\u540d\u7a31",
+      # 原文：進階設定：直欄名稱格式、直欄排列、缺的格子、R 的參數名稱
+      title = "\u9032\u968e\u8a2d\u5b9a\uff1a\u76f4\u6b04\u540d\u7a31\u683c\u5f0f\u3001\u76f4\u6b04\u6392\u5217\u3001\u7f3a\u7684\u683c\u5b50\u3001R \u7684\u53c3\u6578\u540d\u7a31",
       wider_advanced_ui(ns)
     )
   )
@@ -159,15 +159,15 @@ wider_advanced_ui <- function(ns) {
       "\u300c", WIDER_LABELS[["values_from"]], "\u300d\u662f ", shiny::tags$code("values_from"), "\uff1b",
       # 原文：「 | 」是 
       "\u300c", WIDER_LABELS[["id_cols"]], "\u300d\u662f ", shiny::tags$code("id_cols"),
-      # 原文：（勾「其餘的欄」時是  | ）。
-      "\uff08\u52fe\u300c\u5176\u9918\u7684\u6b04\u300d\u6642\u662f ", shiny::tags$code("id_cols = NULL"), "\uff09\u3002"
+      # 原文：（勾「其餘的直欄」時是  | ）。
+      "\uff08\u52fe\u300c\u5176\u9918\u7684\u76f4\u6b04\u300d\u6642\u662f ", shiny::tags$code("id_cols = NULL"), "\uff09\u3002"
     ),
     shiny::radioButtons(
-      # 原文：新欄名怎麼組？
-      ns("name_mode"), "\u65b0\u6b04\u540d\u600e\u9ebc\u7d44\uff1f",
+      # 原文：新直欄名稱怎麼組？
+      ns("name_mode"), "\u65b0\u76f4\u6b04\u540d\u7a31\u600e\u9ebc\u7d44\uff1f",
       choices = c(
-        # 原文：值欄名 + 分隔字 + 欄名來源的值（names_sep / names_prefix）
-        "\u503c\u6b04\u540d + \u5206\u9694\u5b57 + \u6b04\u540d\u4f86\u6e90\u7684\u503c\uff08names_sep / names_prefix\uff09" = "sep",
+        # 原文：值直欄名稱 + 分隔字 + 直欄名稱來源的值（names_sep / names_prefix）
+        "\u503c\u76f4\u6b04\u540d\u7a31 + \u5206\u9694\u5b57 + \u76f4\u6b04\u540d\u7a31\u4f86\u6e90\u7684\u503c\uff08names_sep / names_prefix\uff09" = "sep",
         # 原文：自訂格式（names_glue）
         "\u81ea\u8a02\u683c\u5f0f\uff08names_glue\uff09" = "glue"
       ),
@@ -184,8 +184,8 @@ wider_advanced_ui <- function(ns) {
         shiny::column(
           4,
           shiny::textInput(
-            # 原文：欄名前綴
-            ns("names_prefix"), arg_label("\u6b04\u540d\u524d\u7db4", "names_prefix"), ""
+            # 原文：直欄名稱前綴
+            ns("names_prefix"), arg_label("\u76f4\u6b04\u540d\u7a31\u524d\u7db4", "names_prefix"), ""
           )
         )
       )
@@ -193,37 +193,37 @@ wider_advanced_ui <- function(ns) {
     shiny::conditionalPanel(
       "input.name_mode == 'glue'", ns = ns,
       shiny::textInput(
-        # 原文：欄名格式
-        ns("names_glue"), arg_label("\u6b04\u540d\u683c\u5f0f", "names_glue"), "",
+        # 原文：直欄名稱格式
+        ns("names_glue"), arg_label("\u76f4\u6b04\u540d\u7a31\u683c\u5f0f", "names_glue"), "",
         placeholder = "{.value}_{wave}"
       ),
       shiny::tags$small(
         class = "kit-hint",
-        # 原文：{.value} 是值欄的名稱（如 score），{wave} 是欄名來源欄的值（如 t1）。
-        "{.value} \u662f\u503c\u6b04\u7684\u540d\u7a31\uff08\u5982 score\uff09\uff0c{wave} \u662f\u6b04\u540d\u4f86\u6e90\u6b04\u7684\u503c\uff08\u5982 t1\uff09\u3002"
+        # 原文：{.value} 是值直欄的名稱（如 score），{wave} 是直欄名稱來源直欄的值（如 t1）。
+        "{.value} \u662f\u503c\u76f4\u6b04\u7684\u540d\u7a31\uff08\u5982 score\uff09\uff0c{wave} \u662f\u76f4\u6b04\u540d\u7a31\u4f86\u6e90\u76f4\u6b04\u7684\u503c\uff08\u5982 t1\uff09\u3002"
       )
     ),
     shiny::radioButtons(
-      # 原文：欄位排列
-      ns("names_vary"), arg_label("\u6b04\u4f4d\u6392\u5217", "names_vary"),
+      # 原文：直欄排列
+      ns("names_vary"), arg_label("\u76f4\u6b04\u6392\u5217", "names_vary"),
       choices = c(
-        # 原文：fastest：同一個值欄放在一起（score_t1、score_t2、se_t1…）
-        "fastest\uff1a\u540c\u4e00\u500b\u503c\u6b04\u653e\u5728\u4e00\u8d77\uff08score_t1\u3001score_t2\u3001se_t1\u2026\uff09" = "fastest",
-        # 原文：slowest：同一個欄名來源的值放在一起（score_t1、se_t1、score_t2…）
-        "slowest\uff1a\u540c\u4e00\u500b\u6b04\u540d\u4f86\u6e90\u7684\u503c\u653e\u5728\u4e00\u8d77\uff08score_t1\u3001se_t1\u3001score_t2\u2026\uff09" = "slowest"
+        # 原文：fastest：同一個值直欄放在一起（score_t1、score_t2、se_t1…）
+        "fastest\uff1a\u540c\u4e00\u500b\u503c\u76f4\u6b04\u653e\u5728\u4e00\u8d77\uff08score_t1\u3001score_t2\u3001se_t1\u2026\uff09" = "fastest",
+        # 原文：slowest：同一個直欄名稱來源的值放在一起（score_t1、se_t1、score_t2…）
+        "slowest\uff1a\u540c\u4e00\u500b\u76f4\u6b04\u540d\u7a31\u4f86\u6e90\u7684\u503c\u653e\u5728\u4e00\u8d77\uff08score_t1\u3001se_t1\u3001score_t2\u2026\uff09" = "slowest"
       ),
       selected = "fastest", width = "100%"
     ),
     shiny::checkboxInput(
-      # 原文：新欄照欄名來源的值排序
-      ns("names_sort"), arg_label("\u65b0\u6b04\u7167\u6b04\u540d\u4f86\u6e90\u7684\u503c\u6392\u5e8f", "names_sort"),
+      # 原文：新直欄照直欄名稱來源的值排序
+      ns("names_sort"), arg_label("\u65b0\u76f4\u6b04\u7167\u76f4\u6b04\u540d\u7a31\u4f86\u6e90\u7684\u503c\u6392\u5e8f", "names_sort"),
       value = FALSE, width = "100%"
     ),
     shiny::tags$small(
       class = "kit-hint",
-      # 原文：不勾（tidyr 的預設）：新欄照資料裡第一次出現的順序，資料的列換了順序，欄的順序也會跟著換；
+      # 原文：不勾（tidyr 的預設）：新直欄照資料裡第一次出現的順序，資料的橫列換了順序，直欄的順序也會跟著換；
       #       勾了：照值排序（數字照大小；文字照字母，t10 排在 t2 前面）。
-      "\u4e0d\u52fe\uff08tidyr \u7684\u9810\u8a2d\uff09\uff1a\u65b0\u6b04\u7167\u8cc7\u6599\u88e1\u7b2c\u4e00\u6b21\u51fa\u73fe\u7684\u9806\u5e8f\uff0c\u8cc7\u6599\u7684\u5217\u63db\u4e86\u9806\u5e8f\uff0c\u6b04\u7684\u9806\u5e8f\u4e5f\u6703\u8ddf\u8457\u63db\uff1b",
+      "\u4e0d\u52fe\uff08tidyr \u7684\u9810\u8a2d\uff09\uff1a\u65b0\u76f4\u6b04\u7167\u8cc7\u6599\u88e1\u7b2c\u4e00\u6b21\u51fa\u73fe\u7684\u9806\u5e8f\uff0c\u8cc7\u6599\u7684\u6a6b\u5217\u63db\u4e86\u9806\u5e8f\uff0c\u76f4\u6b04\u7684\u9806\u5e8f\u4e5f\u6703\u8ddf\u8457\u63db\uff1b",
       "\u52fe\u4e86\uff1a\u7167\u503c\u6392\u5e8f\uff08\u6578\u5b57\u7167\u5927\u5c0f\uff1b\u6587\u5b57\u7167\u5b57\u6bcd\uff0ct10 \u6392\u5728 t2 \u524d\u9762\uff09\u3002"
     ),
     shiny::textInput(
@@ -234,10 +234,10 @@ wider_advanced_ui <- function(ns) {
     ),
     shiny::tags$small(
       class = "kit-hint",
-      # 原文：只填「沒有這一列」造成的空格；原本就空白的值不會被填。
-      "\u53ea\u586b\u300c\u6c92\u6709\u9019\u4e00\u5217\u300d\u9020\u6210\u7684\u7a7a\u683c\uff1b\u539f\u672c\u5c31\u7a7a\u767d\u7684\u503c\u4e0d\u6703\u88ab\u586b\u3002",
-      # 原文：數字只填進數值欄、文字只填進文字欄。
-      "\u6578\u5b57\u53ea\u586b\u9032\u6578\u503c\u6b04\u3001\u6587\u5b57\u53ea\u586b\u9032\u6587\u5b57\u6b04\u3002"
+      # 原文：只填「沒有這一個橫列」造成的空格；原本就空白的值不會被填。
+      "\u53ea\u586b\u300c\u6c92\u6709\u9019\u4e00\u500b\u6a6b\u5217\u300d\u9020\u6210\u7684\u7a7a\u683c\uff1b\u539f\u672c\u5c31\u7a7a\u767d\u7684\u503c\u4e0d\u6703\u88ab\u586b\u3002",
+      # 原文：數字只填進數值直欄、文字只填進文字直欄。
+      "\u6578\u5b57\u53ea\u586b\u9032\u6578\u503c\u76f4\u6b04\u3001\u6587\u5b57\u53ea\u586b\u9032\u6587\u5b57\u76f4\u6b04\u3002"
     )
   )
 }
@@ -388,14 +388,14 @@ mod_reshape_server <- function(id, files, working, goto) {
       shiny::tags$small(
         class = "kit-hint",
         paste0(
-          # 原文：目前用來辨認同一列的欄（ |  欄）：
-          "\u76ee\u524d\u7528\u4f86\u8fa8\u8a8d\u540c\u4e00\u5217\u7684\u6b04\uff08", kit_num(length(ids)), " \u6b04\uff09\uff1a",
+          # 原文：目前用來辨認同一個橫列的直欄（ |  直欄）：
+          "\u76ee\u524d\u7528\u4f86\u8fa8\u8a8d\u540c\u4e00\u500b\u6a6b\u5217\u7684\u76f4\u6b04\uff08", kit_num(length(ids)), " \u76f4\u6b04\uff09\uff1a",
           # 原文：、
           paste(utils::head(ids, 12), collapse = "\u3001"),
           # 原文： … | 。
           if (length(ids) > 12) " \u2026" else "", "\u3002",
-          # 原文：轉換後，這些欄的每一組值是一列。
-          "\u8f49\u63db\u5f8c\uff0c\u9019\u4e9b\u6b04\u7684\u6bcf\u4e00\u7d44\u503c\u662f\u4e00\u5217\u3002"
+          # 原文：轉換後，這些直欄的每一組值是一個橫列。
+          "\u8f49\u63db\u5f8c\uff0c\u9019\u4e9b\u76f4\u6b04\u7684\u6bcf\u4e00\u7d44\u503c\u662f\u4e00\u500b\u6a6b\u5217\u3002"
         )
       )
     })
@@ -407,8 +407,8 @@ mod_reshape_server <- function(id, files, working, goto) {
         class = "kit-preset mb-3",
         shiny::tags$p(
           class = "kit-hint",
-          # 原文：這個檔案看起來是 kitsUI 的分數表（一列 = 一次施測 × 一個領域）。
-          "\u9019\u500b\u6a94\u6848\u770b\u8d77\u4f86\u662f kitsUI \u7684\u5206\u6578\u8868\uff08\u4e00\u5217 = \u4e00\u6b21\u65bd\u6e2c \u00d7 \u4e00\u500b\u9818\u57df\uff09\u3002",
+          # 原文：這個檔案看起來是 kitsUI 的分數表（一個橫列 = 一次施測 × 一個領域）。
+          "\u9019\u500b\u6a94\u6848\u770b\u8d77\u4f86\u662f kitsUI \u7684\u5206\u6578\u8868\uff08\u4e00\u500b\u6a6b\u5217 = \u4e00\u6b21\u65bd\u6e2c \u00d7 \u4e00\u500b\u9818\u57df\uff09\u3002",
           # 原文：按下面的按鈕只會填好設定，不會自動執行；要填的值會多放 scale，
           "\u6309\u4e0b\u9762\u7684\u6309\u9215\u53ea\u6703\u586b\u597d\u8a2d\u5b9a\uff0c\u4e0d\u6703\u81ea\u52d5\u57f7\u884c\uff1b\u8981\u586b\u7684\u503c\u6703\u591a\u653e scale\uff0c",
           # 原文：d_score 空白時才分得出是沒測這個領域，還是有測但還沒放上 D 量尺。
@@ -451,10 +451,10 @@ mod_reshape_server <- function(id, files, working, goto) {
         if (is.null(picked())) return("\u9078\u8981\u8f49\u63db\u7684\u6a94\u6848")
         if (identical(input$direction, "longer")) {
           a <- longer()
-          # 原文：選要轉成長格式的欄
-          if (length(a$cols) == 0 && !isTRUE(a$cols_exclude)) return("\u9078\u8981\u8f49\u6210\u9577\u683c\u5f0f\u7684\u6b04")
-          # 原文：改「欄名怎麼變成值」的設定
-          if (!is.null(a$names_problem)) return("\u6539\u300c\u6b04\u540d\u600e\u9ebc\u8b8a\u6210\u503c\u300d\u7684\u8a2d\u5b9a")
+          # 原文：選要轉成長格式的直欄
+          if (length(a$cols) == 0 && !isTRUE(a$cols_exclude)) return("\u9078\u8981\u8f49\u6210\u9577\u683c\u5f0f\u7684\u76f4\u6b04")
+          # 原文：改「直欄名稱怎麼變成值」的設定
+          if (!is.null(a$names_problem)) return("\u6539\u300c\u76f4\u6b04\u540d\u7a31\u600e\u9ebc\u8b8a\u6210\u503c\u300d\u7684\u8a2d\u5b9a")
           return(character(0))
         }
         w <- wider()
@@ -480,18 +480,18 @@ mod_reshape_server <- function(id, files, working, goto) {
           n <- length(a$cols)
           # 原文：寬轉長
           c("\u5bec\u8f49\u9577", if (n > 0) {
-            # 原文：不轉  | 轉  |  欄
-            paste0(if (isTRUE(a$cols_exclude)) "\u4e0d\u8f49 " else "\u8f49 ", kit_num(n), " \u6b04")
+            # 原文：不轉  | 轉  |  直欄
+            paste0(if (isTRUE(a$cols_exclude)) "\u4e0d\u8f49 " else "\u8f49 ", kit_num(n), " \u76f4\u6b04")
           } else {
-            # 原文：還沒選要轉的欄
-            "\u9084\u6c92\u9078\u8981\u8f49\u7684\u6b04"
+            # 原文：還沒選要轉的直欄
+            "\u9084\u6c92\u9078\u8981\u8f49\u7684\u76f4\u6b04"
           })
         } else {
           w <- wider()
           # 原文：長轉寬
           c("\u9577\u8f49\u5bec",
-            # 原文：新欄名來自  | 、
-            if (length(w$names_from) > 0) paste0("\u65b0\u6b04\u540d\u4f86\u81ea ", paste(w$names_from, collapse = "\u3001")),
+            # 原文：新直欄名稱來自  | 、
+            if (length(w$names_from) > 0) paste0("\u65b0\u76f4\u6b04\u540d\u7a31\u4f86\u81ea ", paste(w$names_from, collapse = "\u3001")),
             if (length(w$values_from) > 0) {
               # 原文：填入  | 、
               paste0("\u586b\u5165 ", paste(w$values_from, collapse = "\u3001"))
@@ -543,10 +543,10 @@ mod_reshape_server <- function(id, files, working, goto) {
                 class = "kit-hint",
                 # 原文：轉成寬格式後，下面兩種情況都會是空白：
                 "\u8f49\u6210\u5bec\u683c\u5f0f\u5f8c\uff0c\u4e0b\u9762\u5169\u7a2e\u60c5\u6cc1\u90fd\u6703\u662f\u7a7a\u767d\uff1a",
-                # 原文：「沒有這一列」＝原檔沒有這組（辨認同一列的欄 ×  | ）的列；
-                "\u300c\u6c92\u6709\u9019\u4e00\u5217\u300d\uff1d\u539f\u6a94\u6c92\u6709\u9019\u7d44\uff08\u8fa8\u8a8d\u540c\u4e00\u5217\u7684\u6b04 \u00d7 ", names(res$empty)[1], "\uff09\u7684\u5217\uff1b",
-                # 原文：「有列但空白」＝有這一列，但值本來就是空的。
-                "\u300c\u6709\u5217\u4f46\u7a7a\u767d\u300d\uff1d\u6709\u9019\u4e00\u5217\uff0c\u4f46\u503c\u672c\u4f86\u5c31\u662f\u7a7a\u7684\u3002"
+                # 原文：「沒有這一個橫列」＝原檔沒有這組（辨認同一個橫列的直欄 ×  | ）的橫列；
+                "\u300c\u6c92\u6709\u9019\u4e00\u500b\u6a6b\u5217\u300d\uff1d\u539f\u6a94\u6c92\u6709\u9019\u7d44\uff08\u8fa8\u8a8d\u540c\u4e00\u500b\u6a6b\u5217\u7684\u76f4\u6b04 \u00d7 ", names(res$empty)[1], "\uff09\u7684\u6a6b\u5217\uff1b",
+                # 原文：「有橫列但空白」＝有這一個橫列，但值本來就是空的。
+                "\u300c\u6709\u6a6b\u5217\u4f46\u7a7a\u767d\u300d\uff1d\u6709\u9019\u4e00\u500b\u6a6b\u5217\uff0c\u4f46\u503c\u672c\u4f86\u5c31\u662f\u7a7a\u7684\u3002"
               ),
               shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("empty_table")))
             )
@@ -554,8 +554,8 @@ mod_reshape_server <- function(id, files, working, goto) {
           if (is_wider && !res$id_check$ok) {
             kit_audit_detail(
               shiny::h6(paste0(
-                # 原文：辨認同一列的欄不一致的列（ | ）
-                "\u8fa8\u8a8d\u540c\u4e00\u5217\u7684\u6b04\u4e0d\u4e00\u81f4\u7684\u5217\uff08", kit_rows_note(nrow(res$id_check$rows), NULL, 50), "\uff09"
+                # 原文：辨認同一個橫列的直欄不一致的橫列（ | ）
+                "\u8fa8\u8a8d\u540c\u4e00\u500b\u6a6b\u5217\u7684\u76f4\u6b04\u4e0d\u4e00\u81f4\u7684\u6a6b\u5217\uff08", kit_rows_note(nrow(res$id_check$rows), NULL, 50), "\uff09"
               )),
               shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("id_rows")))
             )
@@ -584,8 +584,8 @@ mod_reshape_server <- function(id, files, working, goto) {
       dup <- blocked()
       if (is.null(dup)) return(NULL)
       shiny::tagList(
-        # 原文：重複的列（ | ）
-        shiny::h5(paste0("\u91cd\u8907\u7684\u5217\uff08", kit_rows_note(nrow(dup$rows), NULL, 50), "\uff09")),
+        # 原文：重複的橫列（ | ）
+        shiny::h5(paste0("\u91cd\u8907\u7684\u6a6b\u5217\uff08", kit_rows_note(nrow(dup$rows), NULL, 50), "\uff09")),
         shiny::tags$div(
           class = "kit-table-scroll",
           shiny::tableOutput(ns("blocked_rows"))
@@ -668,8 +668,8 @@ reshape_diagram <- function() {
     # 原文：⇄
     arrow = "\u21c4",
     caption = paste0(
-      # 原文：寬轉長：每人一列、各題並排，變成每人每題一列（空白的值也留一列）；
-      "\u5bec\u8f49\u9577\uff1a\u6bcf\u4eba\u4e00\u5217\u3001\u5404\u984c\u4e26\u6392\uff0c\u8b8a\u6210\u6bcf\u4eba\u6bcf\u984c\u4e00\u5217\uff08\u7a7a\u767d\u7684\u503c\u4e5f\u7559\u4e00\u5217\uff09\uff1b",
+      # 原文：寬轉長：每人一個橫列、各題並排，變成每人每題一個橫列（空白的值也留一個橫列）；
+      "\u5bec\u8f49\u9577\uff1a\u6bcf\u4eba\u4e00\u500b\u6a6b\u5217\u3001\u5404\u984c\u4e26\u6392\uff0c\u8b8a\u6210\u6bcf\u4eba\u6bcf\u984c\u4e00\u500b\u6a6b\u5217\uff08\u7a7a\u767d\u7684\u503c\u4e5f\u7559\u4e00\u500b\u6a6b\u5217\uff09\uff1b",
       # 原文：長轉寬則倒過來
       "\u9577\u8f49\u5bec\u5247\u5012\u904e\u4f86"
     )

@@ -144,18 +144,18 @@ code_kitsdata_source <- function(objs, tf) {
     d <- t$det
     if (t$kind == "wave_num") {
       return(c(
-        # 原文：# 波次欄  |  是文字：取出裡面的數字當時間點（wave_m）
-        # 原文：# 波次欄  |  是文字：取出裡面的數字當時間點（wave_m）
-        paste0("# \u6ce2\u6b21\u6b04 ", d$col, " \u662f\u6587\u5b57\uff1a\u53d6\u51fa\u88e1\u9762\u7684\u6578\u5b57\u7576\u6642\u9593\u9ede\uff08wave_m\uff09"),
+        # 原文：# 波次直欄  |  是文字：取出裡面的數字當時間點（wave_m）
+        # 原文：# 波次直欄  |  是文字：取出裡面的數字當時間點（wave_m）
+        paste0("# \u6ce2\u6b21\u76f4\u6b04 ", d$col, " \u662f\u6587\u5b57\uff1a\u53d6\u51fa\u88e1\u9762\u7684\u6578\u5b57\u7576\u6642\u9593\u9ede\uff08wave_m\uff09"),
         paste0(obj, " <- mutate(", obj, ", ", d$new, " = parse_number(as.character(", r_col(d$col), ")))")
       ))
     }
     label_col <- d$label_col
     names_to <- if (d$side == "suffix") c(".value", label_col) else c(label_col, ".value")
     c(
-      # 原文：# 多波寬檔：同一題各波次一欄（ | 、 | …）→ 一列一個孩子的一個波次；
-      # 原文：# 多波寬檔：同一題各波次一欄（ | 、 | …）→ 一列一個孩子的一個波次；
-      paste0("# \u591a\u6ce2\u5bec\u6a94\uff1a\u540c\u4e00\u984c\u5404\u6ce2\u6b21\u4e00\u6b04\uff08", paste(utils::head(d$cols, 2), collapse = "\u3001"), "\u2026\uff09\u2192 \u4e00\u5217\u4e00\u500b\u5b69\u5b50\u7684\u4e00\u500b\u6ce2\u6b21\uff1b"),
+      # 原文：# 多波寬檔：同一題各波次一個直欄（ | 、 | …）→ 一個橫列一個孩子的一個波次；
+      # 原文：# 多波寬檔：同一題各波次一個直欄（ | 、 | …）→ 一個橫列一個孩子的一個波次；
+      paste0("# \u591a\u6ce2\u5bec\u6a94\uff1a\u540c\u4e00\u984c\u5404\u6ce2\u6b21\u4e00\u500b\u76f4\u6b04\uff08", paste(utils::head(d$cols, 2), collapse = "\u3001"), "\u2026\uff09\u2192 \u4e00\u500b\u6a6b\u5217\u4e00\u500b\u5b69\u5b50\u7684\u4e00\u500b\u6ce2\u6b21\uff1b"),
       # 原文：# 波次記號放進  | ，裡面的數字放進 wave_m
       # 原文：# 波次記號放進  | ，裡面的數字放進 
       paste0("# \u6ce2\u6b21\u8a18\u865f\u653e\u9032 ", label_col, "\uff0c\u88e1\u9762\u7684\u6578\u5b57\u653e\u9032 ", d$wave_col),
@@ -189,9 +189,9 @@ kits_wave_suffix_warning <- function(dfs, file_names, items) {
       # 原文：： | 、 |  這類題目只差在波次記號（ | ），會被當成不同的題、
       # 原文：： | 、 |  這類題目只差在波次記號（ | 、 | ），會被當成不同的題、
       name, "\uff1a", paste(utils::head(det$cols, 2), collapse = "\u3001"), " \u9019\u985e\u984c\u76ee\u53ea\u5dee\u5728\u6ce2\u6b21\u8a18\u865f\uff08", paste(utils::head(det$waves, 3), collapse = "\u3001"), "\uff09\uff0c\u6703\u88ab\u7576\u6210\u4e0d\u540c\u7684\u984c\u3001",
-      # 原文：放在同一個時間點。如果它們是同一題的不同波次，請在這一頁最上面把這個檔案「轉成一列一個波次」。
-      # 原文：放在同一個時間點。如果它們是同一題的不同波次，請在這一頁最上面把這個檔案「轉成一列一個波次」。
-      "\u653e\u5728\u540c\u4e00\u500b\u6642\u9593\u9ede\u3002\u5982\u679c\u5b83\u5011\u662f\u540c\u4e00\u984c\u7684\u4e0d\u540c\u6ce2\u6b21\uff0c\u8acb\u5728\u9019\u4e00\u9801\u6700\u4e0a\u9762\u628a\u9019\u500b\u6a94\u6848\u300c\u8f49\u6210\u4e00\u5217\u4e00\u500b\u6ce2\u6b21\u300d\u3002"
+      # 原文：放在同一個時間點。如果它們是同一題的不同波次，請在這一頁最上面把這個檔案「轉成一個橫列一個波次」。
+      # 原文：放在同一個時間點。如果它們是同一題的不同波次，請在這一頁最上面把這個檔案「轉成一個橫列一個波次」。
+      "\u653e\u5728\u540c\u4e00\u500b\u6642\u9593\u9ede\u3002\u5982\u679c\u5b83\u5011\u662f\u540c\u4e00\u984c\u7684\u4e0d\u540c\u6ce2\u6b21\uff0c\u8acb\u5728\u9019\u4e00\u9801\u6700\u4e0a\u9762\u628a\u9019\u500b\u6a94\u6848\u300c\u8f49\u6210\u4e00\u500b\u6a6b\u5217\u4e00\u500b\u6ce2\u6b21\u300d\u3002"
     )
   })
   out <- out[!is.na(out)]

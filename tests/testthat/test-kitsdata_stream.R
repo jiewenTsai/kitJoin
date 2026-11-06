@@ -142,8 +142,8 @@ test_that("在寬資料上檢查：擋下的情況和舊做法相同", {
   old <- kits_build_old(dfs, c("a", "b", "c"), spec)
   new <- kits_build(dfs, c("a", "b", "c"), spec)
   expect_null(new$prep)
-  expect_match(old$problems, "同一列次同一題有好幾列", all = FALSE)
-  expect_match(new$problems, "同一列次同一題有好幾列", all = FALSE)
+  expect_match(old$problems, "同一列次同一題有好幾橫列", all = FALSE)
+  expect_match(new$problems, "同一列次同一題有好幾橫列", all = FALSE)
   expect_match(new$problems, "K003", all = FALSE)
   path <- withr::local_tempfile(fileext = ".csv.gz")
   expect_no_error(write_kits_long_gz(dfs, spec, path))   # 寫檔本身不重做重複的檢查

@@ -124,8 +124,8 @@ test_that("保留哪些欄：挑要保留的、挑要拿掉的、沒挑＝全部
   expect_null(none$keep_cols)
   expect_false(none$active)
   all_out <- filter_spec_clean(list(keep_mode = "exclude", keep_cols = names(df)), df)
-  expect_match(all_out$problems, "至少要保留一欄")
-  expect_equal(filter_keep_count_text(names(df), "exclude", "city"), "保留 4 欄，拿掉 1 欄（city）。")
+  expect_match(all_out$problems, "至少要保留一個直欄")
+  expect_equal(filter_keep_count_text(names(df), "exclude", "city"), "保留 4 直欄，拿掉 1 直欄（city）。")
 
   # 依拿掉的欄排序；desc() 由大到小，空白排最後
   spec <- filter_spec_clean(list(
@@ -165,17 +165,17 @@ test_that("每個檔案各自設定；沒有設定的檔案原樣留著；沒填
   expect_identical(out$data[[1]], dfs[[1]])
   expect_equal(out$data[[2]]$id, c(1L, 3L))
   expect_equal(out$report[["有設定"]], c("否（原樣往後傳）", "是"))
-  expect_equal(out$report[["保留列數"]], c(8L, 2L))
+  expect_equal(out$report[["保留橫列數"]], c(8L, 2L))
   expect_equal(out$report[["其中因為空白（判斷不了）而排除"]], c(0L, 1L))
-  expect_match(out$warnings, "t2（b.csv）：有 1 列因為條件用到的欄是空白")
+  expect_match(out$warnings, "t2（b.csv）：有 1 橫列因為條件用到的直欄是空白")
   expect_match(out$points[1], "沒有設定，原樣往後傳")
-  expect_match(out$points[2], "3 列 → 保留 2 列（排除 1 列）")
+  expect_match(out$points[2], "3 橫列 → 保留 2 橫列（排除 1 橫列）")
 
   expect_error(filter_files(dfs, list(NULL, NULL), c("a", "b")), "還沒有設定")
   bad <- filter_spec_clean(list(conds = list(list(col = "y", op = "gt"))), dfs[[2]])
   expect_error(filter_files(dfs, list(NULL, bad), c("a", "b")), "b：條件 1（y）：還沒填數字")
   nocol <- filter_spec_clean(list(conds = list(list(col = ""))), dfs[[2]])
-  expect_equal(nocol$problems, "條件 1：還沒選欄")
+  expect_equal(nocol$problems, "條件 1：還沒選直欄")
 })
 
 test_that("篩選後沒有任何列：不會出錯，狀態框說清楚", {
@@ -184,7 +184,7 @@ test_that("篩選後沒有任何列：不會出錯，狀態框說清楚", {
   out <- filter_files(list(df), list(spec), "t1")
   expect_equal(nrow(out$data[[1]]), 0)
   expect_equal(names(out$data[[1]]), names(df))
-  expect_true(any(grepl("篩選後沒有任何列", out$warnings)))
+  expect_true(any(grepl("篩選後沒有任何橫列", out$warnings)))
   # 摘要也不會出錯：沒有列
   expect_equal(nrow(summary_table(out$data[[1]], "sex", "score")), 0)
 })
@@ -277,7 +277,7 @@ test_that("範例檔（inst/extdata）：篩選與摘要的程式碼結果和 ap
   specs <- purrr::map2(raws, dfs, function(raw, df) if (!is.null(raw)) filter_spec_clean(raw, df))
   shown <- paste0(c("t1", "t2", "t3"), "（", files, "）")
   app <- filter_files(dfs, specs, shown)
-  expect_true(all(app$report[["保留列數"]] > 0))
+  expect_true(all(app$report[["保留橫列數"]] > 0))
   for (in_place in c(TRUE, FALSE)) {
     lines <- c("library(dplyr)", "library(tidyr)", code_filter(f, specs, shown, in_place))
     env <- run_filter_code(dir, f, lines)

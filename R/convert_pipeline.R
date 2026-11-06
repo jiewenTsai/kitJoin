@@ -248,8 +248,8 @@ convert_df <- function(path, name, kind, out, target, labels_as_text = FALSE, di
     renamed <- sav_renamed_cols(names(data))
     if (length(renamed) > 0) {
       notes <- c(notes, paste0(
-        # 原文：有  |  個欄名不符合 SPSS 規則，已改名：
-        "\u6709 ", kit_num(length(renamed)), " \u500b\u6b04\u540d\u4e0d\u7b26\u5408 SPSS \u898f\u5247\uff0c\u5df2\u6539\u540d\uff1a",
+        # 原文：有  |  個直欄名稱不符合 SPSS 規則，已改名：
+        "\u6709 ", kit_num(length(renamed)), " \u500b\u76f4\u6b04\u540d\u7a31\u4e0d\u7b26\u5408 SPSS \u898f\u5247\uff0c\u5df2\u6539\u540d\uff1a",
         # 原文：→ | 、 | 。
         paste(paste(names(renamed), "\u2192", renamed), collapse = "\u3001"), "\u3002"
       ))
@@ -327,8 +327,8 @@ convert_summary_table <- function(res) {
     "\u6a94\u6848" = res$name,
     # 原文：轉成
     "\u8f49\u6210" = res$out_name,
-    # 原文：列 × 欄
-    "\u5217 \u00d7 \u6b04" = kit_dims(res$nrow, res$ncol),
+    # 原文：橫列 × 直欄
+    "\u6a6b\u5217 \u00d7 \u76f4\u6b04" = kit_dims(res$nrow, res$ncol),
     # 原文：原始大小
     "\u539f\u59cb\u5927\u5c0f" = format_bytes(res$size_before),
     # 原文：轉換後大小

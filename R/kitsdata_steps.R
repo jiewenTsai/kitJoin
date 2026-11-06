@@ -10,8 +10,8 @@
 KITS_STEP1_MAIN <- c("cohort", "wave_m", "subj_id")
 KITS_STEP1_MORE <- c("sex", "age_m", "wave", "visit_id")
 KITS_STEP1_LABELS <- c(
-  # 原文：世代 | 波次（時間點） | 孩子編號在哪一欄
-  cohort = "\u4e16\u4ee3", wave_m = "\u6ce2\u6b21\uff08\u6642\u9593\u9ede\uff09", subj_id = "\u5b69\u5b50\u7de8\u865f\u5728\u54ea\u4e00\u6b04",
+  # 原文：世代 | 波次（時間點） | 孩子編號在哪一個直欄
+  cohort = "\u4e16\u4ee3", wave_m = "\u6ce2\u6b21\uff08\u6642\u9593\u9ede\uff09", subj_id = "\u5b69\u5b50\u7de8\u865f\u5728\u54ea\u4e00\u500b\u76f4\u6b04",
   # 原文：性別 | 實際月齡 | 波次標籤 | 列次編號
   sex = "\u6027\u5225", age_m = "\u5be6\u969b\u6708\u9f61", wave = "\u6ce2\u6b21\u6a19\u7c64", visit_id = "\u5217\u6b21\u7de8\u865f"
 )
@@ -110,8 +110,8 @@ kits_step1_spec <- function(dfs, file_names, cells) {
   if (any(!nzchar(coh))) {
     # 原文：世代還沒填： | 、
     problems <- c(problems, paste0("\u4e16\u4ee3\u9084\u6c92\u586b\uff1a", paste(file_names[!nzchar(coh)], collapse = "\u3001"),
-                                   # 原文：（例如 M03；也可以選檔案裡的世代欄）。
-                                   "\uff08\u4f8b\u5982 M03\uff1b\u4e5f\u53ef\u4ee5\u9078\u6a94\u6848\u88e1\u7684\u4e16\u4ee3\u6b04\uff09\u3002"))
+                                   # 原文：（例如 M03；也可以選檔案裡的世代直欄）。
+                                   "\uff08\u4f8b\u5982 M03\uff1b\u4e5f\u53ef\u4ee5\u9078\u6a94\u6848\u88e1\u7684\u4e16\u4ee3\u76f4\u6b04\uff09\u3002"))
   }
 
   map <- stats::setNames(as.list(rep("", nrow(KITS_MAP_ROWS))), KITS_MAP_ROWS$field)
@@ -134,8 +134,8 @@ kits_step1_spec <- function(dfs, file_names, cells) {
       } else if (row$per_file) {
         per_file[[field]] <- v
       } else {
-        # 原文：：每個檔案要選同一個欄名。
-        problems <- c(problems, paste0(label, "\uff1a\u6bcf\u500b\u6a94\u6848\u8981\u9078\u540c\u4e00\u500b\u6b04\u540d\u3002"))
+        # 原文：：每個檔案要選同一個直欄名稱。
+        problems <- c(problems, paste0(label, "\uff1a\u6bcf\u500b\u6a94\u6848\u8981\u9078\u540c\u4e00\u500b\u76f4\u6b04\u540d\u7a31\u3002"))
       }
       if (any(empty) && (row$required || field == "subj_id")) {
         # 原文：還沒選： | 、 | 。
@@ -143,10 +143,10 @@ kits_step1_spec <- function(dfs, file_names, cells) {
       }
     } else if (!any(col)) {
       if (!row$typed) {
-        # 原文：要選檔案裡的一欄（「
-        problems <- c(problems, paste0(label, "\u8981\u9078\u6a94\u6848\u88e1\u7684\u4e00\u6b04\uff08\u300c", v[!empty][1],
-                                       # 原文：」不是欄名）。
-                                       "\u300d\u4e0d\u662f\u6b04\u540d\uff09\u3002"))
+        # 原文：要選檔案裡的一個直欄（「
+        problems <- c(problems, paste0(label, "\u8981\u9078\u6a94\u6848\u88e1\u7684\u4e00\u500b\u76f4\u6b04\uff08\u300c", v[!empty][1],
+                                       # 原文：」不是直欄名稱）。
+                                       "\u300d\u4e0d\u662f\u76f4\u6b04\u540d\u7a31\uff09\u3002"))
       } else if (any(empty)) {
         # 原文：還沒填： | 、 | 。
         problems <- c(problems, paste0(label, "\u9084\u6c92\u586b\uff1a", paste(file_names[empty], collapse = "\u3001"), "\u3002"))
@@ -155,8 +155,8 @@ kits_step1_spec <- function(dfs, file_names, cells) {
       }
     } else {
       problems <- c(problems, paste0(
-        # 原文：：有的檔案選了欄、有的填了值。請每個檔案都選欄，或每個檔案都填值。
-        label, "\uff1a\u6709\u7684\u6a94\u6848\u9078\u4e86\u6b04\u3001\u6709\u7684\u586b\u4e86\u503c\u3002\u8acb\u6bcf\u500b\u6a94\u6848\u90fd\u9078\u6b04\uff0c\u6216\u6bcf\u500b\u6a94\u6848\u90fd\u586b\u503c\u3002"
+        # 原文：：有的檔案選了直欄、有的填了值。請每個檔案都選直欄，或每個檔案都填值。
+        label, "\uff1a\u6709\u7684\u6a94\u6848\u9078\u4e86\u76f4\u6b04\u3001\u6709\u7684\u586b\u4e86\u503c\u3002\u8acb\u6bcf\u500b\u6a94\u6848\u90fd\u9078\u76f4\u6b04\uff0c\u6216\u6bcf\u500b\u6a94\u6848\u90fd\u586b\u503c\u3002"
       ))
     }
   }
@@ -188,16 +188,16 @@ kits_step1_summary <- function(cells, n_files, unit, spec = NULL) {
   paste0(
     # 原文： 個檔案
     n_files, " \u500b\u6a94\u6848",
-    # 原文： · 世代在  |  欄 |  · 世代 
-    if (coh_col) paste0(" \u00b7 \u4e16\u4ee3\u5728 ", some(coh, 3), " \u6b04") else paste0(" \u00b7 \u4e16\u4ee3 ", some(coh, 3)),
-    # 原文： · 時間點在  |  欄 |  · 
-    if (wave_col) paste0(" \u00b7 \u6642\u9593\u9ede\u5728 ", some(wave, 3), " \u6b04") else paste0(" \u00b7 ", some(wave, 6)),
+    # 原文： · 世代在  |  直欄 |  · 世代 
+    if (coh_col) paste0(" \u00b7 \u4e16\u4ee3\u5728 ", some(coh, 3), " \u76f4\u6b04") else paste0(" \u00b7 \u4e16\u4ee3 ", some(coh, 3)),
+    # 原文： · 時間點在  |  直欄 |  · 
+    if (wave_col) paste0(" \u00b7 \u6642\u9593\u9ede\u5728 ", some(wave, 3), " \u76f4\u6b04") else paste0(" \u00b7 ", some(wave, 6)),
     # 原文：（ | ）
     if (nzchar(short)) paste0("\uff08", short, "\uff09"),
     # 原文： · 孩子編號 
     if (length(subj) == 1) paste0(" \u00b7 \u5b69\u5b50\u7de8\u865f ", subj) else if (length(subj) > 1)
-      # 原文： · 孩子編號  |  等  |  欄
-      paste0(" \u00b7 \u5b69\u5b50\u7de8\u865f ", subj[1], " \u7b49 ", length(subj), " \u6b04")
+      # 原文： · 孩子編號  |  等  |  直欄
+      paste0(" \u00b7 \u5b69\u5b50\u7de8\u865f ", subj[1], " \u7b49 ", length(subj), " \u76f4\u6b04")
   )
 }
 
@@ -218,8 +218,8 @@ kits_step2_counts <- function(settings) {
   merged <- if (n_items != nrow(inc)) paste0(" \u2192 \u5408\u6210 ", kit_num(n_items), " \u984c")
   # 原文：還沒有挑題目
   text <- if (nrow(inc) == 0) "\u9084\u6c92\u6709\u6311\u984c\u76ee" else paste0(
-    # 原文：挑出  |  欄
-    "\u6311\u51fa ", kit_num(nrow(inc)), " \u6b04", merged,
+    # 原文：挑出  |  直欄
+    "\u6311\u51fa ", kit_num(nrow(inc)), " \u76f4\u6b04", merged,
     if (length(by_domain) > 0) paste0(
       # 原文：（ |  題 | 、 | ）
       "\uff08", paste0(names(by_domain), " ", as.integer(by_domain), " \u984c", collapse = "\u3001"), "\uff09"
@@ -227,8 +227,8 @@ kits_step2_counts <- function(settings) {
   )
   # 原文：還沒有挑題目
   pick_text <- if (nrow(inc) == 0) "\u9084\u6c92\u6709\u6311\u984c\u76ee" else paste0(
-    # 原文：挑出  |  欄、 |  組
-    "\u6311\u51fa ", kit_num(nrow(inc)), " \u6b04\u3001", kit_num(n_groups), " \u7d44", merged
+    # 原文：挑出  |  直欄、 |  組
+    "\u6311\u51fa ", kit_num(nrow(inc)), " \u76f4\u6b04\u3001", kit_num(n_groups), " \u7d44", merged
   )
   list(n_cols = nrow(inc), n_groups = n_groups, n_items = n_items, by_domain = by_domain,
        text = text, pick_text = pick_text)
@@ -280,13 +280,13 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
       # 原文：沒有看起來像遺漏值代碼的值
       "\u6c92\u6709\u770b\u8d77\u4f86\u50cf\u907a\u6f0f\u503c\u4ee3\u78bc\u7684\u503c")
   } else if (identical(ack$codes, n_cells)) {
-    # 原文： 欄的  |  照原樣當成分數（你選的）
-    out$codes <- row("codes", "ok", paste0(n_cols, " \u6b04\u7684 ", val_txt, " \u7167\u539f\u6a23\u7576\u6210\u5206\u6578\uff08\u4f60\u9078\u7684\uff09"))
+    # 原文： 直欄的  |  照原樣當成分數（你選的）
+    out$codes <- row("codes", "ok", paste0(n_cols, " \u76f4\u6b04\u7684 ", val_txt, " \u7167\u539f\u6a23\u7576\u6210\u5206\u6578\uff08\u4f60\u9078\u7684\uff09"))
   } else {
     out$codes <- row(
       "codes", "todo",
-      # 原文： 欄有 | 有 | 遺漏值代碼 
-      paste0(if (n_cols > 0) paste0(n_cols, " \u6b04\u6709") else "\u6709", "\u907a\u6f0f\u503c\u4ee3\u78bc ", val_txt,
+      # 原文： 直欄有 | 有 | 遺漏值代碼 
+      paste0(if (n_cols > 0) paste0(n_cols, " \u76f4\u6b04\u6709") else "\u6709", "\u907a\u6f0f\u503c\u4ee3\u78bc ", val_txt,
              # 原文：（共  |  格）
              "\uff08\u5171 ", kit_num(n_cells), " \u683c\uff09"),
       # 原文：不處理的話，kits 會把  |  當成分數。
@@ -300,8 +300,8 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   tops <- purrr::map_dbl(inc$score, function(s) if (all(is.na(s))) NA_real_ else max(s, na.rm = TRUE))
   if (!is.null(m) && !identical(ack$shift, m)) {
     out$shift <- row(
-      # 原文： 欄的分數都從  |  開始
-      "shift", "todo", paste0(nrow(inc), " \u6b04\u7684\u5206\u6578\u90fd\u5f9e ", kits_id_text(m), " \u958b\u59cb"),
+      # 原文： 直欄的分數都從  |  開始
+      "shift", "todo", paste0(nrow(inc), " \u76f4\u6b04\u7684\u5206\u6578\u90fd\u5f9e ", kits_id_text(m), " \u958b\u59cb"),
       # 原文：kits 要從 0 開始。全部減  |  之後是 0–
       paste0("kits \u8981\u5f9e 0 \u958b\u59cb\u3002\u5168\u90e8\u6e1b ", kits_id_text(m), " \u4e4b\u5f8c\u662f 0\u2013",
              # 原文：。
@@ -317,8 +317,8 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
                                            "\uff0c\u73fe\u5728\u5f9e 0 \u958b\u59cb"))
   } else if (any(mins > 0, na.rm = TRUE)) {
     k <- sum(mins > 0, na.rm = TRUE)
-    # 原文： 欄沒有 0 分
-    out$shift <- row("shift", "note", paste0(k, " \u6b04\u6c92\u6709 0 \u5206"),
+    # 原文： 直欄沒有 0 分
+    out$shift <- row("shift", "note", paste0(k, " \u76f4\u6b04\u6c92\u6709 0 \u5206"),
                      # 原文：最低分不一樣，不能一次全部減；需要的話在下面的題目表裡一題一題改。
                      "\u6700\u4f4e\u5206\u4e0d\u4e00\u6a23\uff0c\u4e0d\u80fd\u4e00\u6b21\u5168\u90e8\u6e1b\uff1b\u9700\u8981\u7684\u8a71\u5728\u4e0b\u9762\u7684\u984c\u76ee\u8868\u88e1\u4e00\u984c\u4e00\u984c\u6539\u3002")
   } else {
@@ -329,8 +329,8 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   # 領域：還沒有領域的要設；還是預設組名的，要按一下才算決定（ack$dom_default 是當時的樣子）
   und <- kits_settings_undecided(settings)
   if (length(und) > 0) {
-    # 原文： 欄還沒有領域
-    out$domain <- row("domain", "todo", paste0(length(und), " \u6b04\u9084\u6c92\u6709\u9818\u57df"),
+    # 原文： 直欄還沒有領域
+    out$domain <- row("domain", "todo", paste0(length(und), " \u76f4\u6b04\u9084\u6c92\u6709\u9818\u57df"),
                       # 原文：每一題都要有領域（例如 distress）。可以一次設好，或在題目表裡一題一題設。
                       "\u6bcf\u4e00\u984c\u90fd\u8981\u6709\u9818\u57df\uff08\u4f8b\u5982 distress\uff09\u3002\u53ef\u4ee5\u4e00\u6b21\u8a2d\u597d\uff0c\u6216\u5728\u984c\u76ee\u8868\u88e1\u4e00\u984c\u4e00\u984c\u8a2d\u3002")
   }
@@ -342,8 +342,8 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
     } else {
       out$dom_default <- row(
         "dom_default", "todo",
-        # 原文：有  |  欄的領域還是預設的組名（例如 
-        paste0("\u6709 ", kit_num(length(dd)), " \u6b04\u7684\u9818\u57df\u9084\u662f\u9810\u8a2d\u7684\u7d44\u540d\uff08\u4f8b\u5982 ",
+        # 原文：有  |  直欄的領域還是預設的組名（例如 
+        paste0("\u6709 ", kit_num(length(dd)), " \u76f4\u6b04\u7684\u9818\u57df\u9084\u662f\u9810\u8a2d\u7684\u7d44\u540d\uff08\u4f8b\u5982 ",
                # 原文：）
                inc$domain[match(dd[1], inc$column)], "\uff09"),
         # 原文：kitsUI 會照領域分量尺。不改也能轉換。
@@ -357,15 +357,15 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   # 計分有缺、小數、負分
   no_score <- purrr::map_lgl(inc$score, anyNA)
   if (any(no_score)) {
-    # 原文： 欄有原分數沒有計分
-    out$unscored <- row("unscored", "todo", paste0(sum(no_score), " \u6b04\u6709\u539f\u5206\u6578\u6c92\u6709\u8a08\u5206"),
+    # 原文： 直欄有原分數沒有計分
+    out$unscored <- row("unscored", "todo", paste0(sum(no_score), " \u76f4\u6b04\u6709\u539f\u5206\u6578\u6c92\u6709\u8a08\u5206"),
                         # 原文：在下面的題目表裡補上計分（合併或還原）。
                         "\u5728\u4e0b\u9762\u7684\u984c\u76ee\u8868\u88e1\u88dc\u4e0a\u8a08\u5206\uff08\u5408\u4f75\u6216\u9084\u539f\uff09\u3002")
   }
   frac <- purrr::map_lgl(inc$raw, function(r) any(r != round(r)))
   out$frac <- if (any(frac)) {
-    # 原文： 欄的分數有小數（可能不是題目）
-    row("frac", "todo", paste0(sum(frac), " \u6b04\u7684\u5206\u6578\u6709\u5c0f\u6578\uff08\u53ef\u80fd\u4e0d\u662f\u984c\u76ee\uff09"),
+    # 原文： 直欄的分數有小數（可能不是題目）
+    row("frac", "todo", paste0(sum(frac), " \u76f4\u6b04\u7684\u5206\u6578\u6709\u5c0f\u6578\uff08\u53ef\u80fd\u4e0d\u662f\u984c\u76ee\uff09"),
         # 原文：、
         paste(utils::head(inc$column[frac], 5), collapse = "\u3001"))
   } else {
@@ -374,8 +374,8 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   }
   neg <- purrr::map_lgl(inc$score, function(s) any(s < 0, na.rm = TRUE))
   if (any(neg)) {
-    # 原文： 欄有負分
-    out$neg <- row("neg", "note", paste0(sum(neg), " \u6b04\u6709\u8ca0\u5206"),
+    # 原文： 直欄有負分
+    out$neg <- row("neg", "note", paste0(sum(neg), " \u76f4\u6b04\u6709\u8ca0\u5206"),
                    # 原文：如果負數是遺漏值代碼，請先用「遺漏值處理」改成 NA。
                    "\u5982\u679c\u8ca0\u6578\u662f\u907a\u6f0f\u503c\u4ee3\u78bc\uff0c\u8acb\u5148\u7528\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u6539\u6210 NA\u3002")
   }
@@ -407,8 +407,8 @@ kits_step3_checks <- function(settings, side_cells = 0, na_applied = FALSE, ack 
   if (isTRUE(reverse_used)) {
     # 原文：題目表（原題
     rev <- sum(!is.na(inc$source) & startsWith(inc$source, "\u984c\u76ee\u8868\uff08\u539f\u984c"))
-    # 原文： 欄是反向題，用原題的領域
-    out$reverse <- row("reverse", "ok", if (rev > 0) paste0(rev, " \u6b04\u662f\u53cd\u5411\u984c\uff0c\u7528\u539f\u984c\u7684\u9818\u57df") else
+    # 原文： 直欄是反向題，用原題的領域
+    out$reverse <- row("reverse", "ok", if (rev > 0) paste0(rev, " \u76f4\u6b04\u662f\u53cd\u5411\u984c\uff0c\u7528\u539f\u984c\u7684\u9818\u57df") else
       # 原文：沒有反向題
       "\u6c92\u6709\u53cd\u5411\u984c")
   }
@@ -545,8 +545,8 @@ kits_item_flags <- function(settings) {
 #' @noRd
 kits_items_page_html <- function(id, rows, selected = character(0)) {
   if (nrow(rows) == 0) {
-    # 原文：沒有符合的欄。
-    return(shiny::tags$p(class = "kit-hint", "\u6c92\u6709\u7b26\u5408\u7684\u6b04\u3002"))
+    # 原文：沒有符合的直欄。
+    return(shiny::tags$p(class = "kit-hint", "\u6c92\u6709\u7b26\u5408\u7684\u76f4\u6b04\u3002"))
   }
   esc <- function(x) htmltools::htmlEscape(x)
   att <- function(x) htmltools::htmlEscape(x, attribute = TRUE)
@@ -576,8 +576,8 @@ kits_items_page_html <- function(id, rows, selected = character(0)) {
     "<div id=\"", att(id), "\" class=\"form-group shiny-input-checkboxgroup shiny-input-container\"",
     " style=\"width: auto; max-width: 100%;\">",
     "<div class=\"shiny-options-group kit-table-scroll\"><table class=\"table kit-items\">",
-    # 原文：<thead><tr><th></th><th>欄位</th><th>領域</th><th>計分（原分數→計分）</th><th>提醒</th></tr></thead>
-    "<thead><tr><th></th><th>\u6b04\u4f4d</th><th>\u9818\u57df</th><th>\u8a08\u5206\uff08\u539f\u5206\u6578\u2192\u8a08\u5206\uff09</th><th>\u63d0\u9192</th></tr></thead>",
+    # 原文：<thead><tr><th></th><th>直欄</th><th>領域</th><th>計分（原分數→計分）</th><th>提醒</th></tr></thead>
+    "<thead><tr><th></th><th>\u76f4\u6b04</th><th>\u9818\u57df</th><th>\u8a08\u5206\uff08\u539f\u5206\u6578\u2192\u8a08\u5206\uff09</th><th>\u63d0\u9192</th></tr></thead>",
     "<tbody>", paste(tr, collapse = ""), "</tbody></table></div></div>"
   ))
 }
@@ -687,10 +687,10 @@ kits_groups_filter <- function(groups, text) {
 #' @noRd
 kits_group_cols_text <- function(cols) {
   if (length(cols) == 1) return(cols)
-  # 原文：、 | （2 欄）
-  if (length(cols) == 2) return(paste0(cols[1], "\u3001", cols[2], "\uff082 \u6b04\uff09"))
-  # 原文： …  | （ |  欄）
-  paste0(cols[1], " \u2026 ", cols[length(cols)], "\uff08", length(cols), " \u6b04\uff09")
+  # 原文：、 | （2 直欄）
+  if (length(cols) == 2) return(paste0(cols[1], "\u3001", cols[2], "\uff082 \u76f4\u6b04\uff09"))
+  # 原文： …  | （ |  直欄）
+  paste0(cols[1], " \u2026 ", cols[length(cols)], "\uff08", length(cols), " \u76f4\u6b04\uff09")
 }
 
 #' 像題目的欄：原分數是 0–20 的整數，至少 2 種、最多 11 種

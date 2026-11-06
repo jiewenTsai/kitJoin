@@ -1,3 +1,13 @@
+# kitJoin 0.11.1
+
+* Wording on screen: 「欄」 (column) is now 「直欄」 and 「列」 (row) is now 「橫列」 everywhere in the
+  interface (labels, hints, status messages, table headers, the comments in 「用 R 怎麼做」), so
+  people do not mix them up. Size lines read 「6 橫列 × 5 直欄」; kitJoin has its own `kit_dims()`
+  and `kit_rows_note()` with this wording, so kitDesign and kitsUI are unchanged.
+* Not changed: words where 列 does not mean a row (列出, 排列, 列在), the term 列次 (one child at one
+  wave), and file contents — the codebook column 「欄位」 and the Chinese variables-file headers
+  (欄位、變項標籤…) are read and written as before.
+
 # kitJoin 0.11.0
 
 * New page 「篩選與摘要」 (Filter & summary), in the 「準備」 group after 「遺漏值處理」. Each file

@@ -47,7 +47,7 @@ test_that("A2：有的欄有數值標籤、有的沒有：也拿掉", {
   df$plain <- c(2, 2, 2)
   out <- reshape_longer(df, list(cols = c("w1d5_1", "plain"), values_to = "score"))
   expect_false(haven::is.labelled(out$result$score))
-  expect_match(out$warnings, "有的欄沒有數值標籤", all = FALSE)
+  expect_match(out$warnings, "有的直欄沒有數值標籤", all = FALSE)
 })
 
 test_that("A2：程式碼先拿掉標籤，跑出來和 app 一樣；下載的 SAV 沒有錯的標籤", {

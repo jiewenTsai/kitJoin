@@ -120,8 +120,8 @@ pipeline_log_table <- function(log) {
     "\u6a94\u6848\u6578" = vapply(log, function(e) length(e$files), integer(1)),
     # 原文：結果
     "\u7d50\u679c" = vapply(log, function(e) {
-      # 原文： 列 ×  |  欄
-      if (is.na(e$rows)) "" else paste0(kit_num(e$rows), " \u5217 \u00d7 ", kit_num(e$cols), " \u6b04")
+      # 原文： 橫列 ×  |  直欄
+      if (is.na(e$rows)) "" else paste0(kit_num(e$rows), " \u6a6b\u5217 \u00d7 ", kit_num(e$cols), " \u76f4\u6b04")
     }, character(1))
   )
 }

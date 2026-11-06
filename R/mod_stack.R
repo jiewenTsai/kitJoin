@@ -7,23 +7,23 @@ mod_stack_ui <- function(id) {
     # 原文：執行疊加
     id, "\u57f7\u884c\u758a\u52a0",
     guide = kit_tab_guide(
-      # 原文：把各波資料上下疊起來：每個人在每一波各佔一列，並用 wave 欄標示是哪一波。
-      goal = "\u628a\u5404\u6ce2\u8cc7\u6599\u4e0a\u4e0b\u758a\u8d77\u4f86\uff1a\u6bcf\u500b\u4eba\u5728\u6bcf\u4e00\u6ce2\u5404\u4f54\u4e00\u5217\uff0c\u4e26\u7528 wave \u6b04\u6a19\u793a\u662f\u54ea\u4e00\u6ce2\u3002",
+      # 原文：把各波資料上下疊起來：每個人在每一波各佔一個橫列，並用 wave 直欄標示是哪一波。
+      goal = "\u628a\u5404\u6ce2\u8cc7\u6599\u4e0a\u4e0b\u758a\u8d77\u4f86\uff1a\u6bcf\u500b\u4eba\u5728\u6bcf\u4e00\u6ce2\u5404\u4f54\u4e00\u500b\u6a6b\u5217\uff0c\u4e26\u7528 wave \u76f4\u6b04\u6a19\u793a\u662f\u54ea\u4e00\u6ce2\u3002",
       steps = kit_steps(
-        # 原文：確認「檔案上傳」中每個檔案的波次名稱（會填進 wave 欄）
-        "\u78ba\u8a8d\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u4e2d\u6bcf\u500b\u6a94\u6848\u7684\u6ce2\u6b21\u540d\u7a31\uff08\u6703\u586b\u9032 wave \u6b04\uff09",
+        # 原文：確認「檔案上傳」中每個檔案的波次名稱（會填進 wave 直欄）
+        "\u78ba\u8a8d\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u4e2d\u6bcf\u500b\u6a94\u6848\u7684\u6ce2\u6b21\u540d\u7a31\uff08\u6703\u586b\u9032 wave \u76f4\u6b04\uff09",
         # 原文：按「執行疊加」，看結果與預覽
         "\u6309\u300c\u57f7\u884c\u758a\u52a0\u300d\uff0c\u770b\u7d50\u679c\u8207\u9810\u89bd",
         # 原文：下載 CSV 或 SAV
         "\u4e0b\u8f09 CSV \u6216 SAV"
       ),
-      # 原文：長格式資料：列數等於各檔列數相加；欄位是各檔欄位的聯集，再加上 wave 欄。
-      output = "\u9577\u683c\u5f0f\u8cc7\u6599\uff1a\u5217\u6578\u7b49\u65bc\u5404\u6a94\u5217\u6578\u76f8\u52a0\uff1b\u6b04\u4f4d\u662f\u5404\u6a94\u6b04\u4f4d\u7684\u806f\u96c6\uff0c\u518d\u52a0\u4e0a wave \u6b04\u3002",
+      # 原文：長格式資料：橫列數等於各檔橫列數相加；直欄是各檔直欄的聯集，再加上 wave 直欄。
+      output = "\u9577\u683c\u5f0f\u8cc7\u6599\uff1a\u6a6b\u5217\u6578\u7b49\u65bc\u5404\u6a94\u6a6b\u5217\u6578\u76f8\u52a0\uff1b\u76f4\u6b04\u662f\u5404\u6a94\u76f4\u6b04\u7684\u806f\u96c6\uff0c\u518d\u52a0\u4e0a wave \u76f4\u6b04\u3002",
       technical = paste0(
-        # 原文：以 dplyr::bind_rows() 垂直合併：同名欄對齊，只出現在部分檔案的欄位在其他波填 NA；
-        "\u4ee5 dplyr::bind_rows() \u5782\u76f4\u5408\u4f75\uff1a\u540c\u540d\u6b04\u5c0d\u9f4a\uff0c\u53ea\u51fa\u73fe\u5728\u90e8\u5206\u6a94\u6848\u7684\u6b04\u4f4d\u5728\u5176\u4ed6\u6ce2\u586b NA\uff1b",
-        # 原文：同名欄型別不一致（例如一波數字、一波文字）時統一轉成文字。
-        "\u540c\u540d\u6b04\u578b\u5225\u4e0d\u4e00\u81f4\uff08\u4f8b\u5982\u4e00\u6ce2\u6578\u5b57\u3001\u4e00\u6ce2\u6587\u5b57\uff09\u6642\u7d71\u4e00\u8f49\u6210\u6587\u5b57\u3002"
+        # 原文：以 dplyr::bind_rows() 垂直合併：同名直欄對齊，只出現在部分檔案的直欄在其他波填 NA；
+        "\u4ee5 dplyr::bind_rows() \u5782\u76f4\u5408\u4f75\uff1a\u540c\u540d\u76f4\u6b04\u5c0d\u9f4a\uff0c\u53ea\u51fa\u73fe\u5728\u90e8\u5206\u6a94\u6848\u7684\u76f4\u6b04\u5728\u5176\u4ed6\u6ce2\u586b NA\uff1b",
+        # 原文：同名直欄型別不一致（例如一波數字、一波文字）時統一轉成文字。
+        "\u540c\u540d\u76f4\u6b04\u578b\u5225\u4e0d\u4e00\u81f4\uff08\u4f8b\u5982\u4e00\u6ce2\u6578\u5b57\u3001\u4e00\u6ce2\u6587\u5b57\uff09\u6642\u7d71\u4e00\u8f49\u6210\u6587\u5b57\u3002"
       ),
       diagram = stack_diagram()
     ),
@@ -62,8 +62,8 @@ mod_stack_server <- function(id, files, working, goto) {
         c(
           # 原文： 個檔案
           paste0(kit_num(n), " \u500b\u6a94\u6848"),
-          # 原文：wave 欄填  | 、
-          paste0("wave \u6b04\u586b ", paste(utils::head(labels, 6), collapse = "\u3001"),
+          # 原文：wave 直欄填  | 、
+          paste0("wave \u76f4\u6b04\u586b ", paste(utils::head(labels, 6), collapse = "\u3001"),
                  # 原文：…
                  if (length(labels) > 6) "\u2026"),
           kit_source_short(working$source(), kit_filter_state(working) == "on")
@@ -95,8 +95,8 @@ mod_stack_server <- function(id, files, working, goto) {
             # 原文：最終核對
             shiny::h6("\u6700\u7d42\u6838\u5c0d"),
             shiny::tableOutput(ns("audit_checks")),
-            # 原文：各檔案的列數
-            shiny::h6("\u5404\u6a94\u6848\u7684\u5217\u6578"),
+            # 原文：各檔案的橫列數
+            shiny::h6("\u5404\u6a94\u6848\u7684\u6a6b\u5217\u6578"),
             shiny::tags$div(class = "kit-table-scroll", shiny::tableOutput(ns("audit_files")))
           )
         )
@@ -159,7 +159,7 @@ stack_diagram <- function() {
       # 原文：結果
       "\u7d50\u679c", added = "wave"
     ),
-    # 原文：上下疊起來：每人每一波一列，新的 wave 欄標示是哪一波
-    caption = "\u4e0a\u4e0b\u758a\u8d77\u4f86\uff1a\u6bcf\u4eba\u6bcf\u4e00\u6ce2\u4e00\u5217\uff0c\u65b0\u7684 wave \u6b04\u6a19\u793a\u662f\u54ea\u4e00\u6ce2"
+    # 原文：上下疊起來：每人每一波一個橫列，新的 wave 直欄標示是哪一波
+    caption = "\u4e0a\u4e0b\u758a\u8d77\u4f86\uff1a\u6bcf\u4eba\u6bcf\u4e00\u6ce2\u4e00\u500b\u6a6b\u5217\uff0c\u65b0\u7684 wave \u76f4\u6b04\u6a19\u793a\u662f\u54ea\u4e00\u6ce2"
   )
 }

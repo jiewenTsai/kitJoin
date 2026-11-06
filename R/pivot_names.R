@@ -107,8 +107,8 @@ pivot_name_middles <- function(names, start = "", end = "") {
   middles <- substr(names, nchar(start) + 1, nchar(names) - nchar(end))
   problem <- if (!all(ok)) {
     paste0(
-      # 原文：去掉開頭和結尾以後，這些欄名沒有剩下字： | 。
-      "\u53bb\u6389\u958b\u982d\u548c\u7d50\u5c3e\u4ee5\u5f8c\uff0c\u9019\u4e9b\u6b04\u540d\u6c92\u6709\u5269\u4e0b\u5b57\uff1a", kit_name_list(names[!ok]), "\u3002",
+      # 原文：去掉開頭和結尾以後，這些直欄名稱沒有剩下字： | 。
+      "\u53bb\u6389\u958b\u982d\u548c\u7d50\u5c3e\u4ee5\u5f8c\uff0c\u9019\u4e9b\u76f4\u6b04\u540d\u7a31\u6c92\u6709\u5269\u4e0b\u5b57\uff1a", kit_name_list(names[!ok]), "\u3002",
       # 原文：請少去掉一點。
       "\u8acb\u5c11\u53bb\u6389\u4e00\u9ede\u3002"
     )
@@ -164,10 +164,10 @@ pivot_name_split <- function(middles, split) {
     # 原文： → 
     examples <- paste0(utils::head(first, 4), " \u2192 ", utils::head(unique(shape), 4))
     out$problem <- paste0(
-      # 原文：這些欄名切出來的段數不一樣： | ； | 。
-      "\u9019\u4e9b\u6b04\u540d\u5207\u51fa\u4f86\u7684\u6bb5\u6578\u4e0d\u4e00\u6a23\uff1a", paste(examples, collapse = "\uff1b"), "\u3002",
-      # 原文：每個欄名要切成一樣多段。請換一種切法，或只選同一種樣子的欄。
-      "\u6bcf\u500b\u6b04\u540d\u8981\u5207\u6210\u4e00\u6a23\u591a\u6bb5\u3002\u8acb\u63db\u4e00\u7a2e\u5207\u6cd5\uff0c\u6216\u53ea\u9078\u540c\u4e00\u7a2e\u6a23\u5b50\u7684\u6b04\u3002"
+      # 原文：這些直欄名稱切出來的段數不一樣： | ； | 。
+      "\u9019\u4e9b\u76f4\u6b04\u540d\u7a31\u5207\u51fa\u4f86\u7684\u6bb5\u6578\u4e0d\u4e00\u6a23\uff1a", paste(examples, collapse = "\uff1b"), "\u3002",
+      # 原文：每個直欄名稱要切成一樣多段。請換一種切法，或只選同一種樣子的直欄。
+      "\u6bcf\u500b\u76f4\u6b04\u540d\u7a31\u8981\u5207\u6210\u4e00\u6a23\u591a\u6bb5\u3002\u8acb\u63db\u4e00\u7a2e\u5207\u6cd5\uff0c\u6216\u53ea\u9078\u540c\u4e00\u7a2e\u6a23\u5b50\u7684\u76f4\u6b04\u3002"
     )
     return(out)
   }
@@ -255,13 +255,13 @@ pivot_names_check <- function(cols, args) {
   )
   if (inherits(spec, "error")) {
     return(list(preview = NULL, dup = character(0), unmatched = character(0),
-                # 原文：欄名的規則有問題：
-                problem = paste0("\u6b04\u540d\u7684\u898f\u5247\u6709\u554f\u984c\uff1a", conditionMessage(spec))))
+                # 原文：直欄名稱的規則有問題：
+                problem = paste0("\u76f4\u6b04\u540d\u7a31\u7684\u898f\u5247\u6709\u554f\u984c\uff1a", conditionMessage(spec))))
   }
   values <- spec[args$names_to]
   # 原本的欄名
-  # 原文：原本的欄名
-  preview <- dplyr::bind_cols(tibble::tibble("\u539f\u672c\u7684\u6b04\u540d" = spec$.name),
+  # 原文：原本的直欄名稱
+  preview <- dplyr::bind_cols(tibble::tibble("\u539f\u672c\u7684\u76f4\u6b04\u540d\u7a31" = spec$.name),
                               dplyr::mutate(values, dplyr::across(dplyr::everything(),
                                                                   as.character)))
   unmatched <- spec$.name[!stats::complete.cases(values)]
@@ -269,10 +269,10 @@ pivot_names_check <- function(cols, args) {
   dup <- spec$.name[dup_rows]
   problem <- if (length(dup) > 0) {
     paste0(
-      # 原文：這些欄會變成一樣的值： | 。
-      "\u9019\u4e9b\u6b04\u6703\u8b8a\u6210\u4e00\u6a23\u7684\u503c\uff1a", kit_name_list(dup), "\u3002",
-      # 原文：一樣的值分不出原本是哪一欄，所以先停下來。
-      "\u4e00\u6a23\u7684\u503c\u5206\u4e0d\u51fa\u539f\u672c\u662f\u54ea\u4e00\u6b04\uff0c\u6240\u4ee5\u5148\u505c\u4e0b\u4f86\u3002",
+      # 原文：這些直欄會變成一樣的值： | 。
+      "\u9019\u4e9b\u76f4\u6b04\u6703\u8b8a\u6210\u4e00\u6a23\u7684\u503c\uff1a", kit_name_list(dup), "\u3002",
+      # 原文：一樣的值分不出原本是哪一個直欄，所以先停下來。
+      "\u4e00\u6a23\u7684\u503c\u5206\u4e0d\u51fa\u539f\u672c\u662f\u54ea\u4e00\u500b\u76f4\u6b04\uff0c\u6240\u4ee5\u5148\u505c\u4e0b\u4f86\u3002",
       # 原文：請少去掉一點，或多切一段。
       "\u8acb\u5c11\u53bb\u6389\u4e00\u9ede\uff0c\u6216\u591a\u5207\u4e00\u6bb5\u3002"
     )

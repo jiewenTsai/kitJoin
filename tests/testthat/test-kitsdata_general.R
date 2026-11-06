@@ -205,12 +205,12 @@ test_that("A1：app 裡「遺漏值處理」的代碼清單只用來提醒；要
     expect_match(kd_out(output, "items_table"), "q1 a 0 1 2 代碼 9")    # 9：小量尺上和分數分開
     expect_match(kd_out(output, "items_table"), "q2 a 1 2 3 代碼 99")   # 99：和分數分開
     expect_equal(kd_check_state(output, "遺漏值代碼"), "todo")
-    expect_match(kd_out(output, "checks"), "2 欄有遺漏值代碼 9、99（共 2 格）")
+    expect_match(kd_out(output, "checks"), "2 直欄有遺漏值代碼 9、99（共 2 格）")
     expect_match(output[["kitsdata-checks"]]$html, "kitsdata-goto_missing")
     session$setInputs(`missing-codes` = "9, 99")   # 「遺漏值處理」還沒執行：只拿來找代碼
     session$elapse(1000)   # 代碼清單停 0.8 秒才更新（debounce）
     expect_match(kd_out(output, "items_table"), "q1 a 0 1 2 代碼 9")
-    expect_match(kd_out(output, "checks"), "2 欄有遺漏值代碼 9、99（共 2 格）")
+    expect_match(kd_out(output, "checks"), "2 直欄有遺漏值代碼 9、99（共 2 格）")
     kd_click(session, "run")
     expect_match(kd_out(output, "status"), "還不能轉換")   # 要先決定
     kd_click(session, "ack_codes")
@@ -316,13 +316,13 @@ test_that("C1：各檔各選一欄沒選、選錯；一個欄名套到沒有這�
   spec <- kg_three_spec(dfs, list(subj_id = c("w1_id", "", "w3id"),
                                   wave_m = c("w1_mon", "w2_mon", "nope")))
   p <- kits_build(dfs, c("w1", "w2", "w3"), spec)$problems
-  expect_match(p, "w2：還沒有選孩子編號（subj_id）的欄", all = FALSE)
-  expect_match(p, "w3：沒有.*（wave_m）的欄 nope", all = FALSE)
+  expect_match(p, "w2：還沒有選孩子編號（subj_id）的直欄", all = FALSE)
+  expect_match(p, "w3：沒有.*（wave_m）的直欄 nope", all = FALSE)
 
   spec <- kg_three_spec(dfs, list(wave_m = c("w1_mon", "w2_mon", "w3_mon")))
   spec$map$subj_id <- "w1_id"
   p <- kits_build(dfs, c("w1", "w2", "w3"), spec)$problems
-  expect_match(p, "w2：沒有對應的欄 w1_id。各檔欄名不同時，請在第 1 步的表裡替每個檔案各選一欄",
+  expect_match(p, "w2：沒有對應的直欄 w1_id。各檔直欄名稱不同時，請在第 1 步的表裡替每個檔案各選一個直欄",
                all = FALSE)
 })
 
@@ -335,7 +335,7 @@ test_that("C1：波次標籤也可以各檔各選一欄", {
                    wave_m = c("w1_mon", "w2_mon", "w3_mon"))
   spec <- kg_three_spec(dfs, per_file)
   out <- kits_build(dfs, c("a", "b", "c"), spec)
-  expect_match(out$notes[1], "各檔選的波次標籤欄")
+  expect_match(out$notes[1], "各檔選的波次標籤直欄")
   long <- kits_long_of(out)
   expect_true(all(c("B85_100000_W1", "B85_3_W3") %in% long$visit_id))
   expect_false(any(c("lab1", "lab2") %in% long$item_id))
@@ -361,7 +361,7 @@ test_that("C1：app 的第 1 步每個檔案一列：各檔猜自己的 ID 欄�
     kd_click(session, "ok1")
     expect_equal(kd_out(output, "step1_problems"), "")
     expect_equal(kd_head_state(output, 1), "done")
-    expect_match(kd_out(output, "head1"), "孩子編號 w1_id 等 3 欄")
+    expect_match(kd_out(output, "head1"), "孩子編號 w1_id 等 3 直欄")
     expect_match(kd_out(output, "visit_note"), "B85_100000_0")
     # 對應到的欄不是題目
     kd_set(session, tbl_all = TRUE)
@@ -426,7 +426,7 @@ test_that("C2：去掉 ^w[0-9]+；題目表的 item_id_out；作答檔用輸出�
   expect_setequal(unique(long$item_id), c("d5_1", "d5_2", "c21_5", "w3d32_5"))
   expect_equal(out$n_items, 4)
   w <- paste(out$warnings, collapse = "\n")
-  expect_match(w, "2 個輸出題號由不同的欄合成（d5_1 ← w1d5_1、w2d5_1、w3c5_1")
+  expect_match(w, "2 個輸出題號由不同的直欄合成（d5_1 ← w1d5_1、w2d5_1、w3c5_1")
   expect_match(w, "同一個題號在不同波次可能是不同的題")
 
   got <- kg_run_code(dfs, spec, s)
@@ -476,14 +476,14 @@ test_that("C2：app 裡用「去掉」改輸出題號，表與題目清單都看
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kg_upload(paths))
     kd_pick(session, "w", "bsrs")
-    expect_match(kd_out(output, "items_status"), "挑出 5 欄")
+    expect_match(kd_out(output, "items_status"), "挑出 5 直欄")
     kd_set(session, sel = c("w1d5_1", "w2d5_1"), bulk_action = "out_prefix",
            out_pattern = "^w[0-9]+")
     kd_click(session, "bulk_apply")
     expect_match(output[["kitsdata-items_table"]]$html, "→ 題號 d5_1</span>", fixed = TRUE)
-    expect_match(kd_out(output, "items_status"), "挑出 5 欄、3 組 → 合成 4 題")
+    expect_match(kd_out(output, "items_status"), "挑出 5 直欄、3 組 → 合成 4 題")
     expect_match(kd_out(output, "items_list"), "d5_1 w1d5_1、w2d5_1")
-    expect_match(output[["kitsdata-items_title"]], "（5 欄 · bsrs 4 題）", fixed = TRUE)
+    expect_match(output[["kitsdata-items_title"]], "（5 直欄 · bsrs 4 題）", fixed = TRUE)
     kd_set(session, sel = c("w1d5_1", "w1d5_2"), out_pattern = "[0-9]$")
     kd_click(session, "bulk_apply")
     expect_match(kd_out(output, "items_status"), "都輸出成題號 w1d5_")
@@ -529,13 +529,13 @@ test_that("C8：app 裡換反向題規則，領域跟著換", {
     # 預設：結尾 r（w1st_hour 是 w1st_hou 的反向題）
     expect_match(kd_out(output, "items_table"), "w1st_hour time")
     expect_no_match(kd_out(output, "items_list"), "w1ra8")
-    expect_match(kd_out(output, "checks"), "1 欄是反向題，用原題的領域")
+    expect_match(kd_out(output, "checks"), "1 直欄是反向題，用原題的領域")
     session$setInputs(`kitsdata-reverse_rule` = "prefix")
     expect_match(kd_out(output, "items_table"), "w1ra8 self")
     expect_no_match(kd_out(output, "items_table"), "w1st_hour time")
     # 拿掉的領域變回預設的組名
     expect_match(kd_out(output, "items_table"), "w1st_hour w1st_hour （組名）")
-    expect_match(kd_out(output, "checks"), "1 欄是反向題，用原題的領域")
+    expect_match(kd_out(output, "checks"), "1 直欄是反向題，用原題的領域")
   })
 })
 
@@ -573,7 +573,7 @@ test_that("發現 10：wave_m 是負的、不是數字時擋下（說是哪一�
   x$df$wave_m <- c("12m", "0")
   x$map$age_m <- "age"
   out <- expect_no_warning(kits_build(list(x$df), "a.csv", kg_spec(x$s, x$map, "B1")))
-  expect_match(out$problems, "a.csv：wave_m 的欄 wave_m 有不是數字的值（例如「12m」）",
+  expect_match(out$problems, "a.csv：wave_m 的直欄 wave_m 有不是數字的值（例如「12m」）",
                all = FALSE)
   x$df$wave_m <- c("12", "0")
   out <- expect_no_warning(kits_build(list(x$df), "a.csv", kg_spec(x$s, x$map, "B1")))
@@ -593,7 +593,7 @@ test_that("發現 10：底線造成的 visit_id 撞號擋下；世代只差空�
   spec$cohort <- list(list(type = "column", value = "co"))
   out <- kits_build(list(x$df), "a.csv", spec)
   expect_match(out$problems, "visit_id 撞號.*A_B_1_3.*底線", all = FALSE)
-  expect_no_match(paste(out$problems, collapse = ""), "同一列次同一題有好幾列")
+  expect_no_match(paste(out$problems, collapse = ""), "同一列次同一題有好幾橫列")
 
   x <- kg_one()
   x$df$co <- c("G7 ", "g7")
@@ -641,7 +641,7 @@ test_that("發現 7：世代、性別可以輸出代碼（預設）或標籤；�
   expect_equal(sort(unique(stats::na.omit(long$sex))), c("1", "2", "9"))
   expect_equal(unique(long$sex[long$subj_id == "4"]), "9")  # 9 拒答：照原樣（0.5.0 起）
   w <- paste(out$warnings, collapse = "\n")
-  expect_match(w, "w1.sav：世代欄 grade 有遺漏值代碼 98（值標籤「跳答」）、99（值標籤「遺漏值」），共 2 列")
+  expect_match(w, "w1.sav：世代直欄 grade 有遺漏值代碼 98（值標籤「跳答」）、99（值標籤「遺漏值」），共 2 橫列")
   expect_match(w, "sex（gender）有 1 格疑似遺漏值代碼 9（值標籤「拒答」）")
   got <- kg_run_code(list(df), x$spec, x$s, sav = TRUE)
   kg_same_long(got$long, long)
@@ -711,8 +711,8 @@ test_that("發現 8：文字的題目欄只影響那個檔案：內容都是數�
   spec <- kg_spec(s, map, c("B1", "B1"))
   out <- expect_no_warning(kits_build(dfs, c("w1.sav", "w2.sav"), spec))
   expect_length(out$problems, 0)
-  expect_match(out$notes, "w2.sav：1 個題目欄是文字、內容都是數字，轉成數字（q1）", all = FALSE)
-  expect_match(out$warnings, "w2.sav：1 個題目欄在這個檔案是文字.*q2（例如「其他」）", all = FALSE)
+  expect_match(out$notes, "w2.sav：1 個題目直欄是文字、內容都是數字，轉成數字（q1）", all = FALSE)
+  expect_match(out$warnings, "w2.sav：1 個題目直欄在這個檔案是文字.*q2（例如「其他」）", all = FALSE)
   long <- kits_long_of(out)
   expect_equal(sum(long$item_id == "q2"), 2)       # 只有 w1 的 q2
   expect_equal(sum(long$item_id == "q1"), 4)
@@ -738,7 +738,7 @@ test_that("發現 8：app 的第 2 步列出在部分檔案是文字的題", {
   haven::write_sav(tibble::tibble(id = 1:2, q2 = c("1", "其他")), paths[2])
   shiny::testServer(kit_server, {
     session$setInputs(`upload-files` = kg_upload(paths))
-    expect_match(kd_out(output, "items_status"), "1 個題目欄在部分檔案是文字：q2（w2.sav）")
+    expect_match(kd_out(output, "items_status"), "1 個題目直欄在部分檔案是文字：q2（w2.sav）")
   })
 })
 
@@ -782,7 +782,7 @@ test_that("發現 11：BOM、SAV 的標籤欄、分號 CSV、include 與 map_raw
   expect_error(kits_settings_import(transform(set(), map_raw_to_score = "1=0=2")), "看不懂")
   expect_equal(kits_parse_map("1=;2=1")$score, c(NA, 1))
   two <- rbind(set(), transform(set(), domain = "cog"))
-  expect_error(kits_settings_import(two), "同一題有好幾列")
+  expect_error(kits_settings_import(two), "同一題有好幾橫列")
   expect_equal(nrow(kits_settings_import(rbind(set(), set()))$data), 1)  # 完全一樣的列只留一列
 })
 
