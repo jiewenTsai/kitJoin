@@ -127,6 +127,13 @@ AI-assisted work began on 2026-10-22. The faults after 2026-11-01:
 
 How these were caught is not stated in NEWS or the commits for 10 of the 12.
 
+Found after this report, in the development version (not counted in the metrics below): the
+"drop this start" box of wide → long was read by tidyr as a regular expression, so `score.` also
+removed `scoreX` and `a(1)` did not match itself (variable mapping). Starts, ends and splits of
+column names are now picked by clicking; the app escapes the rule it writes, checks it with
+`tidyr::build_longer_spec()`, and stops when two columns would get the same value or names split
+into different numbers of parts. Regression tests: `tests/testthat/test-pivot_names.R`.
+
 ## Metrics
 
 | Metric | Value |
