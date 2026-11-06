@@ -10,7 +10,9 @@ test_that("步驟分頁：還不能用的變灰並說明要先做什麼", {
   expect_equal(purrr::map_chr(s, "value"), names(KIT_TAB_NEED))
   st <- tab_state_of(s)
   expect_equal(
-    unname(st[c("upload", "missing", "filter", "join", "stack", "attrition", "kitsdata", "reshape")]),
+    unname(st[c(
+      "upload", "missing", "filter", "join", "stack", "attrition", "kitsdata", "reshape"
+    )]),
     c("ready", rep("locked", 7))
   )
   # ⑧ 有自己的上傳，永遠可以用

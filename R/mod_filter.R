@@ -83,7 +83,9 @@ mod_filter_ui <- function(id) {
       shiny::uiOutput(ns("keep_count")),
       # 原文：2. 保留哪些列
       section("2. \u4fdd\u7559\u54ea\u4e9b\u5217"),
-      shiny::uiOutput(ns("conds")),
+      shiny::uiOutput(ns("conds_hint")),
+      # 條件一列一列用 insertUI() 加進各檔案的區塊（加、拿掉條件時，其他條件不重畫，選好的值不會不見）
+      shiny::tags$div(id = ns("conds_area")),
       # 原文：加一個條件
       shiny::tags$div(class = "mb-2", kit_button(ns("add_cond"), "\u52a0\u4e00\u500b\u689d\u4ef6", class = "btn-sm")),
       shiny::uiOutput(ns("combine_ui")),
@@ -264,6 +266,9 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
       ids <- cond_ids()
       ids[[key]] <- c(ids[[key]], n)
       cond_ids(ids)
+      shiny::insertUI(
+        paste0("#", ns(fid("conds", key))), "beforeEnd", cond_row_ui(n, cur_cols())
+      )
       make_cond_row(n, key)
     })
 
@@ -303,33 +308,66 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
         ids <- cond_ids()
         ids[[key]] <- setdiff(ids[[key]], n)
         cond_ids(ids)
+        shiny::removeUI(paste0("#", ns(cid(n, "row"))))
       }, ignoreInit = TRUE, once = TRUE)
     }
 
-    output$conds <- shiny::renderUI({
+    # 各檔案的條件區塊：第一次看到這個檔案時加進畫面，之後只顯示或藏起來（不重畫）
+    output$cur_file <- shiny::renderText(cur() %||% "")
+    shiny::outputOptions(output, "cur_file", suspendWhenHidden = FALSE)
+    made <- character(0)
+    shiny::observe({
       key <- cur()
-      if (is.null(key)) return(NULL)
-      ids <- cond_ids()[[key]] %||% integer(0)
-      if (length(ids) == 0) {
-        # 原文：還沒有條件：全部的列都保留。
-        return(shiny::tags$p(class = "kit-hint", "\u9084\u6c92\u6709\u689d\u4ef6\uff1a\u5168\u90e8\u7684\u5217\u90fd\u4fdd\u7559\u3002"))
-      }
-      cols <- cur_cols()
-      shiny::tagList(purrr::imap(ids, function(n, i) {
-        shiny::tags$div(
-          class = "kit-filter-cond d-flex flex-wrap align-items-start gap-2",
-          shiny::tags$span(class = "pt-2", paste0(i, ".")),
-          shiny::selectizeInput(
-            # 原文：（選欄）
-            ns(cid(n, "col")), NULL, choices = c("\uff08\u9078\u6b04\uff09" = "", cols),
-            selected = shiny::isolate(input[[cid(n, "col")]]) %||% "", width = "14rem"
-          ),
-          shiny::uiOutput(ns(cid(n, "op_ui"))),
-          shiny::uiOutput(ns(cid(n, "value_ui"))),
-          # 原文：拿掉
-          kit_button(ns(cid(n, "rm")), "\u62ff\u6389", class = "btn-sm")
+      if (is.null(key) || key %in% made) return()
+      made <<- c(made, key)
+      shiny::insertUI(
+        paste0("#", ns("conds_area")), "beforeEnd",
+        shiny::conditionalPanel(
+          sprintf("output['%s'] == '%s'", ns("cur_file"), key),
+          shiny::tags$div(id = ns(fid("conds", key)))
         )
-      }))
+      )
+    })
+    # 一個條件的一列：欄、比較方式、值、拿掉
+    cond_row_ui <- function(n, cols) {
+      shiny::tags$div(
+        id = ns(cid(n, "row")),
+        class = "kit-filter-cond d-flex flex-wrap align-items-start gap-2",
+        shiny::selectizeInput(
+          # 原文：（選欄）
+          # 原文：（選欄）
+          ns(cid(n, "col")), NULL, choices = c("\uff08\u9078\u6b04\uff09" = "", cols), selected = "",
+          width = "14rem"
+        ),
+        shiny::uiOutput(ns(cid(n, "op_ui"))),
+        shiny::uiOutput(ns(cid(n, "value_ui"))),
+        # 原文：拿掉
+        # 原文：拿掉
+        kit_button(ns(cid(n, "rm")), "\u62ff\u6389", class = "btn-sm")
+      )
+    }
+    # 欄名改了（例如 ② 重新執行）：各條件的選欄跟著換，還在的欄保留
+    shiny::observeEvent(cols_rv(), {
+      ids <- cond_ids()
+      for (key in names(ids)) {
+        cols <- cols_rv()[[key]] %||% character(0)
+        for (n in ids[[key]]) {
+          col <- input[[cid(n, "col")]] %||% ""
+          shiny::updateSelectizeInput(
+            # 原文：（選欄）
+            # 原文：（選欄）
+            session, cid(n, "col"), choices = c("\uff08\u9078\u6b04\uff09" = "", cols),
+            selected = if (col %in% cols) col else ""
+          )
+        }
+      }
+    }, ignoreInit = TRUE)
+    output$conds_hint <- shiny::renderUI({
+      key <- cur()
+      if (is.null(key) || length(cond_ids()[[key]] %||% integer(0)) > 0) return(NULL)
+      # 原文：還沒有條件：全部的列都保留。
+      # 原文：還沒有條件：全部的列都保留。
+      shiny::tags$p(class = "kit-hint", "\u9084\u6c92\u6709\u689d\u4ef6\uff1a\u5168\u90e8\u7684\u5217\u90fd\u4fdd\u7559\u3002")
     })
     output$combine_ui <- shiny::renderUI({
       key <- cur()
@@ -709,7 +747,8 @@ mod_filter_server <- function(id, files, working, goto = NULL) {
     })
     output$sum_table <- shiny::renderTable({
       r <- shiny::req(sum_res())
-      summary_plain(utils::head(r$table, SUMMARY_SHOW_ROWS))
+      summary_plain(utils::head(r$table, SUMMARY_SHOW_ROWS)) |>
+        summary_display_ints()
     # 原文：—
     }, striped = TRUE, spacing = "s", digits = 3, na = "\u2014")
 
@@ -849,4 +888,11 @@ filter_diagram <- function() {
     # 原文：留下符合條件的列與要的欄；沒有設定的檔案原樣往後傳
     caption = "\u7559\u4e0b\u7b26\u5408\u689d\u4ef6\u7684\u5217\u8207\u8981\u7684\u6b04\uff1b\u6c92\u6709\u8a2d\u5b9a\u7684\u6a94\u6848\u539f\u6a23\u5f80\u5f8c\u50b3"
   )
+}
+
+#' 畫面上的摘要表：整數的欄（分組欄的代碼、人數）顯示成整數，不要寫成 1.000
+#' @noRd
+summary_display_ints <- function(tab) {
+  whole <- function(x) is.double(x) && all(is.na(x) | (is.finite(x) & x == round(x)))
+  dplyr::mutate(tab, dplyr::across(dplyr::where(whole), as.integer))
 }

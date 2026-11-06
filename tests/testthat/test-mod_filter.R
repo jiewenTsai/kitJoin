@@ -204,3 +204,10 @@ test_that("整個 app：疊加拿到篩選後的資料；勾掉或設定改了�
     expect_equal(filter_tab_state(tab_states()), "stale")
   })
 })
+
+test_that("摘要表的整數欄（分組代碼）顯示成整數", {
+  tab <- tibble::tibble(sex = c(1, 2), variable = "x", n = c(3L, 4L), mean = c(36, 52.25))
+  out <- summary_display_ints(tab)
+  expect_type(out$sex, "integer")
+  expect_type(out$mean, "double")
+})

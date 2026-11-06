@@ -1,3 +1,35 @@
+# kitJoin 0.11.0
+
+* New page 「篩選與摘要」 (Filter & summary), in the 「準備」 group after 「遺漏值處理」. Each file
+  gets its own settings, chosen by clicking only, with no regular expressions: which columns to keep
+  or drop, row conditions combined with "all" or "any", and optional sorting. Condition operators
+  depend on the column type: equal, not equal, greater or less than, between, one of, not one of,
+  contains literal text, blank, not blank. Labelled values are shown as 「1 = 男」.
+* Downstream pages (join, stack, attrition, kits response file, long/wide) use the filtered data
+  while 「後面的分頁使用篩選後的資料」 is ticked, and say so in their source note. If the filter
+  settings or ②'s data change, the old result is cleared and those pages show a reminder.
+* Rows dropped because a condition met a blank (NA, as in `dplyr::filter()`) are counted per file in
+  the status box, so no rows are lost silently. SPSS value and variable labels of kept columns are
+  preserved.
+* The same page offers a group summary that is not passed on: n, valid values, missing, mean, SD,
+  median, min, max; labelled groups are shown as 「[1] 男」. It can be downloaded as CSV or Excel.
+* 「用 R 怎麼做」 gives tidyverse code (`filter()`, `arrange()`, `select()`, `summarise()`) that
+  reproduces both results; tests run it on the example files.
+* Wide to long: how column names become values is now set by clicking, with no regular
+  expressions. After the columns are picked, a new panel 「欄名怎麼變成值」 lists the starts and
+  ends that all picked names share (cut at `_ . -`, spaces, letter/digit and lower/upper
+  boundaries). It can also split names on a shared separator or into letters and digits, with a
+  name box for each part and an option to turn digit parts into integers. A preview shows what the
+  first 10 columns become.
+* Running is blocked, with the columns named, when two columns would get the same value or names
+  split into different numbers of parts.
+* The app writes the tidyr rule itself (`names_prefix`, `names_sep` or `names_pattern`, plus
+  `names_transform`), escapes special characters, and labels it in 「用 R 怎麼做」. The old
+  free-text boxes moved to 「自己寫規則」 in the advanced settings. They keep tidyr's
+  regular-expression meaning, now stated in their labels, and take precedence over the clicks.
+* Fixed: the 「欄名要去掉的開頭」 box was read as a regular expression without saying so, so
+  `score.` also removed `scoreX` and `a(1)` did not match itself. Tab ⑥ is unchanged.
+
 # kitJoin 0.10.2
 
 * The version line of the header ends with a link "驗證報告" to the validation report
