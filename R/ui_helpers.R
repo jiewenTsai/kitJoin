@@ -78,16 +78,53 @@ kit_upload_todo <- function(ns, n_files, need = 1L) {
   shiny::actionLink(ns("goto_upload_status"), "\u5230\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u52a0\u5165\u6a94\u6848 \u2192")
 }
 
-#' 目前使用哪一份資料（原始 / 遺漏值處理後），以及檔案數不足的提醒
+#' 目前使用哪一份資料（原始 / 遺漏值處理後 / 再經過篩選），以及檔案數不足的提醒
 #'
 #' @param n_files 已上傳檔案數（不到 2 個時回傳 NULL：由主要按鈕上面的「還差」說）
 #' @param source "raw"、"na" 或 "stale"（② 的結果已清除、等待重新執行）
 #' @param code_cells 原始資料中等於遺漏值代碼的格數
 #' @param ns 模組的 namespace 函式（連結按鈕用）
+#' @param filter 「篩選與摘要」：「on」（用篩選後的資料）、「stale」（篩選結果已清除、
+#'   等待重新執行）或「off」（kit_filter_state()）
 #' @noRd
-kit_source_note_ui <- function(n_files, source, code_cells, ns) {
+kit_source_note_ui <- function(n_files, source, code_cells, ns, filter = "off") {
   # 檔案不夠時不另開提示框：主要按鈕停用，上面一行「還差」（kit_run_gate()）已經說了
   if (n_files < 2) return(NULL)
+  on <- identical(filter, "on")
+  if (on && identical(source, "na")) {
+    return(shiny::tags$p(
+      class = "kit-source-note",
+      # 原文：目前使用：「遺漏值處理」處理後、再經過「篩選與摘要」的資料。
+      "\u76ee\u524d\u4f7f\u7528\uff1a\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u8655\u7406\u5f8c\u3001\u518d\u7d93\u904e\u300c\u7be9\u9078\u8207\u6458\u8981\u300d\u7684\u8cc7\u6599\u3002"
+    ))
+  }
+  if (on && identical(source, "raw") && code_cells == 0) {
+    return(shiny::tags$p(
+      # 原文：目前使用：原始資料，再經過「篩選與摘要」的資料。
+      class = "kit-source-note", "\u76ee\u524d\u4f7f\u7528\uff1a\u539f\u59cb\u8cc7\u6599\uff0c\u518d\u7d93\u904e\u300c\u7be9\u9078\u8207\u6458\u8981\u300d\u7684\u8cc7\u6599\u3002"
+    ))
+  }
+  extra <- if (on) {
+    # 原文：這份資料也經過「篩選與摘要」篩選。
+    shiny::tags$p(class = "kit-source-note", "\u9019\u4efd\u8cc7\u6599\u4e5f\u7d93\u904e\u300c\u7be9\u9078\u8207\u6458\u8981\u300d\u7be9\u9078\u3002")
+  } else if (identical(filter, "stale")) {
+    kit_callout(
+      warn = TRUE,
+      # 原文：「篩選與摘要」的設定或資料改過了，舊的篩選結果已清除，
+      "\u300c\u7be9\u9078\u8207\u6458\u8981\u300d\u7684\u8a2d\u5b9a\u6216\u8cc7\u6599\u6539\u904e\u4e86\uff0c\u820a\u7684\u7be9\u9078\u7d50\u679c\u5df2\u6e05\u9664\uff0c",
+      # 原文：請回「篩選與摘要」重新按「執行篩選」
+      shiny::actionLink(ns("goto_filter"), "\u8acb\u56de\u300c\u7be9\u9078\u8207\u6458\u8981\u300d\u91cd\u65b0\u6309\u300c\u57f7\u884c\u7be9\u9078\u300d"),
+      # 原文：；在那之前，這裡用的是沒有篩選的資料。
+      "\uff1b\u5728\u90a3\u4e4b\u524d\uff0c\u9019\u88e1\u7528\u7684\u662f\u6c92\u6709\u7be9\u9078\u7684\u8cc7\u6599\u3002"
+    )
+  }
+  note <- kit_source_note_missing(source, code_cells, ns)
+  if (is.null(extra)) note else shiny::tagList(note, extra)
+}
+
+#' 目前使用哪一份資料：原始 / 遺漏值處理後（kit_source_note_ui() 用）
+#' @noRd
+kit_source_note_missing <- function(source, code_cells, ns) {
   if (identical(source, "na")) {
     return(shiny::tags$p(
       class = "kit-source-note",
@@ -225,6 +262,13 @@ kit_download_server <- function(session, output, data_fn, filename_fn, run_label
       )
     )
   })
+}
+
+#' 「篩選與摘要」的狀態："on"、"stale"、"off"（working 沒有這一項時是 "off"）
+#' @param working mod_filter_server() 或 mod_missing_server() 的回傳
+#' @noRd
+kit_filter_state <- function(working) {
+  if (is.function(working$filter_state)) working$filter_state() else "off"
 }
 
 #' 結果檔名：joined_20261022_153000.csv

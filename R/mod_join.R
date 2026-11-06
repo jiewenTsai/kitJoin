@@ -118,7 +118,8 @@ mod_join_server <- function(id, files, working, goto) {
         length(files$keys()),
         working$source(),
         working$code_cells(),
-        ns
+        ns,
+        filter = kit_filter_state(working)
       )
     })
 
@@ -274,7 +275,7 @@ mod_join_server <- function(id, files, working, goto) {
         c(
           # 原文： 個檔案
           paste0(kit_num(n), " \u500b\u6a94\u6848"), id_text, kit_join_method_short(input$method),
-          kit_source_short(working$source())
+          kit_source_short(working$source(), kit_filter_state(working) == "on")
         )
       },
       stale_on = function() {
@@ -422,7 +423,11 @@ kit_join_method_short <- function(method) {
 }
 
 # 設定摘要用的資料來源：「原始資料」或「② 處理後的資料」
-kit_source_short <- function(source) {
+kit_source_short <- function(source, filtered = FALSE) {
+  if (isTRUE(filtered)) {
+    # 原文：遺漏值處理、篩選後的資料 | 篩選後的原始資料
+    return(if (identical(source, "na")) "\u907a\u6f0f\u503c\u8655\u7406\u3001\u7be9\u9078\u5f8c\u7684\u8cc7\u6599" else "\u7be9\u9078\u5f8c\u7684\u539f\u59cb\u8cc7\u6599")
+  }
   # 原文：遺漏值處理後的資料 | 原始資料
   if (identical(source, "na")) "\u907a\u6f0f\u503c\u8655\u7406\u5f8c\u7684\u8cc7\u6599" else "\u539f\u59cb\u8cc7\u6599"
 }
@@ -432,6 +437,7 @@ watch_goto_links <- function(input, goto) {
   shiny::observeEvent(input$goto_upload, goto("upload"))
   shiny::observeEvent(input$goto_upload_status, goto("upload"))
   shiny::observeEvent(input$goto_missing, goto("missing"))
+  shiny::observeEvent(input$goto_filter, goto("filter"))
 }
 
 # 頁首的圖解：預設（向後追蹤樣本）怎麼左右接起來

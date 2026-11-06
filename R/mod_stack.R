@@ -42,7 +42,8 @@ mod_stack_server <- function(id, files, working, goto) {
         length(files$keys()),
         working$source(),
         working$code_cells(),
-        ns
+        ns,
+        filter = kit_filter_state(working)
       )
     })
 
@@ -65,7 +66,7 @@ mod_stack_server <- function(id, files, working, goto) {
           paste0("wave \u6b04\u586b ", paste(utils::head(labels, 6), collapse = "\u3001"),
                  # 原文：…
                  if (length(labels) > 6) "\u2026"),
-          kit_source_short(working$source())
+          kit_source_short(working$source(), kit_filter_state(working) == "on")
         )
       },
       stale_on = function() list(working$data(), files$labels()),

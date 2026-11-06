@@ -96,7 +96,8 @@ mod_attrition_server <- function(id, files, working, goto) {
         length(files$keys()),
         working$source(),
         working$code_cells(),
-        ns
+        ns,
+        filter = kit_filter_state(working)
       )
     })
 
@@ -227,7 +228,7 @@ mod_attrition_server <- function(id, files, working, goto) {
         }
         # 原文：前期  |  → 後期 
         c(paste0("\u524d\u671f ", shown[pos[1]], " \u2192 \u5f8c\u671f ", shown[pos[2]]), id_text,
-          kit_source_short(working$source()))
+          kit_source_short(working$source(), kit_filter_state(working) == "on"))
       },
       stale_on = function() {
         list(working$data(), input$baseline, input$followup, input$id_vars, follow_ids())

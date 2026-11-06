@@ -252,7 +252,8 @@ mod_reshape_server <- function(id, files, working, goto) {
 
     output$source_note <- shiny::renderUI({
       reshape_source_note_ui(
-        length(files$keys()), working$source(), working$code_cells(), ns
+        length(files$keys()), working$source(), working$code_cells(), ns,
+        filter = kit_filter_state(working)
       )
     })
 
@@ -645,10 +646,10 @@ run_wider <- function(df, args, blocked) {
 }
 
 # 目前使用哪一份資料；只要 1 個檔案就能用
-reshape_source_note_ui <- function(n_files, source, code_cells, ns) {
+reshape_source_note_ui <- function(n_files, source, code_cells, ns, filter = "off") {
   # 還沒有檔案時不另開提示框：主要按鈕上面一行「還差」已經說了
   if (n_files == 0) return(NULL)
-  kit_source_note_ui(max(n_files, 2L), source, code_cells, ns)
+  kit_source_note_ui(max(n_files, 2L), source, code_cells, ns, filter = filter)
 }
 
 # 頁首的圖解：長轉寬（預設的方向）

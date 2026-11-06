@@ -50,6 +50,8 @@ kit_ui <- function(request) {
       shiny::tabPanel("\u6a94\u6848\u4e0a\u50b3", value = "upload", mod_upload_ui("upload")),
       # 原文：遺漏值處理
       shiny::tabPanel("\u907a\u6f0f\u503c\u8655\u7406", value = "missing", mod_missing_ui("missing")),
+      # 原文：篩選與摘要
+      shiny::tabPanel("\u7be9\u9078\u8207\u6458\u8981", value = "filter", mod_filter_ui("filter")),
       # 原文：橫向資料串接
       shiny::tabPanel("\u6a6b\u5411\u8cc7\u6599\u4e32\u63a5", value = "join", mod_join_ui("join")),
       # 原文：直向波次疊加
@@ -69,7 +71,7 @@ kit_ui <- function(request) {
   )
 }
 
-#' 伺服器邏輯：各分頁模組之間只透過 files / working 兩組 reactive 傳資料
+#' 伺服器邏輯：各分頁模組之間只透過 files / working / prepared 三組 reactive 傳資料
 #'
 #' 每個模組回傳自己的狀態（state）：步驟分頁依它打 ✓、變灰（kitjoin_tab_states()）。
 #' @noRd
@@ -79,25 +81,29 @@ kit_server <- function(input, output, session) {
   }
   files <- mod_upload_server("upload", goto)
   working <- mod_missing_server("missing", files, goto)
-  join <- mod_join_server("join", files, working, goto)
-  stack <- mod_stack_server("stack", files, working, goto)
-  attrition <- mod_attrition_server("attrition", files, working, goto)
+  # 篩選與摘要：介面和 working 一樣，後面的分頁拿它（勾選時是篩選後的資料）
+  prepared <- mod_filter_server("filter", files, working, goto)
+  join <- mod_join_server("join", files, prepared, goto)
+  stack <- mod_stack_server("stack", files, prepared, goto)
+  attrition <- mod_attrition_server("attrition", files, prepared, goto)
   # ⑥ 也用 ② 的代碼清單找疑似遺漏值代碼（只提醒、不改資料；不必先按 ② 的執行）
   kitsdata <- mod_kitsdata_server(
-    "kitsdata", files, working, goto,
+    "kitsdata", files, prepared, goto,
     # 打字時不要每個字都重算（約 1 秒）：停 0.8 秒再更新
     na_codes = shiny::debounce(shiny::reactive(
       parse_na_codes(input[["missing-codes"]] %||% kit_na_codes_default())$codes
     ), 800),
     stack = stack
   )
-  reshape <- mod_reshape_server("reshape", files, working, goto)
+  reshape <- mod_reshape_server("reshape", files, prepared, goto)
   # ⑧ 和其他分頁無關：不收 files / working
   convert <- mod_convert_server("convert")
 
   pipeline_log_server("log", files, list(
-    # 原文：遺漏值處理 | 橫向資料串接 | 直向波次疊加
-    "\u907a\u6f0f\u503c\u8655\u7406" = working, "\u6a6b\u5411\u8cc7\u6599\u4e32\u63a5" = join, "\u76f4\u5411\u6ce2\u6b21\u758a\u52a0" = stack,
+    # 原文：遺漏值處理 | 篩選與摘要
+    "\u907a\u6f0f\u503c\u8655\u7406" = working, "\u7be9\u9078\u8207\u6458\u8981" = prepared,
+    # 原文：橫向資料串接 | 直向波次疊加
+    "\u6a6b\u5411\u8cc7\u6599\u4e32\u63a5" = join, "\u76f4\u5411\u6ce2\u6b21\u758a\u52a0" = stack,
     # 原文：流失樣本 | kits 作答檔 | 長/寬格式轉換
     "\u6d41\u5931\u6a23\u672c" = attrition, "kits \u4f5c\u7b54\u6a94" = kitsdata, "\u9577/\u5bec\u683c\u5f0f\u8f49\u63db" = reshape
   ))
@@ -105,7 +111,8 @@ kit_server <- function(input, output, session) {
   tab_states <- shiny::reactive(kitjoin_tab_states(
     n_files = length(files$keys()),
     states = list(
-      upload = files$state(), missing = working$state(), join = join$state(),
+      upload = files$state(), missing = working$state(), filter = prepared$state(),
+      join = join$state(),
       stack = stack$state(), attrition = attrition$state(), kitsdata = kitsdata$state(),
       reshape = reshape$state(), convert = convert$state()
     )

@@ -1,8 +1,9 @@
 # 各分頁說明框下面的小圖解（kitDesign 的 kit_diagram()、kit_dg_table() 本身的測試在 kitDesign）
 
-test_that("五個分頁的說明框都有圖解，而且各自畫出該做的事", {
+test_that("六個分頁的說明框都有圖解，而且各自畫出該做的事", {
   pages <- list(
     missing = mod_missing_ui("missing"),
+    filter = mod_filter_ui("filter"),
     join = mod_join_ui("join"),
     stack = mod_stack_ui("stack"),
     attrition = mod_attrition_ui("attrition"),

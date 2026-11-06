@@ -10,20 +10,21 @@ test_that("步驟分頁：還不能用的變灰並說明要先做什麼", {
   expect_equal(purrr::map_chr(s, "value"), names(KIT_TAB_NEED))
   st <- tab_state_of(s)
   expect_equal(
-    unname(st[c("upload", "missing", "join", "stack", "attrition", "kitsdata", "reshape")]),
-    c("ready", rep("locked", 6))
+    unname(st[c("upload", "missing", "filter", "join", "stack", "attrition", "kitsdata", "reshape")]),
+    c("ready", rep("locked", 7))
   )
   # ⑧ 有自己的上傳，永遠可以用
   expect_equal(st[["convert"]], "ready")
   tips <- tab_tip_of(s)
   expect_equal(tips$missing, "還不能用：先在「檔案上傳」加入檔案")
+  expect_equal(tips$filter, "還不能用：先在「檔案上傳」加入檔案")
   expect_equal(tips$join, "還不能用：先在「檔案上傳」加入至少 2 個檔案")
   expect_null(tips$convert)
 
   one <- kitjoin_tab_states(1, list(upload = "success"))
   st <- tab_state_of(one)
   expect_equal(st[["upload"]], "done")
-  expect_equal(unname(st[c("missing", "kitsdata", "reshape")]), rep("ready", 3))
+  expect_equal(unname(st[c("missing", "filter", "kitsdata", "reshape")]), rep("ready", 4))
   expect_equal(unname(st[c("join", "stack", "attrition")]), rep("locked", 3))
   expect_match(tab_tip_of(one)$join, "要 2 個以上的檔案")
 })
@@ -99,6 +100,7 @@ test_that("頁面帶著分頁狀態的 JavaScript；每一頁只有一個主要�
   expect_true("kit.js" %in% unlist(kd[[1]]$script))
   pages <- list(
     upload = mod_upload_ui("upload"), missing = mod_missing_ui("missing"),
+    filter = mod_filter_ui("filter"),
     join = mod_join_ui("join"), stack = mod_stack_ui("stack"),
     attrition = mod_attrition_ui("attrition"), reshape = mod_reshape_ui("reshape"),
     convert = mod_convert_ui("convert")
@@ -120,7 +122,7 @@ test_that("分頁列：三組、不編號，分頁的 value 不變；Shiny 自�
   values <- regmatches(bar, gregexpr('data-kit-tab="[a-z]+"', bar))[[1]]
   expect_equal(
     gsub('data-kit-tab="|"', "", values),
-    c("upload", "missing", "join", "stack", "attrition", "kitsdata", "reshape", "convert")
+    c("upload", "missing", "filter", "join", "stack", "attrition", "kitsdata", "reshape", "convert")
   )
   expect_no_match(bar, "[①②③④⑤⑥⑦⑧]")
   expect_match(bar, 'class="kit-navgroup tools"', fixed = TRUE)

@@ -489,6 +489,25 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
           "\u8acb\u5148\u5230\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u52a0\u5165\u5bec\u683c\u5f0f\u7684\u8cc7\u6599\u6a94\uff08\u4e00\u500b\u6216\u591a\u500b\uff09\u3002"
         ))
       }
+      filt <- kit_filter_state(working)
+      filter_note <- if (identical(filt, "on")) {
+        # 原文：這份資料也經過「篩選與摘要」篩選。
+        shiny::tags$p(class = "kit-hint", "\u9019\u4efd\u8cc7\u6599\u4e5f\u7d93\u904e\u300c\u7be9\u9078\u8207\u6458\u8981\u300d\u7be9\u9078\u3002")
+      } else if (identical(filt, "stale")) {
+        shiny::tags$div(
+          class = "kit-callout kit-callout-warn",
+          # 原文：「篩選與摘要」的設定或資料改過了，請
+          "\u300c\u7be9\u9078\u8207\u6458\u8981\u300d\u7684\u8a2d\u5b9a\u6216\u8cc7\u6599\u6539\u904e\u4e86\uff0c\u8acb",
+          # 原文：重新執行「篩選與摘要」
+          shiny::actionLink(ns("goto_filter"), "\u91cd\u65b0\u57f7\u884c\u300c\u7be9\u9078\u8207\u6458\u8981\u300d"),
+          # 原文：；在那之前，這一頁用的是沒有篩選的資料。
+          "\uff1b\u5728\u90a3\u4e4b\u524d\uff0c\u9019\u4e00\u9801\u7528\u7684\u662f\u6c92\u6709\u7be9\u9078\u7684\u8cc7\u6599\u3002"
+        )
+      }
+      note <- missing_note()
+      if (is.null(filter_note)) note else shiny::tagList(note, filter_note)
+    })
+    missing_note <- function() {
       if (identical(working$source(), "na")) {
         # 原文：用的是「遺漏值處理」處理後的資料。
         return(shiny::tags$p(class = "kit-hint", "\u7528\u7684\u662f\u300c\u907a\u6f0f\u503c\u8655\u7406\u300d\u8655\u7406\u5f8c\u7684\u8cc7\u6599\u3002"))
@@ -505,9 +524,10 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
           "\uff0c\u9019\u4e00\u9801\u624d\u6703\u7528\u5230\u65b0\u7684\u7d50\u679c\u3002"
         )
       }
-    })
+    }
     shiny::observeEvent(input$goto_missing, goto("missing"))
     shiny::observeEvent(input$goto_missing_stale, goto("missing"))
+    shiny::observeEvent(input$goto_filter, goto("filter"))
     shiny::observeEvent(input$goto_upload_status, goto("upload"))
 
     all_cols <- shiny::reactive(unique(unlist(purrr::map(dfs(), names))))

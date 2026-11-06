@@ -5,11 +5,16 @@
 # 分頁列、狀態的計算與送到瀏覽器用 kitDesign：kit_navgroups()、kit_tab_states()、
 # kit_watch_tab_states()（瀏覽器端是 kitDesign 的 kit.js）。
 
-# 分頁列：三組、不編號。①② 是準備；③④⑤⑥ 選一個做；⑦⑧ 是獨立的小工具。
+# 分頁列：三組、不編號。上傳、遺漏值處理、篩選與摘要是準備；③④⑤⑥ 選一個做；⑦⑧ 是獨立的小工具。
 # 名稱是分頁的 value（和以前一樣，updateTabsetPanel() 與各頁的連結都用它）
 KIT_TAB_GROUPS <- list(
-  # 原文：準備 | 檔案上傳 | 遺漏值處理
-  kitDesign::kit_navgroup("\u6e96\u5099", c(upload = "\u6a94\u6848\u4e0a\u50b3", missing = "\u907a\u6f0f\u503c\u8655\u7406")),
+  kitDesign::kit_navgroup(
+    # 原文：準備
+    "\u6e96\u5099",
+    # 原文：檔案上傳 | 遺漏值處理 | 篩選與摘要
+    c(upload = "\u6a94\u6848\u4e0a\u50b3", missing = "\u907a\u6f0f\u503c\u8655\u7406",
+      filter = "\u7be9\u9078\u8207\u6458\u8981")
+  ),
   kitDesign::kit_navgroup(
     # 原文：做出資料（選一個）
     "\u505a\u51fa\u8cc7\u6599\uff08\u9078\u4e00\u500b\uff09",
@@ -23,7 +28,7 @@ KIT_TAB_GROUPS <- list(
 
 # 每個分頁至少要幾個檔案才能用（⑧ 有自己的上傳，和 ① 無關）
 KIT_TAB_NEED <- c(
-  upload = 0L, missing = 1L, join = 2L, stack = 2L, attrition = 2L,
+  upload = 0L, missing = 1L, filter = 1L, join = 2L, stack = 2L, attrition = 2L,
   kitsdata = 1L, reshape = 1L, convert = 0L
 )
 

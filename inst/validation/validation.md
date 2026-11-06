@@ -36,11 +36,22 @@ imply:
 | `reshape_wider`, `reshape_longer` | Long and wide files | Variable mapping, data management |
 | `stack_waves` | Stacked file with a wave column | Data management, boundary |
 | `kits_build` | kits response file | Formula (score shift), variable mapping, boundary |
+| `filter_files`, `summary_table` (page 篩選與摘要, added after 0.10.2) | Filtered files passed to the other pages; group summary table | Data management, boundary |
 
 ## Engine equivalence
 
 Not applicable: kitJoin has no estimator. The oracle is the metamorphic layer and hand-made data
 with known answers.
+
+For the page 篩選與摘要 the R code under 「用 R 怎麼做」 is the second engine. App and code build
+each condition from the same text, and the tests run the code on the three example files and on a
+SAV with value labels, a column that is blank in a whole group, and column names that need
+backticks. The filtered files (rows, row order, columns, value labels) and the summary tables
+match the app (`tests/testthat/test-filter_pipeline.R`). Hand-made data with known answers cover
+each operator, AND and OR, the rows a condition cannot decide because of a blank (NA, dropped as in
+`dplyr::filter()` and counted), the two column modes, sorting with blanks last, a filter that keeps
+0 rows, and groups that are all blank (NA, not NaN or Inf). The page was not part of the metamorphic,
+snapshot or mutation layers below.
 
 ## Metamorphic relations
 
