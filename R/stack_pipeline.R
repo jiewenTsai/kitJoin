@@ -39,6 +39,9 @@ stack_waves <- function(dfs, file_names, wave_labels) {
     }
   )
   result <- restore_var_labels(result, dfs)
+  # 測量水準（SPSS 的名義、次序、尺度）：bind_rows 會丟掉，依欄名補回；各波不同時用第一個檔案的
+  measures <- restore_measures(result, dfs, setdiff(names(result), wave_col))
+  result <- measures$df
 
   names_shown <- file_display_name(wave_labels, file_names)
   stats <- stack_stats(dfs, wave_labels, result, wave_col)
@@ -72,6 +75,16 @@ stack_waves <- function(dfs, file_names, wave_labels) {
           "\u9019\u4e9b\u6b04\u4f4d\u5728\u5404\u6ce2\u7684\u578b\u5225\u4e0d\u540c\uff08\u6709\u7684\u662f\u6578\u5b57\u3001\u6709\u7684\u662f\u6587\u5b57\uff09\uff0c\u5df2\u7d71\u4e00\u8f49\u6210\u6587\u5b57\uff1a",
           # 原文：、 | 。若應該是數字，請回原檔檢查是否有非數字的值。
           paste(harmonized$cols, collapse = "\u3001"), "\u3002\u82e5\u61c9\u8a72\u662f\u6578\u5b57\uff0c\u8acb\u56de\u539f\u6a94\u6aa2\u67e5\u662f\u5426\u6709\u975e\u6578\u5b57\u7684\u503c\u3002"
+        )
+      },
+      if (nrow(measures$conflicts) > 0) {
+        paste0(
+          # 原文：這些欄位在各波的測量水準不同（SPSS 的名義、次序、尺度），結果用第一個檔案的：
+          "\u9019\u4e9b\u6b04\u4f4d\u5728\u5404\u6ce2\u7684\u6e2c\u91cf\u6c34\u6e96\u4e0d\u540c\uff08SPSS \u7684\u540d\u7fa9\u3001\u6b21\u5e8f\u3001\u5c3a\u5ea6\uff09\uff0c\u7d50\u679c\u7528\u7b2c\u4e00\u500b\u6a94\u6848\u7684\uff1a",
+          # 原文：（ | ） | 、
+          paste0(measures$conflicts$column, "\uff08", measures$conflicts$measures, "\uff09", collapse = "\u3001"),
+          # 原文：。
+          "\u3002"
         )
       },
       if (length(label_conflicts) > 0) {

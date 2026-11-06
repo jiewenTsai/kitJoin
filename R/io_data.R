@@ -66,7 +66,8 @@ read_data_file <- function(path, name, sav_encoding = "auto", user_na = FALSE) {
       }
     }
     return(list(
-      data = kit_fix_utf8_df(data),
+      # haven 不讀測量水準（名義、次序、尺度）：自己從表頭讀，掛在每一欄（R/sav_measure.R）
+      data = sav_attach_measures(kit_fix_utf8_df(data), path),
       encoding = encoding,
       n_problems = 0L
     ))
@@ -140,6 +141,9 @@ codebook_table <- function(df) {
       "\u8b8a\u9805\u6a19\u7c64" = as.character(attr(x, "label", exact = TRUE) %||% ""),
       # 原文：型別
       "\u578b\u5225" = type,
+      # SPSS 的測量水準（讀 SAV 時記下的；其他檔案是空白）
+      # 原文：測量水準
+      "\u6e2c\u91cf\u6c34\u6e96" = if (is.na(col_measure(x))) "" else SAV_MEASURE_ZH[[col_measure(x)]],
       # 原文：數值標籤
       "\u6578\u503c\u6a19\u7c64" = if (length(labels) > 0) {
         # 原文：；
@@ -300,14 +304,22 @@ write_kit_sav <- function(df, file) {
   df <- kit_fix_utf8_df(df)
   original <- names(df)
   names(df) <- kit_sav_safe_names(names(df))
+  # 測量水準：haven 寫完後再寫回去（讀進來時掛在欄上的 attr "measure"）
+  measures <- purrr::map_chr(df, col_measure)
+  # 文字欄在 SPSS 不能是尺度（例如疊加時數字和文字混在一起、統一成文字的欄）
+  measures[purrr::map_lgl(df, is.character) & measures %in% "scale"] <- "nominal"
   haven::write_sav(df, file)
-  if (sav_readable(file)) return(invisible(list(fixed = character(0), step = 0L)))
+  if (sav_readable(file)) {
+    sav_write_measures(file, measures)
+    return(invisible(list(fixed = character(0), step = 0L)))
+  }
 
   fixes <- list(clean_string_value_labels, drop_string_value_labels, drop_all_value_labels)
   for (step in seq_along(fixes)) {
     fixed <- fixes[[step]](df)
     haven::write_sav(fixed$df, file)
     if (sav_readable(file)) {
+      sav_write_measures(file, measures)
       return(invisible(list(fixed = original[match(fixed$cols, names(df))], step = step)))
     }
   }

@@ -97,7 +97,12 @@ test_that("「用 R 怎麼做」跑出來和 app 一樣", {
   file.copy(sav, run)
   withr::with_dir(run, {
     eval(parse(text = code_convert("w1.sav", "csv")), envir = new.env())
-    expect_equal(readLines("w1_variables.csv"), readLines(res$dict_path))
+    # 測量水準 R 讀不到（app 自己從 SAV 表頭讀）：其他欄要一模一樣
+    no_measure <- \(f) {
+      dplyr::select(readr::read_csv(f, col_types = readr::cols(.default = "c")), -measure)
+    }
+    expect_equal(no_measure("w1_variables.csv"), no_measure(res$dict_path))
+    expect_true(all(is.na(readr::read_csv("w1_variables.csv", show_col_types = FALSE)$measure)))
     expect_equal(readLines("w1.csv"), readLines(res$out_path))
     eval(parse(text = code_convert("w1.csv", "sav", dict_name = "w1_variables.csv")), envir = new.env())
     a <- haven::read_sav("w1.sav", user_na = TRUE)
@@ -156,7 +161,7 @@ test_that("數值標籤兩種寫法、中英文欄名都可以混用", {
   expect_equal(v$sex$na_values, "9")
 })
 
-test_that("⑧ CSV → SAV 可以下載空白變項檔：五欄，variable 是資料的欄名；照著填就能貼回", {
+test_that("⑧ CSV → SAV 可以下載空白變項檔：六欄，variable 是資料的欄名；照著填就能貼回", {
   dir <- withr::local_tempdir()
   csv <- file.path(dir, "第一波.csv")
   readr::write_excel_csv(data.frame(id = c("a", "b"), 性別 = c(1, 2)), csv)
@@ -165,7 +170,9 @@ test_that("⑧ CSV → SAV 可以下載空白變項檔：五欄，variable 是�
     expect_match(output$dict_ui$html, "下載空白變項檔")
     tpl <- readr::read_csv(kit_test_download_file(session, "download_template"),
                            col_types = readr::cols(.default = "c"))
-    expect_equal(names(tpl), c("variable", "label", "value_labels", "na_values", "na_range"))
+    expect_equal(names(tpl), c(
+      "variable", "label", "value_labels", "na_values", "na_range", "measure"
+    ))
     expect_equal(tpl$variable, c("id", "性別"))
     expect_true(all(is.na(tpl$label)))
 

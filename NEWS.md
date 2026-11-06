@@ -27,6 +27,17 @@
   `names_transform`), escapes special characters, and labels it in 「用 R 怎麼做」. The old
   free-text boxes moved to 「自己寫規則」 in the advanced settings. They keep tidyr's
   regular-expression meaning, now stated in their labels, and take precedence over the clicks.
+* SPSS measurement levels (名義 nominal, 次序 ordinal, 尺度 scale) are kept. haven neither reads
+  nor writes them: every numeric column, Likert items with value labels included, came out as
+  "scale". kitJoin now reads each variable's level from the SAV header on upload and writes it back
+  after `haven::write_sav()`, changing only those bytes. Levels survive missing codes, join, stack,
+  attrition, filter and long/wide. When the same column has different levels across stacked waves,
+  the first file's level is used and the status box lists those columns. A text column cannot be
+  "scale" in SPSS, so it is written as nominal. Checked against pyreadstat (ReadStat).
+* The codebook has a new column 「測量水準」. The ⑧ variables file has a new column `measure`
+  (`nominal`, `ordinal`, `scale`; Chinese 名義/次序/尺度 is accepted too), so CSV → SPSS with the
+  variables file restores the levels. The R code in 「用 R 怎麼做」 leaves `measure` empty because no
+  R package reads it.
 * Fixed: the 「欄名要去掉的開頭」 box was read as a regular expression without saying so, so
   `score.` also removed `scoreX` and `a(1)` did not match itself. Tab ⑥ is unchanged.
 

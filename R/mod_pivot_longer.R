@@ -689,6 +689,11 @@ pivot_longer_run <- function(df, args) {
     }
   )
   if (length(caught) > 0) attr(out, "kit_warnings") <- unique(caught)
+  # 測量水準（SPSS）：合在一起的值欄沿用原本那些欄的（不同時用第一欄的）
+  if (args$values_to %in% names(out)) {
+    from <- stats::setNames(list(cols), args$values_to)
+    out <- restore_measures(out, list(df), args$values_to, from)$df
+  }
   out
 }
 

@@ -17,6 +17,8 @@ convert_dict_name <- function(out_name) {
 sav_dictionary <- function(df) {
   dict <- labelled::convert_list_columns_to_character(labelled::generate_dictionary(df, details = "full"))
   dict <- tibble::as_tibble(lapply(dict, unname))
+  # 加一欄 SPSS 的測量水準（nominal、ordinal、scale；haven 與 labelled 都不讀，見 R/sav_measure.R）
+  dict$measure <- unname(purrr::map_chr(df[dict$variable], col_measure))
   dict
 }
 
@@ -41,7 +43,9 @@ KIT_DICT_COLS <- list(
   value_labels = c("value_labels", "\u6578\u503c\u6a19\u7c64"),
   # 原文：使用者自訂遺漏值 | 遺漏值
   na_values = c("na_values", "\u4f7f\u7528\u8005\u81ea\u8a02\u907a\u6f0f\u503c", "\u907a\u6f0f\u503c"),
-  na_range = c("na_range")
+  na_range = c("na_range"),
+  # 原文：測量水準
+  measure = c("measure", "\u6e2c\u91cf\u6c34\u6e96")
 )
 
 #' 一格數值標籤 → list(values, labels)
@@ -112,6 +116,7 @@ read_variables_file <- function(path, name) {
   value_labels <- text("value_labels")
   na_values <- text("na_values")
   na_range <- text("na_range")
+  measure <- dict_measure(text("measure"))
   keep <- which(!is.na(vars) & nzchar(vars))
   out <- lapply(keep, function(i) {
     vl <- parse_value_labels(value_labels[i])
@@ -119,13 +124,13 @@ read_variables_file <- function(path, name) {
     list(
       label = if (is.na(label[i]) || !nzchar(trimws(label[i]))) NULL else label[i],
       values = vl$values, labels = vl$labels,
-      na_values = na$na_values, na_range = na$na_range
+      na_values = na$na_values, na_range = na$na_range, measure = measure[i]
     )
   })
   stats::setNames(out, vars[keep])
 }
 
-#' 空白變項檔：只有真正用得到的五欄，variable 先填好資料的欄名
+#' 空白變項檔：只有真正用得到的六欄（多一欄測量水準 measure），variable 先填好資料的欄名
 #' @noRd
 variables_template <- function(cols) {
   tibble::tibble(
@@ -133,8 +138,19 @@ variables_template <- function(cols) {
     label = NA_character_,
     value_labels = NA_character_,
     na_values = NA_character_,
-    na_range = NA_character_
+    na_range = NA_character_,
+    measure = NA_character_
   )
+}
+
+#' 變項檔的測量水準：英文（nominal、ordinal、scale）或中文（名義、次序、尺度）都可以；
+#' 其他寫法或空白是 NA（維持原本的）
+#' @noRd
+dict_measure <- function(x) {
+  x <- tolower(trimws(as.character(x)))
+  zh <- stats::setNames(names(SAV_MEASURE_ZH), SAV_MEASURE_ZH)
+  out <- dplyr::coalesce(unname(zh[x]), x)
+  ifelse(out %in% names(SAV_MEASURES), out, NA_character_)
 }
 
 #' 把變項檔的標籤貼到資料上（CSV 轉 SAV 前）
@@ -177,6 +193,7 @@ apply_variables <- function(df, vars, dict_name) {
     } else {
       attr(x, "label") <- spec$label
     }
+    if (!is.na(spec$measure %||% NA_character_)) attr(x, "measure") <- spec$measure
     df[[v]] <- x
   }
   only_dict <- setdiff(names(vars), names(df))
@@ -232,6 +249,10 @@ code_convert <- function(name, target, labels_as_text = FALSE, dict_name = NULL)
       # 原文：# 變項檔：一個變項一列（變項標籤、數值標籤、自訂遺漏值）
       "# \u8b8a\u9805\u6a94\uff1a\u4e00\u500b\u8b8a\u9805\u4e00\u5217\uff08\u8b8a\u9805\u6a19\u7c64\u3001\u6578\u503c\u6a19\u7c64\u3001\u81ea\u8a02\u907a\u6f0f\u503c\uff09",
       "vars <- generate_dictionary(data, details = \"full\")",
+      # 原文：# 測量水準（名義、次序、尺度）：R 的套件讀不到，app 自己從 SAV 檔讀；這裡留空白
+      # 原文：# 測量水準（名義、次序、尺度）：R 的套件讀不到，app 自己從 SAV 檔讀；這裡留空白
+      "# \u6e2c\u91cf\u6c34\u6e96\uff08\u540d\u7fa9\u3001\u6b21\u5e8f\u3001\u5c3a\u5ea6\uff09\uff1aR \u7684\u5957\u4ef6\u8b80\u4e0d\u5230\uff0capp \u81ea\u5df1\u5f9e SAV \u6a94\u8b80\uff1b\u9019\u88e1\u7559\u7a7a\u767d",
+      "vars$measure <- NA",
       paste0("write_excel_csv(convert_list_columns_to_character(vars), ",
              r_str(convert_dict_name(out)), ", na = \"\")"), "",
       if (labels_as_text) {
