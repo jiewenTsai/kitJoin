@@ -10,6 +10,8 @@
 #   pivot_longer_run(df, args)                          → 長格式資料
 #
 # cols 一律用點選：挑要轉的欄（cols = c(a, b)），或挑不轉的欄（cols = !c(id, sex)）。
+# 欄名怎麼變成值也用點選（去掉開頭、結尾，切成幾段；pivot_names.R），app 寫出跳脫好的規則。
+# 會寫正規表示式的人可以在進階設定自己寫 names_prefix / names_pattern；填了就以那裡為準。
 
 # tidyr::pivot_longer() 的預設值（cols 沒有預設，一定要給）
 # cols_exclude = TRUE 時 cols 是「不轉的欄」，其餘全部轉
@@ -19,7 +21,9 @@ PIVOT_LONGER_DEFAULTS <- list(
   names_to = "name",
   values_to = "value",
   names_prefix = NULL,
+  names_sep = NULL,
   names_pattern = NULL,
+  names_transform = NULL,
   values_drop_na = FALSE
 )
 
@@ -31,10 +35,10 @@ PIVOT_LONGER_LABELS <- c(
   names_to = "\u539f\u672c\u7684\u6b04\u540d\u653e\u5230\u54ea\u4e00\u6b04",
   # 原文：原本的值放到哪一欄
   values_to = "\u539f\u672c\u7684\u503c\u653e\u5230\u54ea\u4e00\u6b04",
-  # 原文：欄名要去掉的開頭
-  names_prefix = "\u6b04\u540d\u8981\u53bb\u6389\u7684\u958b\u982d",
-  # 原文：從欄名取出部分的規則
-  names_pattern = "\u5f9e\u6b04\u540d\u53d6\u51fa\u90e8\u5206\u7684\u898f\u5247",
+  # 原文：欄名要去掉的開頭（正規表示式）
+  names_prefix = "\u6b04\u540d\u8981\u53bb\u6389\u7684\u958b\u982d\uff08\u6b63\u898f\u8868\u793a\u5f0f\uff09",
+  # 原文：從欄名取出部分的規則（正規表示式）
+  names_pattern = "\u5f9e\u6b04\u540d\u53d6\u51fa\u90e8\u5206\u7684\u898f\u5247\uff08\u6b63\u898f\u8868\u793a\u5f0f\uff09",
   # 原文：去掉空白的值
   values_drop_na = "\u53bb\u6389\u7a7a\u767d\u7684\u503c"
 )
@@ -83,13 +87,18 @@ mod_pivot_longer_ui <- function(id) {
 #' @param data reactive：要轉換的資料（給 cols 的選項；NULL 時沒有選項）
 #' @param fixed 具名 list：要固定的參數（畫面上只顯示、不能改），例如
 #'   `list(names_to = "item_id")`。值可以是 reactive（例如 cols 由別的設定決定）。
-#' @return reactive：參數 list（names(PIVOT_LONGER_DEFAULTS)），沒改的用 tidyr 的預設
+#' @return reactive：參數 list（names(PIVOT_LONGER_DEFAULTS)），沒改的用 tidyr 的預設。
+#'   用點選設定欄名時多兩個欄位：names_by_app（規則是 app 寫的）、names_problem
+#'   （點選的設定有問題時給使用者看的文字；pivot_longer_run() 會擋下來）
 #' @noRd
 mod_pivot_longer_server <- function(id, data, fixed = list()) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
     value_of <- function(x) if (is.function(x)) x() else x
     locked <- function(arg) arg %in% names(fixed)
+
+    # 欄名怎麼變成值：開頭、規則沒有固定時才用點選（⑥ 全部固定，沒有這一塊）
+    names_click <- !locked("names_prefix") && !locked("names_pattern")
 
     output$controls <- shiny::renderUI({
       text <- function(arg, placeholder = NULL) {
@@ -99,27 +108,48 @@ mod_pivot_longer_server <- function(id, data, fixed = list()) {
           value = PIVOT_LONGER_DEFAULTS[[arg]] %||% "", placeholder = placeholder
         )
       }
+      # 切成幾段時，每段的欄名在下面填；這一格先收起來（自己寫規則時還是要用）
+      show_names_to <- sprintf(
+        "!input['%s'] || (input['%s'] || '').trim() || (input['%s'] || '').trim()",
+        ns("name_split"), ns("names_prefix"), ns("names_pattern")
+      )
       shiny::tagList(
         if (locked("cols")) {
           pivot_locked_ui(ns, "cols")
         } else {
           pivot_cols_ui(ns, shiny::isolate(all_cols()), shiny::isolate(input$cols))
         },
-        shiny::tags$div(class = "kit-pivot-row", text("names_to"), text("values_to")),
+        shiny::tags$div(
+          class = "kit-pivot-row",
+          shiny::conditionalPanel(show_names_to, text("names_to")),
+          text("values_to")
+        ),
+        if (names_click) pivot_names_panel_ui(ns),
         kit_advanced(
-          # 原文：進階設定：欄名的開頭、規則、空白的值、R 的參數名稱
-          title = "\u9032\u968e\u8a2d\u5b9a\uff1a\u6b04\u540d\u7684\u958b\u982d\u3001\u898f\u5247\u3001\u7a7a\u767d\u7684\u503c\u3001R \u7684\u53c3\u6578\u540d\u7a31",
+          # 原文：進階設定：空白的值、自己寫規則、R 的參數名稱
+          title = "\u9032\u968e\u8a2d\u5b9a\uff1a\u7a7a\u767d\u7684\u503c\u3001\u81ea\u5df1\u5beb\u898f\u5247\u3001R \u7684\u53c3\u6578\u540d\u7a31",
           open = any(c("names_prefix", "names_pattern", "values_drop_na") %in% names(fixed)),
           pivot_longer_arg_map(),
-          # 原文：例如 score_
-          text("names_prefix", "\u4f8b\u5982 score_"),
-          # 原文：例如 (.*)_t(\\d)
-          text("names_pattern", "\u4f8b\u5982 (.*)_t(\\d)"),
           if (locked("values_drop_na")) {
             pivot_locked_ui(ns, "values_drop_na")
           } else {
             shiny::checkboxInput(ns("values_drop_na"), pivot_label("values_drop_na"), FALSE)
-          }
+          },
+          # 原文：自己寫規則（會寫正規表示式的人才需要）
+          shiny::tags$div(class = "fw-semibold mt-2", "\u81ea\u5df1\u5beb\u898f\u5247\uff08\u6703\u5beb\u6b63\u898f\u8868\u793a\u5f0f\u7684\u4eba\u624d\u9700\u8981\uff09"),
+          shiny::tags$p(
+            class = "kit-hint",
+            # 原文：這兩格照 tidyr 的寫法，裡面是正規表示式。. ( ) 這類符號有特別的意思。
+            "\u9019\u5169\u683c\u7167 tidyr \u7684\u5beb\u6cd5\uff0c\u88e1\u9762\u662f\u6b63\u898f\u8868\u793a\u5f0f\u3002. ( ) \u9019\u985e\u7b26\u865f\u6709\u7279\u5225\u7684\u610f\u601d\u3002",
+            # 原文：填了以後，上面「欄名怎麼變成值」的點選就不用。
+            "\u586b\u4e86\u4ee5\u5f8c\uff0c\u4e0a\u9762\u300c\u6b04\u540d\u600e\u9ebc\u8b8a\u6210\u503c\u300d\u7684\u9ede\u9078\u5c31\u4e0d\u7528\u3002",
+            # 原文：要切成好幾欄時，「原本的欄名放到哪一欄」用逗號分開寫好幾個名字。
+            "\u8981\u5207\u6210\u597d\u5e7e\u6b04\u6642\uff0c\u300c\u539f\u672c\u7684\u6b04\u540d\u653e\u5230\u54ea\u4e00\u6b04\u300d\u7528\u9017\u865f\u5206\u958b\u5beb\u597d\u5e7e\u500b\u540d\u5b57\u3002"
+          ),
+          # 原文：例如 score_
+          text("names_prefix", "\u4f8b\u5982 score_"),
+          # 原文：例如 (.*)_t(\\d)
+          text("names_pattern", "\u4f8b\u5982 (.*)_t(\\d)")
         )
       )
     })
@@ -176,11 +206,145 @@ mod_pivot_longer_server <- function(id, data, fixed = list()) {
       )
     })
 
-    shiny::reactive({
-      typed <- function(arg) {
-        v <- input[[arg]]
-        if (is.null(v) || !nzchar(trimws(v))) NULL else trimws(v)
+    typed <- function(arg) {
+      v <- input[[arg]]
+      if (is.null(v) || !nzchar(trimws(v))) NULL else trimws(v)
+    }
+
+    # ── 欄名怎麼變成值（點選）───────────────────────────────────────────
+    # 實際要轉的欄（依資料的欄位順序）
+    conv_cols <- shiny::reactive({
+      if (locked("cols")) return(value_of(fixed$cols) %||% character(0))
+      picked <- pivot_order_cols(input$cols %||% character(0), all_cols())
+      if (identical(input$cols_mode, "exclude")) setdiff(all_cols(), picked) else picked
+    })
+    # 進階設定裡自己寫了規則：以那裡為準
+    expert <- shiny::reactive(!is.null(typed("names_prefix")) || !is.null(typed("names_pattern")))
+    starts <- shiny::reactive(pivot_name_starts(conv_cols()))
+    ends <- shiny::reactive(pivot_name_ends(conv_cols()))
+    # 選項變了，舊的選擇不在新的選項裡時，當作「不去掉」
+    start <- shiny::reactive(pivot_keep_choice(input$name_start, starts()))
+    end <- shiny::reactive(pivot_keep_choice(input$name_end, ends()))
+    middles <- shiny::reactive(pivot_name_middles(conv_cols(), start(), end()))
+    split_choices <- shiny::reactive({
+      m <- middles()
+      if (locked("names_to") || !is.null(m$problem)) return(character(0))
+      pivot_name_split_choices(m$middles)
+    })
+    split <- shiny::reactive(pivot_keep_choice(input$name_split, split_choices()))
+    split_info <- shiny::reactive({
+      s <- split()
+      if (!nzchar(s)) NULL else pivot_name_split(middles()$middles, s)
+    })
+
+    output$names_cut <- shiny::renderUI({
+      cols <- conv_cols()
+      if (length(cols) == 0) {
+        return(shiny::tags$p(
+          # 原文：選了要轉的欄以後，這裡會列出每個欄名都有的開頭、結尾。
+          class = "kit-hint", "\u9078\u4e86\u8981\u8f49\u7684\u6b04\u4ee5\u5f8c\uff0c\u9019\u88e1\u6703\u5217\u51fa\u6bcf\u500b\u6b04\u540d\u90fd\u6709\u7684\u958b\u982d\u3001\u7d50\u5c3e\u3002"
+        ))
       }
+      shiny::tagList(
+        pivot_cut_radio(
+          # 原文：去掉每個欄名都有的開頭
+          ns("name_start"), "\u53bb\u6389\u6bcf\u500b\u6b04\u540d\u90fd\u6709\u7684\u958b\u982d", starts(),
+          # 原文：每個欄名的開頭不一樣，沒有可以去掉的。
+          shiny::isolate(input$name_start), "\u6bcf\u500b\u6b04\u540d\u7684\u958b\u982d\u4e0d\u4e00\u6a23\uff0c\u6c92\u6709\u53ef\u4ee5\u53bb\u6389\u7684\u3002"
+        ),
+        pivot_cut_radio(
+          # 原文：去掉每個欄名都有的結尾
+          ns("name_end"), "\u53bb\u6389\u6bcf\u500b\u6b04\u540d\u90fd\u6709\u7684\u7d50\u5c3e", ends(),
+          # 原文：每個欄名的結尾不一樣，沒有可以去掉的。
+          shiny::isolate(input$name_end), "\u6bcf\u500b\u6b04\u540d\u7684\u7d50\u5c3e\u4e0d\u4e00\u6a23\uff0c\u6c92\u6709\u53ef\u4ee5\u53bb\u6389\u7684\u3002"
+        )
+      )
+    })
+    output$names_split <- shiny::renderUI({
+      if (locked("names_to") || length(conv_cols()) == 0) return(NULL)
+      choices <- split_choices()
+      if (length(choices) == 0) {
+        return(shiny::tags$p(
+          # 原文：每個欄名裡沒有共同的分隔符號，也不是文字接數字，所以不能切。
+          class = "kit-hint", "\u6bcf\u500b\u6b04\u540d\u88e1\u6c92\u6709\u5171\u540c\u7684\u5206\u9694\u7b26\u865f\uff0c\u4e5f\u4e0d\u662f\u6587\u5b57\u63a5\u6578\u5b57\uff0c\u6240\u4ee5\u4e0d\u80fd\u5207\u3002"
+        ))
+      }
+      shiny::radioButtons(
+        # 原文：把欄名切成幾段
+        ns("name_split"), "\u628a\u6b04\u540d\u5207\u6210\u5e7e\u6bb5",
+        # 原文：不切
+        choiceNames = unname(c("\u4e0d\u5207", PIVOT_SPLIT_LABELS[choices])),
+        choiceValues = c("", choices),
+        selected = pivot_keep_choice(shiny::isolate(input$name_split), choices),
+        inline = TRUE
+      )
+    })
+
+    # 每段放到哪一欄：換了切法才換成預設的名字；段數和切法一樣時保留已經填的
+    last_parts <- ""
+    output$names_parts <- shiny::renderUI({
+      info <- split_info()
+      m <- middles()
+      can_num <- if (is.null(info)) pivot_middles_numeric(m$middles) else any(info$numeric)
+      boxes <- NULL
+      if (!is.null(info) && !is.na(info$n)) {
+        key <- paste(split(), info$n)
+        keep <- identical(key, last_parts)
+        last_parts <<- key
+        defaults <- pivot_part_default_names(info$digit)
+        examples <- purrr::map_chr(seq_len(info$n), function(i) info$parts[[1]][i])
+        boxes <- purrr::map(seq_len(info$n), function(i) {
+          id <- paste0("part_", i)
+          now <- if (keep) shiny::isolate(input[[id]])
+          shiny::textInput(
+            # 原文：第  |  段放到哪一欄（例如  | ）
+            ns(id), paste0("\u7b2c ", i, " \u6bb5\u653e\u5230\u54ea\u4e00\u6b04\uff08\u4f8b\u5982 ", examples[i], "\uff09"),
+            value = now %||% defaults[i]
+          )
+        })
+      }
+      shiny::tagList(
+        if (length(boxes) > 0) shiny::tags$div(class = "kit-pivot-row", boxes),
+        if (isTRUE(can_num)) {
+          shiny::checkboxInput(
+            # 原文：數字的部分轉成數字（例如 01 → 1）
+            ns("names_num"), "\u6578\u5b57\u7684\u90e8\u5206\u8f49\u6210\u6578\u5b57\uff08\u4f8b\u5982 01 \u2192 1\uff09",
+            shiny::isolate(isTRUE(input$names_num))
+          )
+        }
+      )
+    })
+
+    # 點選的設定 → tidyr 參數；有問題時 problem 是給使用者看的文字
+    click <- shiny::reactive({
+      m <- middles()
+      info <- split_info()
+      if (!is.null(m$problem)) return(list(args = NULL, problem = m$problem))
+      if (!is.null(info$problem)) return(list(args = NULL, problem = info$problem))
+      if (is.null(info)) {
+        names_to <- pivot_names_to_typed(typed("names_to"))
+        numeric <- pivot_middles_numeric(m$middles)
+      } else {
+        defaults <- pivot_part_default_names(info$digit)
+        names_to <- purrr::map_chr(seq_len(info$n), function(i) {
+          typed(paste0("part_", i)) %||% defaults[i]
+        })
+        numeric <- info$numeric
+      }
+      if (anyDuplicated(names_to) > 0) {
+        return(list(args = NULL, problem = paste0(
+          # 原文：每一段要放到不同名字的欄；現在有重複的名字：
+          "\u6bcf\u4e00\u6bb5\u8981\u653e\u5230\u4e0d\u540c\u540d\u5b57\u7684\u6b04\uff1b\u73fe\u5728\u6709\u91cd\u8907\u7684\u540d\u5b57\uff1a",
+          # 原文：。
+          kit_name_list(unique(names_to[duplicated(names_to)])), "\u3002"
+        )))
+      }
+      to_integer <- isTRUE(input$names_num) & numeric
+      args <- pivot_names_args(start(), end(), split(), info, names_to, to_integer)
+      list(args = args, problem = NULL)
+    })
+
+    out <- shiny::reactive({
       args <- PIVOT_LONGER_DEFAULTS
       if (!locked("cols")) {
         # 依資料的欄位順序（和 starts_with()、!c() 選出來的順序一樣）
@@ -188,15 +352,135 @@ mod_pivot_longer_server <- function(id, data, fixed = list()) {
         args$cols_exclude <- identical(input$cols_mode, "exclude")
       }
       names_to <- typed("names_to")
-      if (!is.null(names_to)) args$names_to <- trimws(strsplit(names_to, ",")[[1]])
+      if (!is.null(names_to)) args$names_to <- pivot_names_to_typed(names_to)
       args$values_to <- typed("values_to") %||% args$values_to
       args$names_prefix <- typed("names_prefix")
       args$names_pattern <- typed("names_pattern")
       args$values_drop_na <- isTRUE(input$values_drop_na)
+      if (names_click && !expert() && length(conv_cols()) > 0) {
+        p <- click()
+        if (!is.null(p$args)) {
+          args[names(p$args)] <- p$args
+          by_app <- c(args$names_prefix, args$names_sep, args$names_pattern)
+          args$names_by_app <- length(by_app) > 0
+        }
+        args["names_problem"] <- list(p$problem)
+      }
       for (a in names(fixed)) args[[a]] <- value_of(fixed[[a]])
       args
     })
+
+    # 預覽：每個欄名會變成什麼（用 tidyr 自己算）；有問題時說明，並擋住執行
+    output$names_preview <- shiny::renderUI({
+      cols <- conv_cols()
+      if (length(cols) == 0) return(NULL)
+      a <- utils::modifyList(PIVOT_LONGER_DEFAULTS, out())
+      empty <- tibble::as_tibble(
+        stats::setNames(rep(list(logical(0)), length(all_cols())), all_cols()),
+        .name_repair = "minimal"
+      )
+      problem <- a$names_problem %||% pivot_longer_problem(empty, cols, a, names_check = FALSE)
+      chk <- if (is.null(problem)) pivot_names_check(cols, a)
+      problem <- problem %||% chk$problem
+      shiny::tagList(
+        if (expert()) {
+          shiny::tags$p(
+            class = "small text-warning",
+            # 原文：進階設定的「自己寫規則」有填，所以用那裡的規則；上面的點選暫時不用。
+            "\u9032\u968e\u8a2d\u5b9a\u7684\u300c\u81ea\u5df1\u5beb\u898f\u5247\u300d\u6709\u586b\uff0c\u6240\u4ee5\u7528\u90a3\u88e1\u7684\u898f\u5247\uff1b\u4e0a\u9762\u7684\u9ede\u9078\u66ab\u6642\u4e0d\u7528\u3002"
+          )
+        },
+        if (!is.null(chk$preview)) {
+          shiny::tagList(
+            # 原文：預覽：欄名會變成這樣
+            shiny::tags$div(class = "small fw-semibold", "\u9810\u89bd\uff1a\u6b04\u540d\u6703\u8b8a\u6210\u9019\u6a23"),
+            shiny::tags$div(
+              class = "kit-table-scroll",
+              kit_static_table(utils::head(chk$preview, PIVOT_NAMES_PREVIEW))
+            ),
+            if (length(cols) > PIVOT_NAMES_PREVIEW) {
+              shiny::tags$p(class = "kit-hint", paste0(
+                # 原文：共  |  欄，只列前  |  欄。
+                "\u5171 ", kit_num(length(cols)), " \u6b04\uff0c\u53ea\u5217\u524d ", PIVOT_NAMES_PREVIEW, " \u6b04\u3002"
+              ))
+            }
+          )
+        },
+        if (length(chk$unmatched) > 0) {
+          shiny::tags$p(class = "small text-warning", paste0(
+            # 原文：這些欄名對不上規則，值會是空白： | 。
+            "\u9019\u4e9b\u6b04\u540d\u5c0d\u4e0d\u4e0a\u898f\u5247\uff0c\u503c\u6703\u662f\u7a7a\u767d\uff1a", kit_name_list(chk$unmatched), "\u3002"
+          ))
+        },
+        if (!is.null(problem)) shiny::tags$p(class = "small text-danger", problem)
+      )
+    })
+
+    out
   })
+}
+
+# 預覽表最多列幾欄
+PIVOT_NAMES_PREVIEW <- 10L
+
+# 切法的說明（代號 → 選項文字）
+PIVOT_SPLIT_LABELS <- c(
+  # 原文：用底線 _ 切
+  "_" = "\u7528\u5e95\u7dda _ \u5207",
+  # 原文：用點 . 切
+  "." = "\u7528\u9ede . \u5207",
+  # 原文：用減號 - 切
+  "-" = "\u7528\u6e1b\u865f - \u5207",
+  # 原文：用空白切
+  " " = "\u7528\u7a7a\u767d\u5207",
+  # 原文：文字和數字分開
+  digits = "\u6587\u5b57\u548c\u6578\u5b57\u5206\u958b"
+)
+
+# 「原本的欄名放到哪一欄」填的字：逗號分開的好幾個名字
+pivot_names_to_typed <- function(x) {
+  if (is.null(x)) return("name")
+  trimws(strsplit(x, ",")[[1]])
+}
+
+# 選項變了：舊的選擇還在就留著，不在就用 ""（不去掉、不切）
+pivot_keep_choice <- function(now, choices) {
+  if (!is.null(now) && nzchar(now) && now %in% choices) now else ""
+}
+
+#' 「欄名怎麼變成值」的畫面（放在主畫面，不收在進階設定）
+#' @noRd
+pivot_names_panel_ui <- function(ns) {
+  shiny::tags$div(
+    class = "kit-pivot-names mb-3",
+    # 原文：欄名怎麼變成值
+    shiny::tags$div(class = "fw-semibold", "\u6b04\u540d\u600e\u9ebc\u8b8a\u6210\u503c"),
+    shiny::tags$p(
+      class = "kit-hint",
+      # 原文：原本的欄名會變成「原本的欄名放到哪一欄」裡的值。
+      "\u539f\u672c\u7684\u6b04\u540d\u6703\u8b8a\u6210\u300c\u539f\u672c\u7684\u6b04\u540d\u653e\u5230\u54ea\u4e00\u6b04\u300d\u88e1\u7684\u503c\u3002",
+      # 原文：可以去掉每個欄名都有的開頭、結尾，也可以把欄名切成幾段。都用點的，不用寫規則。
+      "\u53ef\u4ee5\u53bb\u6389\u6bcf\u500b\u6b04\u540d\u90fd\u6709\u7684\u958b\u982d\u3001\u7d50\u5c3e\uff0c\u4e5f\u53ef\u4ee5\u628a\u6b04\u540d\u5207\u6210\u5e7e\u6bb5\u3002\u90fd\u7528\u9ede\u7684\uff0c\u4e0d\u7528\u5beb\u898f\u5247\u3002"
+    ),
+    shiny::uiOutput(ns("names_cut")),
+    shiny::uiOutput(ns("names_split")),
+    shiny::uiOutput(ns("names_parts")),
+    shiny::uiOutput(ns("names_preview"))
+  )
+}
+
+#' 去掉開頭 / 結尾的選項：「不去掉」加上每個候選（用 <code> 顯示，空白也看得到）
+#' @noRd
+pivot_cut_radio <- function(id, label, candidates, selected, none_text) {
+  if (length(candidates) == 0) return(shiny::tags$p(class = "kit-hint", none_text))
+  shiny::radioButtons(
+    id, label,
+    # 原文：不去掉
+    choiceNames = c(list("\u4e0d\u53bb\u6389"), purrr::map(candidates, shiny::tags$code)),
+    choiceValues = c("", candidates),
+    selected = pivot_keep_choice(selected, candidates),
+    inline = TRUE
+  )
 }
 
 # 選欄框的標題（跟著模式換）
@@ -385,7 +669,8 @@ pivot_longer_run <- function(df, args) {
     withCallingHandlers(
       tidyr::pivot_longer(
         df, cols = dplyr::all_of(cols), names_to = args$names_to, values_to = args$values_to,
-        names_prefix = args$names_prefix, names_pattern = args$names_pattern,
+        names_prefix = args$names_prefix, names_sep = args$names_sep,
+        names_pattern = args$names_pattern, names_transform = args$names_transform,
         values_drop_na = isTRUE(args$values_drop_na)
       ),
       warning = function(w) {
@@ -473,10 +758,15 @@ pivot_longer_cols <- function(df, args) {
   }
 }
 
-# 轉換前的檢查；沒問題時 NULL
-pivot_longer_problem <- function(df, cols, args) {
+#' 轉換前的檢查；沒問題時 NULL
+#'
+#' 有用欄名規則（names_prefix、names_sep、names_pattern）時，names_check = TRUE 會再查
+#' 兩個不同的欄是不是變成一樣的值（一樣的值分不出原本是哪一欄）。
+#' @noRd
+pivot_longer_problem <- function(df, cols, args, names_check = TRUE) {
   # 原文：請選要轉成長格式的欄。
   if (length(cols) == 0) return("\u8acb\u9078\u8981\u8f49\u6210\u9577\u683c\u5f0f\u7684\u6b04\u3002")
+  if (!is.null(args$names_problem)) return(args$names_problem)
   new_cols <- c(args$names_to, args$values_to)
   if (any(!nzchar(new_cols))) {
     return(paste0(
@@ -491,14 +781,19 @@ pivot_longer_problem <- function(df, cols, args) {
     # 原文：新的欄名  | 、 |  和留下來的欄撞名了，請換一個名字。
     return(paste0("\u65b0\u7684\u6b04\u540d ", paste(clash, collapse = "\u3001"), " \u548c\u7559\u4e0b\u4f86\u7684\u6b04\u649e\u540d\u4e86\uff0c\u8acb\u63db\u4e00\u500b\u540d\u5b57\u3002"))
   }
-  if (length(args$names_to) > 1 && is.null(args$names_pattern)) {
+  if (length(args$names_to) > 1 && is.null(args$names_pattern) && is.null(args$names_sep)) {
     return(paste0(
-      # 原文：「 | 」填了好幾個名稱時，要在進階設定填「
-      "\u300c", PIVOT_LONGER_LABELS[["names_to"]], "\u300d\u586b\u4e86\u597d\u5e7e\u500b\u540d\u7a31\u6642\uff0c\u8981\u5728\u9032\u968e\u8a2d\u5b9a\u586b\u300c",
-      # 原文：（names_pattern）」，說明怎麼從欄名切出各部分。
-      PIVOT_LONGER_LABELS[["names_pattern"]], "\uff08names_pattern\uff09\u300d\uff0c\u8aaa\u660e\u600e\u9ebc\u5f9e\u6b04\u540d\u5207\u51fa\u5404\u90e8\u5206\u3002"
+      # 原文：「 | 」填了好幾個名稱時，
+      "\u300c", PIVOT_LONGER_LABELS[["names_to"]], "\u300d\u586b\u4e86\u597d\u5e7e\u500b\u540d\u7a31\u6642\uff0c",
+      # 原文：要在「欄名怎麼變成值」選一種切法，
+      "\u8981\u5728\u300c\u6b04\u540d\u600e\u9ebc\u8b8a\u6210\u503c\u300d\u9078\u4e00\u7a2e\u5207\u6cd5\uff0c",
+      # 原文：或在進階設定填「從欄名取出部分的規則」（names_pattern）。
+      "\u6216\u5728\u9032\u968e\u8a2d\u5b9a\u586b\u300c\u5f9e\u6b04\u540d\u53d6\u51fa\u90e8\u5206\u7684\u898f\u5247\u300d\uff08names_pattern\uff09\u3002"
     ))
   }
+  uses_rule <- !is.null(args$names_prefix) || !is.null(args$names_sep) ||
+    !is.null(args$names_pattern)
+  if (names_check && uses_rule) return(pivot_names_check(cols, args)$problem)
   NULL
 }
 
@@ -545,16 +840,37 @@ pivot_longer_code <- function(args, data_name, cols_code = NULL, col_names = NUL
     if (is.null(v) || identical(v, d[[name]])) return(NULL)
     paste0(name, " = ", r_str(v))
   }
+  rules <- c("names_prefix", "names_sep", "names_pattern")
+  rule_parts <- purrr::map(rules, str_arg)
+  transform <- names(args$names_transform)
   parts <- c(
     paste0("cols = ", cols_code),
     str_arg("names_to"), str_arg("values_to"),
-    str_arg("names_prefix"), str_arg("names_pattern"),
+    unlist(rule_parts),
+    if (length(transform) > 0) {
+      paste0("names_transform = list(", paste0(r_col(transform), " = as.integer",
+                                               collapse = ", "), ")")
+    },
     if (isTRUE(args$values_drop_na)) "values_drop_na = TRUE"
   )
+  lines <- paste0("    ", parts, c(rep(",", length(parts) - 1), ""))
+  # app 依點選寫出的規則：上面加一行說明
+  used <- rules[lengths(rule_parts) > 0]
+  if (isTRUE(args$names_by_app) && length(used) > 0) {
+    at <- match(unlist(rule_parts)[1], parts)
+    escaped <- any(grepl("\\", unlist(args[used]), fixed = TRUE))
+    note <- paste0(
+      # 原文：、 |  是 app 依你點的設定寫出來的
+      "    # ", paste(used, collapse = "\u3001"), " \u662f app \u4f9d\u4f60\u9ede\u7684\u8a2d\u5b9a\u5beb\u51fa\u4f86\u7684",
+      # 原文：；\\\\. 這種寫法是符號本身
+      if (escaped) "\uff1b\\\\. \u9019\u7a2e\u5beb\u6cd5\u662f\u7b26\u865f\u672c\u8eab"
+    )
+    lines <- append(lines, note, after = at - 1)
+  }
   code_lines(
     paste0(data_name, " |>"),
     "  pivot_longer(",
-    paste0("    ", parts, c(rep(",", length(parts) - 1), "")),
+    lines,
     "  )"
   )
 }

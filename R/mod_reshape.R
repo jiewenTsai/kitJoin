@@ -452,6 +452,8 @@ mod_reshape_server <- function(id, files, working, goto) {
           a <- longer()
           # 原文：選要轉成長格式的欄
           if (length(a$cols) == 0 && !isTRUE(a$cols_exclude)) return("\u9078\u8981\u8f49\u6210\u9577\u683c\u5f0f\u7684\u6b04")
+          # 原文：改「欄名怎麼變成值」的設定
+          if (!is.null(a$names_problem)) return("\u6539\u300c\u6b04\u540d\u600e\u9ebc\u8b8a\u6210\u503c\u300d\u7684\u8a2d\u5b9a")
           return(character(0))
         }
         w <- wider()

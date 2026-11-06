@@ -218,3 +218,15 @@ test_that("轉換前提示格式；方向相反時提醒；寬轉長的程式碼
     expect_no_match(output$guess$html, "kit-callout-warn")
   })
 })
+
+test_that("寬轉長分頁：點選去掉開頭，結果與程式碼一致", {
+  wide <- tibble::tibble(id = 1:2, `score.t1` = c(1, 2), `score.t2` = c(3, 4))
+  shiny::testServer(mod_reshape_server, args = reshape_args(list(wide)), {
+    session$setInputs(file = "f1", direction = "longer")
+    session$setInputs(`longer-cols` = c("score.t1", "score.t2"), `longer-names_to` = "wave",
+                      `longer-name_start` = "score.t")
+    session$setInputs(run = 1)
+    expect_equal(result()$result$wave, c("1", "2", "1", "2"))
+    expect_match(output$code$html, "names_prefix 是 app")
+  })
+})
