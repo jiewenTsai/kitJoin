@@ -78,6 +78,35 @@ kit_upload_todo <- function(ns, n_files, need = 1L) {
   shiny::actionLink(ns("goto_upload_status"), "\u5230\u300c\u6a94\u6848\u4e0a\u50b3\u300d\u52a0\u5165\u6a94\u6848 \u2192")
 }
 
+#' 這個分頁現在看得到嗎（reactive）
+#'
+#' kit_server() 把 input$tabs 放在 session$userData$kit_active_tab；模組單獨測試、
+#' 或 testServer() 沒有設定分頁時一律當作看得到（行為和以前一樣）。
+#' @noRd
+kit_tab_visible <- function(session, tab) {
+  active <- session$userData$kit_active_tab
+  shiny::reactive({
+    if (!is.function(active)) return(TRUE)
+    a <- active()
+    is.null(a) || identical(a, tab)
+  })
+}
+
+#' trigger() 變了就執行 handler()，但分頁看不到時先記著，切到那一頁才執行
+#'
+#' 上傳大檔案時，還沒打開的分頁不用先算（例如 ID 下拉選單要算每一欄的不重複比例）。
+#' handler 在 isolate() 裡執行（和 observeEvent() 一樣）。
+#' @noRd
+kit_when_visible <- function(visible, trigger, handler, ignoreNULL = FALSE) {
+  pending <- shiny::reactiveVal(FALSE)
+  shiny::observeEvent(trigger(), pending(TRUE), ignoreNULL = ignoreNULL)
+  shiny::observe({
+    if (!pending() || !visible()) return()
+    pending(FALSE)
+    shiny::isolate(handler())
+  })
+}
+
 #' 目前使用哪一份資料（原始 / 遺漏值處理後 / 再經過篩選），以及檔案數不足的提醒
 #'
 #' @param n_files 已上傳檔案數（不到 2 個時回傳 NULL：由主要按鈕上面的「還差」說）

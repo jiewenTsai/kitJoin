@@ -188,22 +188,69 @@ na_mode_suggestion <- function(kit_cells, label_cells) {
 count_code_cells <- function(
     dfs,
     codes = parse_na_codes(kit_na_codes_default())$codes,
-    keywords = NULL) {
-  sum(purrr::map_int(dfs, function(df) {
+    keywords = NULL,
+    hits = NULL) {
+  # hits：code_hits_by_col() 讀檔時算好的「各欄 × 各預設代碼」格數（dfs 必須是原始上傳的資料）。
+  # 大檔案（6,000 列 × 600 欄 × 10 檔）每算一次要掃 3,600 萬格，上傳頁、② 要算好幾次，所以讀檔時算一次；
+  # 要算的代碼在預設代碼裡的直接查表，不在裡面的才掃資料
+  use_hits <- !is.null(hits) && length(hits) == length(dfs)
+  # 很多欄的數值標籤一模一樣（同一個量表）：同樣的標籤只判斷一次
+  label_memo <- new.env(parent = emptyenv())
+  by_label_of <- function(x) {
+    labels <- attr(x, "labels", exact = TRUE)
+    if (length(labels) == 0) return(NULL)
+    key <- paste(c(typeof(labels), names(labels), format(unclass(labels), digits = 15)), collapse = "\r")
+    if (!exists(key, envir = label_memo, inherits = FALSE)) {
+      assign(key, list(label_na_codes_of(x, keywords)), envir = label_memo)
+    }
+    get(key, envir = label_memo, inherits = FALSE)[[1]]
+  }
+  sum(purrr::map_int(seq_along(dfs), function(i) {
+    df <- dfs[[i]]
     cols <- setdiff(names(df), guess_id_cols(names(df)))
-    sum(purrr::map_int(df[cols], function(x) {
-      col_codes <- codes
-      by_label <- if (length(keywords) > 0) label_na_codes_of(x, keywords)
-      if (length(by_label) > 0 && is.numeric(by_label)) {
-        col_codes <- union(col_codes, by_label)
+    pre <- if (use_hits) hits[[i]]
+    sum(purrr::map_int(cols, function(col) {
+      x <- df[[col]]
+      by_label <- if (length(keywords) > 0) by_label_of(x)
+      n <- 0
+      if (is.numeric(x)) {
+        col_codes <- if (is.numeric(by_label)) union(codes, by_label) else codes
+        row <- if (!is.null(pre)) match(col, rownames(pre$counts))
+        if (!is.null(row) && !is.na(row)) {
+          known <- match(col_codes, pre$codes)
+          n <- sum(pre$counts[row, known[!is.na(known)]])
+          rest <- col_codes[is.na(known)]
+          if (length(rest) > 0) n <- n + sum(as.numeric(unclass(x)) %in% rest)
+        } else if (length(col_codes) > 0) {
+          n <- sum(as.numeric(unclass(x)) %in% col_codes)
+        }
       }
-      n <- if (is.numeric(x)) sum(as.numeric(unclass(x)) %in% col_codes) else 0L
       if (length(by_label) > 0 && !is.numeric(by_label)) {
         n <- n + sum(na_code_hits(x, by_label))
       }
       as.integer(n)
     }))
   }))
+}
+
+#' 上傳頁讀檔時算好的遺漏值代碼格數；files 沒有提供時（測試用的假 files）NULL
+#' @noRd
+upload_code_hits <- function(files) {
+  if (is.function(files$code_hits)) files$code_hits() else NULL
+}
+
+#' 各數值欄等於每個預設遺漏值代碼的格數（讀檔時算一次，給 count_code_cells(hits =) 用）
+#' @return list(codes = 代碼, counts = 整數矩陣：列是數值欄（列名是欄名）、行是代碼)
+#' @noRd
+code_hits_by_col <- function(df, codes = parse_na_codes(kit_na_codes_default())$codes) {
+  num <- names(df)[vapply(df, is.numeric, logical(1))]
+  counts <- matrix(0L, nrow = length(num), ncol = length(codes), dimnames = list(num, NULL))
+  if (length(codes) > 0) {
+    for (j in seq_along(num)) {
+      counts[j, ] <- tabulate(match(as.numeric(unclass(df[[num[j]]])), codes), length(codes))
+    }
+  }
+  list(codes = codes, counts = counts)
 }
 
 #' 將遺漏值代碼改為 NA

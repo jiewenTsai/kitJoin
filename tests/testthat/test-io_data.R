@@ -168,3 +168,21 @@ test_that("CSV 欄位值的前後空白照樣去掉（和 read_csv() 相同）",
   writeLines(c("id,txt", "1, 9999", "2,a"), path)
   expect_equal(read_data_file(path, "a.csv")$data$txt, c("9999", "a"))
 })
+
+test_that("file_is_utf8() 分段檢查：段尾切在中文字中間也判斷正確", {
+  dir <- withr::local_tempdir()
+  utf8 <- file.path(dir, "utf8.csv")
+  writeLines(enc2utf8(c("id,name", "1,王小明", "2,李大華😀")), utf8, useBytes = TRUE)
+  big5 <- write_big5(file.path(dir, "big5.csv"), c("id,name", "1,王小明"))
+  ascii <- file.path(dir, "ascii.csv")
+  writeLines(c("id,x", "1,2"), ascii)
+  for (chunk in c(1L, 2L, 3L, 5L, 7L, 1e6L)) {
+    expect_true(file_is_utf8(utf8, chunk = chunk))
+    expect_false(file_is_utf8(big5, chunk = chunk))
+    expect_true(file_is_utf8(ascii, chunk = chunk))
+  }
+  # BIG5 檔只用 CP950 讀一次，結果和以前一樣
+  out <- read_data_file(big5, "big5.csv")
+  expect_equal(out$encoding, "BIG5")
+  expect_equal(out$data$name, "王小明")
+})

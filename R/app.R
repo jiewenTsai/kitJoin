@@ -79,6 +79,8 @@ kit_server <- function(input, output, session) {
   goto <- function(tab) {
     shiny::updateTabsetPanel(session, "tabs", selected = tab)
   }
+  # 目前的分頁：還沒打開的分頁不用在上傳時就先算（kit_tab_visible()）
+  session$userData$kit_active_tab <- shiny::reactive(input$tabs)
   files <- mod_upload_server("upload", goto)
   working <- mod_missing_server("missing", files, goto)
   # 篩選與摘要：介面和 working 一樣，後面的分頁拿它（勾選時是篩選後的資料）

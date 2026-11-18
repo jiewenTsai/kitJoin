@@ -155,8 +155,17 @@ mod_upload_server <- function(id, goto) {
       uploads <- input$files
       recs <- records()
       bad <- character(0)
-      for (i in seq_len(nrow(uploads))) {
+      n_up <- nrow(uploads)
+      # 大檔案一次加好幾個要等一陣子：進度條顯示讀到第幾個檔
+      # 原文：讀取檔案中…
+      shiny::withProgress(message = "\u8b80\u53d6\u6a94\u6848\u4e2d\u2026", value = 0, {
+      for (i in seq_len(n_up)) {
         name <- uploads$name[i]
+        shiny::setProgress(
+          value = (i - 1) / n_up,
+          # 原文：第  |  /  |  個：
+          detail = paste0("\u7b2c ", i, " / ", n_up, " \u500b\uff1a", name)
+        )
         read <- tryCatch({
           out <- read_data_file(
             uploads$datapath[i], name,
@@ -211,9 +220,13 @@ mod_upload_server <- function(id, goto) {
           shiny::isolate(labels[[r$key]]) %||% ""
         })
         labels[[key]] <- next_label(taken)
+        # 預設遺漏值代碼的格數：上傳頁、② 都要用，讀檔時算一次（count_code_cells(hits =)）
+        read$code_hits <- code_hits_by_col(read$data)
         recs[[length(recs) + 1L]] <- c(list(key = key, name = name), read)
         watch_row(key)
       }
+      shiny::setProgress(value = 1)
+      })
       failed(bad)
       records(recs)
     })
@@ -331,7 +344,8 @@ mod_upload_server <- function(id, goto) {
     has_codes <- shiny::reactive({
       count_code_cells(
         purrr::map(records(), "data"),
-        keywords = parse_na_keywords(kit_na_label_keywords_default())
+        keywords = parse_na_keywords(kit_na_label_keywords_default()),
+        hits = purrr::map(records(), "code_hits")
       ) > 0
     })
     next_target <- shiny::reactive({
@@ -459,6 +473,8 @@ mod_upload_server <- function(id, goto) {
       names = shiny::reactive(purrr::map_chr(records(), "name")),
       labels = current_labels,
       data = shiny::reactive(purrr::map(records(), "data")),
+      # 各檔各欄等於預設遺漏值代碼的格數（code_hits_by_col()）
+      code_hits = shiny::reactive(purrr::map(records(), "code_hits")),
       encodings = shiny::reactive(purrr::map_chr(records(), "encoding")),
       # 讀檔時保留了 SPSS／Stata 的使用者自訂遺漏值（「用 R 怎麼做」的讀檔程式碼跟著寫）
       user_na = shiny::reactive(isTRUE(input$user_na))

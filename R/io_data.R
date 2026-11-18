@@ -429,12 +429,16 @@ read_csv_auto <- function(path) {
       show_col_types = FALSE,
       guess_max = Inf,
       locale = readr::locale(encoding = enc),
-      progress = FALSE
+      progress = FALSE,
+      # 多執行緒在 Windows 反而比較慢（6,000 列 × 600 欄：約 1.8 秒 → 1 秒）
+      num_threads = 1
     )
   }
   # readr 以 UTF-8 讀非 UTF-8 檔不會報錯，需檢查結果是否為合法 UTF-8；
   # CP950 為 BIG5 超集（Windows 繁中 Excel 另存的 CSV）
   encodings <- c("UTF-8" = "UTF-8", BIG5 = "CP950")
+  # 先看位元組是不是合法 UTF-8：不是的話不用先用 UTF-8 整個解析一次（BIG5 檔原本要讀兩次）
+  if (identical(file_is_utf8(path), FALSE)) encodings <- encodings["BIG5"]
   for (label in names(encodings)) {
     df <- tryCatch(try_enc(encodings[[label]]), error = function(e) NULL)
     if (!is.null(df) && kit_is_valid_utf8_df(df)) {
@@ -453,6 +457,41 @@ read_csv_auto <- function(path) {
     }
   )
   csv_result(df, "Latin1", delim)
+}
+
+#' 檔案的位元組是不是合法 UTF-8
+#'
+#' 分段讀（每段 32 MB），段尾可能切在多位元組字的中間：段尾 4 個位元組內最後一個字首（0xC0 以上）
+#' 起的位元組留到下一段一起檢查。
+#' @return TRUE / FALSE；判斷不了（例如檔案裡有 NUL 位元組）時 NA
+#' @noRd
+file_is_utf8 <- function(path, chunk = 32L * 1024L^2) {
+  con <- tryCatch(file(path, "rb"), error = function(e) NULL)
+  if (is.null(con)) return(NA)
+  on.exit(close(con))
+  carry <- raw(0)
+  repeat {
+    bytes <- readBin(con, "raw", chunk)
+    last <- length(bytes) == 0
+    bytes <- c(carry, bytes)
+    carry <- raw(0)
+    if (!last) {
+      n <- length(bytes)
+      tail_bytes <- as.integer(bytes[max(1L, n - 3L):n])
+      lead <- which(tail_bytes >= 0xC0L)
+      ascii <- which(tail_bytes < 0x80L)
+      if (length(lead) > 0 && (length(ascii) == 0 || max(lead) > max(ascii))) {
+        from <- max(1L, n - 3L) + max(lead) - 1L
+        carry <- bytes[from:n]
+        bytes <- bytes[seq_len(from - 1L)]
+      }
+    }
+    if (length(bytes) > 0) {
+      ok <- tryCatch(validUTF8(rawToChar(bytes)), error = function(e) NA)
+      if (!isTRUE(ok)) return(ok)
+    }
+    if (last) return(TRUE)
+  }
 }
 
 csv_result <- function(df, encoding, delim = ",") {

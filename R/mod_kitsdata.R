@@ -714,7 +714,10 @@ mod_kitsdata_server <- function(id, files, working, goto, na_codes = NULL, stack
     reverse_rule <- shiny::reactive(input$reverse_rule %||% "suffix")
     # 一波一檔、欄名帶著各檔的波次記號（soc01_w1、soc01_w2）：輸出題號預設去掉記號
     file_tags <- shiny::reactive(kits_detect_file_wave_tags(lapply(dfs(), names)))
+    # 題目設定要掃過每一欄（600 欄 × 10 檔約 2 秒）：切到這一頁才算
+    kits_visible <- kit_tab_visible(session, "kitsdata")
     shiny::observe({
+      if (!kits_visible()) return()
       a <- all_settings()
       new <- a[a$column %in% candidates()$numeric, ]
       old <- shiny::isolate(settings())

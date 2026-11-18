@@ -1,3 +1,17 @@
+# kitJoin 0.11.2
+
+* Faster upload of many large files. Adding 10 files of 6,000 rows × 600 columns took about 24 s
+  (SAV) and 35 s (CSV) on a test computer; now about 17 s and 18 s, and a progress bar shows which
+  file is being read (「讀取檔案中… 第 3 / 10 個」).
+* The count of missing-value codes (used by the upload page's next-step hint and by 「遺漏值處理」)
+  is worked out once per file when it is read, for each default code, instead of scanning every
+  cell several times. Columns with the same SPSS value labels are checked once.
+* Pages not yet opened no longer do their heavy work at upload time: the ID choices of
+  「橫向資料串接」 (share of distinct values of every column) and the item settings of
+  「kits 作答檔」 are computed when that page is opened.
+* CSV: the bytes are checked for UTF-8 first, so a BIG5 file is parsed once instead of twice; and
+  readr reads with one thread, which is faster on Windows.
+
 # kitJoin 0.11.1
 
 * Wording on screen: 「欄」 (column) is now 「直欄」 and 「列」 (row) is now 「橫列」 everywhere in the

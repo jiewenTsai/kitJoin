@@ -128,7 +128,8 @@ mod_join_server <- function(id, files, working, goto) {
       if (length(dfs) == 0) return(character(0))
       purrr::reduce(purrr::map(dfs, names), intersect)
     })
-    shiny::observeEvent(common_cols(), {
+    # ID 下拉選單要算每一欄的不重複比例（600 欄 × 10 檔約 1–2 秒）：切到這一頁才算
+    kit_when_visible(kit_tab_visible(session, "join"), common_cols, function() {
       common <- common_cols()
       choices <- id_choices(files$data(), common)
       selected <- intersect(input$by_vars %||% character(0), common)
@@ -139,7 +140,7 @@ mod_join_server <- function(id, files, working, goto) {
         choices = choices,
         selected = selected
       )
-    }, ignoreNULL = FALSE)
+    })
 
     # 不分波次的欄位：任何一個檔案有的非 ID 欄
     shiny::observeEvent(list(files$data(), id_spec()$by_vars), {

@@ -121,3 +121,27 @@ test_that("依數值標籤：負數的遺漏值代碼（-9 = 遺漏值）要算�
   codes <- label_na_codes_of(x, "遺漏")
   expect_equal(unname(codes), -9)
 })
+
+test_that("讀檔時先算好的代碼格數（hits）和直接算的結果一樣", {
+  lab <- haven::labelled(c(1, 2, 98, 9999), c("是" = 1, "否" = 2, "遺漏值" = 98))
+  df1 <- tibble::tibble(id = c(9999, 1, 2, 3), x = c(9999, 7777, 1, NA), y = c("9999", "a", "b", NA), z = lab)
+  df2 <- tibble::tibble(sid = 1:3, w = c(-9, 9999, 5))
+  dfs <- list(df1, df2)
+  hits <- lapply(dfs, code_hits_by_col)
+  kw <- parse_na_keywords(kit_na_label_keywords_default())
+  expect_equal(count_code_cells(dfs, hits = hits), count_code_cells(dfs))
+  expect_equal(count_code_cells(dfs, keywords = kw, hits = hits), count_code_cells(dfs, keywords = kw))
+  expect_equal(
+    count_code_cells(dfs, codes = numeric(0), keywords = kw, hits = hits),
+    count_code_cells(dfs, codes = numeric(0), keywords = kw)
+  )
+  # 代碼有些不在預設裡：查表的加上直接掃的
+  expect_equal(count_code_cells(dfs, codes = 7777, hits = hits), 1)
+  expect_equal(count_code_cells(dfs, codes = c(-9, 9999), hits = hits), count_code_cells(dfs, codes = c(-9, 9999)))
+  # 同樣文字的數值標籤，一欄是數字、一欄是文字：不能共用判斷結果
+  df3 <- tibble::tibble(
+    a = haven::labelled(c(1, 9), c("遺漏值" = 9, "有" = 1)),
+    b = haven::labelled(c("1", "9"), c("遺漏值" = "9", "有" = "1"))
+  )
+  expect_equal(count_code_cells(list(df3), codes = numeric(0), keywords = kw), 2)
+})

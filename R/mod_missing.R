@@ -221,7 +221,7 @@ mod_missing_server <- function(id, files, goto = NULL) {
       auto_note(NULL)
       if (length(dfs) == 0 || mode() != "codes") return()
       s <- na_mode_suggestion(
-        count_code_cells(dfs),
+        count_code_cells(dfs, hits = upload_code_hits(files)),
         count_code_cells(dfs, codes = numeric(0), keywords = keywords())
       )
       if (isTRUE(s$switch)) shiny::updateRadioButtons(session, "na_mode", selected = "labels")
@@ -648,7 +648,9 @@ mod_missing_server <- function(id, files, goto = NULL) {
           "raw"
         }
       }),
-      code_cells = shiny::reactive(count_code_cells(files$data(), keywords = keywords())),
+      code_cells = shiny::reactive(
+        count_code_cells(files$data(), keywords = keywords(), hits = upload_code_hits(files))
+      ),
       # 這一頁的狀態（步驟分頁打 ✓ 用）
       state = tab$state
     )
